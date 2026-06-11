@@ -291,7 +291,7 @@
         "jsCode": "const category = $('Parse LLM Response').item.json.job_event.category || 'other';\n\nconst LABEL_MAP = {\n  'interview_invite': 'job/interview',\n  'offer':            'job/offer',\n  'rejection':        'job/rejected',\n  'test_task':        'job/test-task',\n  'newsletter':       'job/newsletter',\n  'hr_invite':        'job/active',\n  'follow_up':        'job/active',\n  'job_posting':      'job/active',\n  'platform_notification': 'job/active',\n  'manual_note':      'job/active',\n  'other':            'job/active'\n};\n\nreturn [{ json: {\n  job_id:         $input.item.json.job_id,\n  job_id_fuzzy:   $input.item.json.job_id_fuzzy,\n  stage:          $input.item.json.stage,\n  priority:       $input.item.json.priority,\n  summary:        $input.item.json.summary,\n  interview_date: $input.item.json.interview_date,\n  event_id:       $input.item.json.event_id,\n  gmail_label:    LABEL_MAP[category] || 'job/active'\n} }];"
       },
       "id": "76e539c7-e19d-47aa-b485-cbbdcb410e35",
-      "name": "Map Category → Gmail Label",
+      "name": "Map Category: Gmail Label",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -325,7 +325,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const labels     = $input.item.json.labels || [];\nconst targetName = $('Map Category \\u2192 Gmail Label').item.json.gmail_label;\nconst msgId      = $('Gmail Trigger').item.json.id;\nconst prev       = $('Map Category \\u2192 Gmail Label').item.json;\nconst match      = labels.find(l => l.name === targetName);\nif (!match) {\n  console.warn('JobRadar: label not found:', targetName);\n}\nreturn [{ json: {\n  ...prev,\n  gmail_message_id: msgId,\n  label_id:    match ? match.id : null,\n  label_found: !!match\n} }];"
+        "jsCode": "const labels     = $input.item.json.labels || [];\nconst targetName = $('Map Category: Gmail Label').first().json.gmail_label;\nconst msgId      = $('Gmail Trigger').first().json.id;\nconst prev       = $('Map Category: Gmail Label').first().json;\nconst match      = labels.find(l => l.name === targetName);\nif (!match) {\n  console.warn('JobRadar: label not found:', targetName);\n}\nreturn [{ json: {\n  ...prev,\n  gmail_message_id: msgId,\n  label_id:    match ? match.id : null,\n  label_found: !!match\n} }];"
       },
       "id": "6732e02c-24c6-4713-9306-bc4b1bdc8a71",
       "name": "Gmail: Find Label ID",
@@ -410,7 +410,7 @@
         "sendBody": true,
         "contentType": "raw",
         "rawContentType": "application/json",
-        "body": "=={{ JSON.stringify({ summary: \"Interview: \" + ($json.summary || $json.job_id_fuzzy || \"Job\"), start: { date: $json.interview_date }, end: { date: $json.interview_date }, reminders: { useDefault: true } }) }}",
+        "body": "={{ const d = ($json.interview_date || \"\").substring(0, 10); JSON.stringify({ summary: \"Interview: \" + ($json.summary || $json.job_id_fuzzy || \"Job\"), start: { date: d }, end: { date: d }, description: $json.calendar_description || \"\", reminders: { useDefault: true } }) }}",
         "options": {
           "timeout": 10000
         }
@@ -425,7 +425,7 @@
       ],
       "credentials": {
         "googleCalendarOAuth2Api": {
-          "id": "",
+          "id": "eLQTxfMJ6kryO1Iy",
           "name": "Google Calendar account"
         }
       },
@@ -512,7 +512,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const data = $input.item.json;\nif (!data.interview_date) {\n  return [];\n}\nreturn [{ json: data }];"
+        "jsCode": "const d = $input.item.json;\n\n// Build HTML description for Google Calendar\nconst parts = [];\nif (d.summary)        parts.push('<b>📋 Описание:</b> ' + d.summary);\nif (d.stage)          parts.push('<b>📍 Стадия:</b> ' + d.stage);\nif (d.priority)       parts.push('<b>⭐ Приоритет:</b> ' + d.priority);\nif (d.gmail_label)    parts.push('<b>🏷 Label:</b> ' + d.gmail_label);\nif (d.job_id_fuzzy)   parts.push('<b>🆔 ID:</b> ' + d.job_id_fuzzy);\n\nreturn [{ json: {\n  ...d,\n  calendar_description: parts.join('<br>'),\n  has_interview_date: !!(d.interview_date)\n} }];\n"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -521,7 +521,140 @@
         192
       ],
       "id": "a41eb2d5-3cc9-4d12-97f4-2eb2e2280fee",
-      "name": "Code in JavaScript"
+      "name": "Format for Calendar"
+    },
+    {
+      "parameters": {
+        "url": "={{ 'https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=' + new Date(new Date().setHours(0,0,0,0)).toISOString() + '&timeMax=' + new Date(new Date().setHours(23,59,59,999)).toISOString() + '&q=' + encodeURIComponent('[Список вакансий]') + '&singleEvents=true' }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleCalendarOAuth2Api",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "d1e2f3a4-b5c6-7890-abcd-100000000001",
+      "name": "GCal: Get Today List Event",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        240,
+        350
+      ],
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "eLQTxfMJ6kryO1Iy",
+          "name": "Google Calendar account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Find existing \"[Список вакансий]\" event from today's events\nconst items = $input.item.json.items || [];\nconst listEvent = items.find(e => (e.summary || '').includes('[Список вакансий]'));\n\n// Build new vacancy entry for description\nconst prev = $('Format for Calendar').first().json;\nconst entry = [\n  '<b>———————————</b>',\n  '<b>' + (prev.summary || prev.job_id_fuzzy || 'Вакансия') + '</b>',\n  'Стадия: ' + (prev.stage || '—'),\n  'Приоритет: ' + (prev.priority || '—'),\n  'Label: ' + (prev.gmail_label || '—'),\n  'ID: ' + (prev.job_id_fuzzy || '—')\n].join('<br>');\n\nconst existingDesc = listEvent ? (listEvent.description || '') : '';\nconst newDesc = existingDesc ? existingDesc + '<br><br>' + entry : entry;\n\nreturn [{ json: {\n  list_event_id: listEvent ? listEvent.id : null,\n  list_event_found: !!listEvent,\n  new_description: newDesc\n} }];\n"
+      },
+      "id": "d1e2f3a4-b5c6-7890-abcd-100000000002",
+      "name": "GCal: Parse List Event",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        464,
+        350
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "cond_list_found",
+              "leftValue": "={{ $json.list_event_found }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "d1e2f3a4-b5c6-7890-abcd-100000000003",
+      "name": "IF: list_event_found",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        688,
+        350
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ 'https://www.googleapis.com/calendar/v3/calendars/primary/events/' + $json.list_event_id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleCalendarOAuth2Api",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ description: $json.new_description }) }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "d1e2f3a4-b5c6-7890-abcd-100000000004",
+      "name": "GCal: Update List Event",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        912,
+        256
+      ],
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "eLQTxfMJ6kryO1Iy",
+          "name": "Google Calendar account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleCalendarOAuth2Api",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ const today = new Date().toISOString().substring(0, 10); JSON.stringify({ summary: \"[Список вакансий] \" + today, start: { date: today }, end: { date: today }, description: $json.new_description }) }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "d1e2f3a4-b5c6-7890-abcd-100000000005",
+      "name": "GCal: Create List Event",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        912,
+        464
+      ],
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "eLQTxfMJ6kryO1Iy",
+          "name": "Google Calendar account"
+        }
+      },
+      "onError": "continueRegularOutput"
     }
   ],
   "pinData": {
@@ -675,28 +808,28 @@
       "main": [
         [
           {
-            "node": "Map Category → Gmail Label",
+            "node": "Map Category: Gmail Label",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Map Category → Gmail Label": {
+    "Map Category: Gmail Label": {
       "main": [
         [
-          {
-            "node": "Gmail: Fetch Labels",
-            "type": "main",
-            "index": 0
-          },
           {
             "node": "IF: priority = high",
             "type": "main",
             "index": 0
           },
           {
-            "node": "Code in JavaScript",
+            "node": "Format for Calendar",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Gmail: Fetch Labels",
             "type": "main",
             "index": 0
           }
@@ -761,11 +894,56 @@
         ]
       ]
     },
-    "Code in JavaScript": {
+    "Format for Calendar": {
       "main": [
         [
           {
             "node": "Google Calendar: Create Event",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "GCal: Get Today List Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GCal: Get Today List Event": {
+      "main": [
+        [
+          {
+            "node": "GCal: Parse List Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GCal: Parse List Event": {
+      "main": [
+        [
+          {
+            "node": "IF: list_event_found",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: list_event_found": {
+      "main": [
+        [
+          {
+            "node": "GCal: Update List Event",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "GCal: Create List Event",
             "type": "main",
             "index": 0
           }
