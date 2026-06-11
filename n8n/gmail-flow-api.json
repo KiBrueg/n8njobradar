@@ -339,7 +339,7 @@
         "sendBody": true,
         "contentType": "raw",
         "rawContentType": "application/json",
-        "body": "={{ const d = ($json.interview_date || \"\").substring(0, 10); JSON.stringify({ summary: \"Interview: \" + ($json.summary || $json.job_id_fuzzy || \"Job\"), start: { date: d }, end: { date: d }, description: $json.calendar_description || \"\", reminders: { useDefault: true } }) }}",
+        "body": "={{ JSON.stringify({ summary: \"Interview: \" + ($json.summary || $json.job_id_fuzzy || \"Job\"), start: { date: ($json.interview_date || \"\").substring(0, 10) }, end: { date: ($json.interview_date || \"\").substring(0, 10) }, description: $json.calendar_description || \"\", reminders: { useDefault: true } }) }}",
         "options": {
           "timeout": 10000
         }
@@ -566,7 +566,7 @@
         "sendBody": true,
         "contentType": "raw",
         "rawContentType": "application/json",
-        "body": "={{ const today = new Date().toISOString().substring(0, 10); JSON.stringify({ summary: \"[Список вакансий] \" + today, start: { date: today }, end: { date: today }, description: $json.new_description }) }}",
+        "body": "={{ JSON.stringify({ summary: \"[Список вакансий] \" + new Date().toISOString().substring(0, 10), start: { date: new Date().toISOString().substring(0, 10) }, end: { date: new Date().toISOString().substring(0, 10) }, description: $json.new_description || \"\" }) }}",
         "options": {
           "timeout": 10000
         }
