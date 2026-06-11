@@ -1,0 +1,11 @@
+[
+  {
+    "id": "msg_test_priority_001",
+    "threadId": "thread_priority_001",
+    "snippet": "Hallo Kirill, ich habe Ihr LinkedIn-Profil gesehen und bin sehr beeindruckt von Ihrer Erfahrung mit Python-Microservices bei SnapSum.",
+    "subject": "Exklusive Anfrage: Principal Backend Engineer — Remote-First Startup",
+    "from": "Max Müller <m.mueller@techrecruit.de>",
+    "date": "2026-06-10T11:00:00Z",
+    "text": "Hallo Kirill,\n\nich bin Max Müller, Senior Recruiter bei TechRecruit GmbH. Ich habe Ihr LinkedIn-Profil gesehen und bin sehr beeindruckt von Ihrer Erfahrung mit Python-Microservices und Ihrem Projekt SnapSum.\n\nEin spannendes FinTech-Startup sucht derzeit einen Principal Backend Engineer:\n\n- Vollständig remote, wahlweise Berlin-Office\n- Gehalt: 120.000–140.000 EUR/Jahr + Equity\n- Stack: Python, FastAPI, PostgreSQL, Kubernetes, AWS\n- Team: 15 Engineers, Series B (€20M)\n\nIch würde mich sehr freuen, Ihnen mehr zu erzählen. Hätten Sie Zeit für ein kurzes 20-minütiges Gespräch diese Woche?\n\nBeste Grüße,\nMax Müller\nSenior Technical Recruiter\nTechRecruit GmbH\n+49 30 123456789"
+  }
+]

@@ -1,0 +1,34 @@
+{
+  "case_id": "04_offer",
+  "description": "Job offer with full salary and deadline — stage offer, action update_stage",
+  "input_source": "email",
+  "source_detail": "email",
+  "email_account_id": "mailde_main",
+  "email_address": "user@mail.de",
+  "email_provider": "imap",
+  "subject": "Job Offer — Senior Python Developer",
+  "date": "2026-06-06T16:45:00Z",
+  "raw_text": "Dear Kirill,\n\nWe are delighted to offer you the position of Senior Python Developer at Fintech Ventures GmbH, Berlin.\n\nOffer details:\n- Start date: August 1, 2026\n- Salary: 92,000 EUR gross/year\n- Work arrangement: Hybrid (3 days remote, 2 days Berlin office)\n- Contract: Permanent (unbefristet)\n- Probationary period: 6 months\n\nPlease review the attached contract and confirm your acceptance by June 20, 2026.\n\nWe look forward to welcoming you to the team.\n\nKind regards,\nMarkus Weber\nHead of Engineering\nFintech Ventures GmbH\nmarkus.weber@fintechventures.de",
+  "raw_meta": {
+    "sender": "markus.weber@fintechventures.de",
+    "thread_id": "thread-ftv-004",
+    "message_id": "msg-ftv-004"
+  },
+  "expected": {
+    "is_job_related": true,
+    "category": "offer",
+    "action": "update_stage",
+    "stage": "offer",
+    "priority_level": 1,
+    "priority": "high",
+    "company_id": "fintech-ventures-gmbh",
+    "employer_name": "Markus Weber",
+    "job_title": "Senior Python Developer",
+    "response_deadline": "2026-06-20",
+    "salary_min": 92000,
+    "salary_max": 92000,
+    "salary_currency": "EUR",
+    "salary_period": "annual",
+    "work_mode": "hybrid"
+  }
+}

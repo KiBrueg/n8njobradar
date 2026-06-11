@@ -1,0 +1,30 @@
+{
+  "case_id": "09_ambiguous_date",
+  "description": "Email with relative date ('this Friday') and no timezone — tests date resolution and UTC assumption",
+  "input_source": "email",
+  "source_detail": "email",
+  "email_account_id": "mailde_main",
+  "email_address": "user@mail.de",
+  "email_provider": "imap",
+  "subject": "Quick Intro Call — Infrastructure Engineer",
+  "date": "2026-06-08T13:00:00Z",
+  "raw_text": "Hi Kirill,\n\nHope you're well! I found your profile on LinkedIn and wanted to reach out about a Infrastructure Engineer opening at our company, LogiTech GmbH.\n\nWould you be available for a quick 20-minute intro call this Friday at 11am? We can do it over Zoom.\n\nIf Friday doesn't work, let me know a slot that suits you.\n\nThanks,\nSophie Wagner\nTalent Acquisition\nLogiTech GmbH\nsophie.wagner@logitech-gmbh.de",
+  "raw_meta": {
+    "sender": "sophie.wagner@logitech-gmbh.de",
+    "thread_id": "thread-lt-009",
+    "message_id": "msg-lt-009"
+  },
+  "expected": {
+    "is_job_related": true,
+    "category": "interview_invite",
+    "action": "add_interview",
+    "stage": "interview",
+    "priority_level": 1,
+    "priority": "high",
+    "company_id": "logitech-gmbh",
+    "job_title": "Infrastructure Engineer",
+    "interview_date": "2026-06-12T11:00:00Z",
+    "call_platform": "zoom",
+    "note": "TRICKY: 'this Friday' from email_date 2026-06-08 (Monday) = 2026-06-12. No TZ stated = assume UTC. Prompt must resolve relative dates."
+  }
+}

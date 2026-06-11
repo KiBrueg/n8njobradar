@@ -1,0 +1,11 @@
+[
+  {
+    "id": "msg_test_newsletter_001",
+    "threadId": "thread_newsletter_001",
+    "snippet": "Entdecke unsere neuen Python-Kurse! Lerne Backend-Entwicklung in 12 Wochen. Jetzt anmelden und 30% sparen.",
+    "subject": "Neu: Python Bootcamp 2026 — Jetzt 30% Rabatt sichern!",
+    "from": "newsletter@codecamp.de",
+    "date": "2026-06-10T08:00:00Z",
+    "text": "Lieber Abonnent,\n\nentdecke unsere brandneuen Programmierkurse für 2026!\n\n✅ Python Backend Bootcamp — 12 Wochen, Live-Sessions\n   Regulärer Preis: €999 | Jetzt nur: €699 (-30%!)\n   Einschreibung bis 30. Juni 2026\n\n✅ FastAPI & Microservices Masterclass — 6 Wochen\n   Regulärer Preis: €599 | Jetzt nur: €419\n\n✅ AWS Cloud für Entwickler — 8 Wochen\n   Regulärer Preis: €799 | Jetzt nur: €559\n\nAlle Kurse beinhalten: Zertifikat, Karriere-Coaching, Job-Garantie*\n\n👉 Jetzt anmelden: https://codecamp.de/kurse\n\nViele Grüße,\nDas CodeCamp-Team\n\nAbmelden | Datenschutz"
+  }
+]

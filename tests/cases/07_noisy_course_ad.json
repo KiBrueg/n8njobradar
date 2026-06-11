@@ -1,0 +1,24 @@
+{
+  "case_id": "07_noisy_course_ad",
+  "description": "Course/training ad that mentions 'vacancy' and 'jobs' — must be is_job_related: false",
+  "input_source": "email",
+  "source_detail": "email",
+  "email_account_id": "gmail_main",
+  "email_address": "user@gmail.com",
+  "email_provider": "gmail",
+  "subject": "Unlock 500+ Tech Vacancies — Join Our Bootcamp Today",
+  "date": "2026-06-08T07:30:00Z",
+  "raw_text": "Hi there!\n\nAre you struggling to land tech jobs? Our 12-week Python & DevOps Bootcamp has helped 3,000+ graduates land their dream vacancy!\n\nWhat you'll learn:\n- Python, Docker, Kubernetes\n- CI/CD pipelines\n- Cloud (AWS, GCP)\n\nWe guarantee job placement assistance. Our graduates work at Google, Amazon, and hundreds of startups.\n\nEarly bird discount: 40% off until June 15!\n\nEnroll now: https://techbootcamp.example.com/enroll\n\nUnsubscribe: https://techbootcamp.example.com/unsubscribe",
+  "raw_meta": {
+    "sender": "promo@techbootcamp.example.com",
+    "thread_id": "thread-spam-007",
+    "message_id": "msg-spam-007"
+  },
+  "expected": {
+    "is_job_related": false,
+    "category": "newsletter",
+    "action": "ignore",
+    "company_id": null,
+    "stage": null
+  }
+}

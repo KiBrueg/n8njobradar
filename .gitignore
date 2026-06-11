@@ -1,0 +1,46 @@
+# ============================================================
+# JobRadar — .gitignore
+# ============================================================
+
+# --- Secrets & credentials ---
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.p12
+secrets/
+
+# --- Session summaries (contain real IPs, API keys, emails) ---
+sessions/
+
+# --- Personal CV data ---
+spec/base-lebenslauf.yaml
+spec/lebenslauf-template.html
+
+# --- Internal session & Claude context files ---
+NEXT_SESSION.md
+.claude/
+
+# --- Generated outputs ---
+outputs/
+*.bak
+*.sql.gz
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- Editors ---
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# --- Python ---
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/

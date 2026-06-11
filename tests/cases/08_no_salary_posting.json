@@ -1,0 +1,31 @@
+{
+  "case_id": "08_no_salary_posting",
+  "description": "Scraped job posting — no salary mentioned, salary_* must all be null",
+  "input_source": "scraped",
+  "source_detail": "scraped_json",
+  "email_account_id": null,
+  "email_address": null,
+  "email_provider": null,
+  "subject": "Staff Engineer – Platform, Zalando SE",
+  "date": null,
+  "raw_text": "Staff Engineer – Platform\nZalando SE | Berlin, Germany | Full-time | Hybrid\n\nAbout the role:\nWe are looking for a Staff Engineer to join our Platform Engineering team. You will architect and build the foundational systems that power Zalando's e-commerce platform at scale.\n\nRequirements:\n- 8+ years of software engineering experience\n- Deep expertise in distributed systems\n- Strong background in Golang or Java\n- Experience with Kubernetes and cloud-native architectures (AWS preferred)\n- Experience leading technical projects across teams\n\nWe do not publish salary information publicly. Compensation is competitive and discussed during the interview process.\n\nApply: https://jobs.zalando.com/en/jobs/staff-engineer-platform",
+  "raw_meta": {
+    "url": "https://jobs.zalando.com/en/jobs/staff-engineer-platform"
+  },
+  "expected": {
+    "is_job_related": true,
+    "category": "job_posting",
+    "action": "create_job",
+    "stage": "discovered",
+    "company_id": "zalando-se",
+    "job_title": "Staff Engineer",
+    "seniority": "staff",
+    "work_mode": "hybrid",
+    "salary_min": null,
+    "salary_max": null,
+    "salary_currency": null,
+    "salary_period": null,
+    "source_url": "https://jobs.zalando.com/en/jobs/staff-engineer-platform",
+    "tech_stack": ["Golang", "Java", "Kubernetes", "AWS"]
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "case_id": "06_test_task",
+  "description": "Technical test assignment with deadline — stage test_task, action update_stage",
+  "input_source": "email",
+  "source_detail": "email",
+  "email_account_id": "gmail_main",
+  "email_address": "user@gmail.com",
+  "email_provider": "gmail",
+  "subject": "Technical Assignment — SRE Position, DataFlow GmbH",
+  "date": "2026-06-07T09:00:00Z",
+  "raw_text": "Hi Kirill,\n\nGreat speaking with you yesterday! As discussed, please find below the technical assignment for the Site Reliability Engineer position.\n\nTask: Design and implement a basic monitoring setup for a Python microservice using Prometheus and Grafana in Docker Compose. Include alerting rules for latency > 500ms.\n\nDeadline: Please submit via GitHub by June 14, 2026 (23:59 CET).\n\nSend the GitHub link to: tech@dataflow.de\n\nGood luck!\n\nTobias Richter\nEngineering Manager\nDataFlow GmbH",
+  "raw_meta": {
+    "sender": "tobias.richter@dataflow.de",
+    "thread_id": "thread-df-006",
+    "message_id": "msg-df-006"
+  },
+  "expected": {
+    "is_job_related": true,
+    "category": "test_task",
+    "action": "update_stage",
+    "stage": "test_task",
+    "priority_level": 1,
+    "priority": "high",
+    "company_id": "dataflow-gmbh",
+    "job_title": "Site Reliability Engineer",
+    "response_deadline": "2026-06-14",
+    "has_had_call": true,
+    "tech_stack": ["Python", "Prometheus", "Grafana", "Docker"]
+  }
+}

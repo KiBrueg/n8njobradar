@@ -1,0 +1,11 @@
+[
+  {
+    "id": "msg_test_jobrapido_001",
+    "threadId": "thread_jobrapido_001",
+    "snippet": "Zina hat neue Jobs für dich! Senior Python Developer bei TechCorp Berlin, Backend Engineer bei Zalando Hamburg. Jetzt bewerben!",
+    "subject": "Zina hat passende Jobs für dich gefunden!",
+    "from": "noreply@jobrapido.com",
+    "date": "2026-06-10T09:00:00Z",
+    "text": "Hallo Kirill,\n\nZina hat neue Jobangebote für dich gefunden, die zu deinem Profil passen:\n\n1. Senior Python Developer — TechCorp GmbH, Berlin\n   Gehalt: 70.000–90.000 EUR/Jahr | Remote möglich\n   Jetzt bewerben: https://jobrapido.com/apply/123456\n\n2. Backend Engineer (Python/FastAPI) — Zalando SE, Hamburg\n   Gehalt: 80.000–100.000 EUR/Jahr | Hybrid\n   Jetzt bewerben: https://jobrapido.com/apply/789012\n\n3. Software Engineer — N26 GmbH, Berlin\n   Gehalt: 75.000–95.000 EUR/Jahr | Remote\n   Jetzt bewerben: https://jobrapido.com/apply/345678\n\nMit freundlichen Grüßen,\nDas Jobrapido-Team\n\nAbmelden: https://jobrapido.com/unsubscribe"
+  }
+]

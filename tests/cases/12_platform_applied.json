@@ -1,0 +1,27 @@
+{
+  "case_id": "12_platform_applied",
+  "description": "StepStone application submission confirmation — platform_notification, stage=applied",
+  "input_source": "email",
+  "source_detail": "email",
+  "email_account_id": "gmail_main",
+  "email_address": "user@gmail.com",
+  "email_provider": "gmail",
+  "subject": "Bewerbungsbestätigung: Senior Software Engineer bei Zalando SE",
+  "date": "2026-06-10T13:00:00Z",
+  "raw_text": "Hallo Kirill Brüggemann,\n\nIhre Bewerbung wurde erfolgreich übermittelt!\n\nPosition: Senior Software Engineer\nUnternehmen: Zalando SE\nStandort: Berlin, Deutschland\nEingegangen am: 10. Juni 2026 um 13:00 Uhr\n\nDas Unternehmen wird Ihre Bewerbung prüfen und sich bei Ihnen melden.\n\nSie können den Status Ihrer Bewerbung jederzeit in Ihrem StepStone-Profil einsehen.\n\nViel Erfolg!\nIhr StepStone-Team",
+  "raw_meta": {
+    "sender": "noreply@stepstone.de",
+    "thread_id": "thread-stepstone-applied-001",
+    "message_id": "msg-stepstone-applied-001"
+  },
+  "expected": {
+    "is_job_related": true,
+    "category": "platform_notification",
+    "action": "log_only",
+    "stage": "applied",
+    "priority_level": 3,
+    "company_name": "Zalando SE",
+    "company_id": "zalando",
+    "job_title": "Senior Software Engineer"
+  }
+}

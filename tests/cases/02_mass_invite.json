@@ -1,0 +1,33 @@
+{
+  "case_id": "02_mass_invite",
+  "description": "Generic mass HR invite from a job platform — priority medium, stage screening",
+  "input_source": "email",
+  "source_detail": "email",
+  "email_account_id": "gmail_main",
+  "email_address": "user@gmail.com",
+  "email_provider": "gmail",
+  "subject": "Your profile matches our Senior Backend Engineer opening",
+  "date": "2026-06-07T14:22:00Z",
+  "raw_text": "Hi there,\n\nI came across your profile and think you could be a great fit for a Senior Backend Engineer role at Acme Solutions GmbH in Berlin.\n\nWe are looking for someone with strong Python skills and experience in distributed systems.\n\nThe position offers:\n- Salary: 80,000–95,000 EUR/year\n- Hybrid work (2 days office)\n- Berlin or remote within Germany\n\nIf you're interested, please reply to this email or apply here: https://acme-solutions.de/jobs/senior-be\n\nBest regards,\nHR Team, Acme Solutions GmbH",
+  "raw_meta": {
+    "sender": "jobs@acme-solutions.de",
+    "thread_id": "thread-mass-002",
+    "message_id": "msg-mass-002"
+  },
+  "expected": {
+    "is_job_related": true,
+    "category": "hr_invite",
+    "action": "create_job",
+    "stage": "discovered",
+    "priority_level": 2,
+    "priority": "medium",
+    "company_id": "acme-solutions-gmbh",
+    "job_title": "Senior Backend Engineer",
+    "salary_min": 80000,
+    "salary_max": 95000,
+    "salary_currency": "EUR",
+    "salary_period": "annual",
+    "work_mode": "hybrid",
+    "seniority": "senior"
+  }
+}

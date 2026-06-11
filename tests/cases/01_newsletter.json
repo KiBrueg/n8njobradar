@@ -1,0 +1,24 @@
+{
+  "case_id": "01_platform_digest_stepstone",
+  "description": "Job digest from StepStone with real job listings — platform_notification, is_job_related=true, action=log_only (updated 2026-06-10: rule change — job digests with actual listings are now tracked)",
+  "input_source": "email",
+  "source_detail": "email",
+  "email_account_id": "gmail_main",
+  "email_address": "user@gmail.com",
+  "email_provider": "gmail",
+  "subject": "Neue Jobs für Sie: 47 passende Stellen diese Woche",
+  "date": "2026-06-08T08:00:00Z",
+  "raw_text": "Hallo, hier sind Ihre wöchentlichen Job-Empfehlungen von StepStone.\n\nDieser Newsletter enthält 47 Jobs, die zu Ihrem Profil passen könnten:\n\n• Backend Developer bei TechCorp AG – München\n• DevOps Engineer bei StartupXYZ – Remote\n• Python Engineer bei BigBank – Frankfurt\n\nAlle Angebote ansehen: https://stepstone.de/jobs\n\nSie erhalten diesen Newsletter wöchentlich. Abmelden: https://stepstone.de/unsubscribe",
+  "raw_meta": {
+    "sender": "newsletter@stepstone.de",
+    "thread_id": "thread-news-001",
+    "message_id": "msg-news-001"
+  },
+  "expected": {
+    "is_job_related": true,
+    "category": "platform_notification",
+    "action": "log_only",
+    "priority_level": 3,
+    "company_name": "StepStone"
+  }
+}

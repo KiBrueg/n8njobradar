@@ -1,0 +1,11 @@
+[
+  {
+    "id": "msg_test_rejection_001",
+    "threadId": "thread_rejection_001",
+    "snippet": "Sehr geehrter Herr Brüggemann, vielen Dank für Ihre Bewerbung. Wir haben uns entschieden, mit anderen Kandidaten fortzufahren.",
+    "subject": "Ihre Bewerbung als Backend Developer — Entscheidung",
+    "from": "recruiting@globaltech.de",
+    "date": "2026-06-10T12:00:00Z",
+    "text": "Sehr geehrter Herr Brüggemann,\n\nvielen Dank für Ihr Interesse an der Position Backend Developer bei GlobalTech AG und die Zeit, die Sie in Ihren Bewerbungsprozess investiert haben.\n\nNach sorgfältiger Prüfung aller Bewerbungen haben wir uns entschieden, mit anderen Kandidaten fortzufahren, deren Profil noch besser zu unseren aktuellen Anforderungen passt.\n\nWir wünschen Ihnen für Ihre weitere Jobsuche alles Gute.\n\nMit freundlichen Grüßen,\nRecruiting Team\nGlobalTech AG\nHamburg, Germany"
+  }
+]

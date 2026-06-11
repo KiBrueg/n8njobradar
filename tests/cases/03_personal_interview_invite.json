@@ -1,0 +1,39 @@
+{
+  "case_id": "03_personal_interview_invite",
+  "description": "Personal HR invite with specific interview date — priority HIGH, action add_interview",
+  "input_source": "email",
+  "source_detail": "email",
+  "email_account_id": "gmail_main",
+  "email_address": "user@gmail.com",
+  "email_provider": "gmail",
+  "subject": "Interview Invitation — DevOps Engineer @ N26 (Kirill)",
+  "date": "2026-06-08T10:15:00Z",
+  "raw_text": "Hi Kirill,\n\nI reviewed your resume and I'd love to invite you personally for an interview for our DevOps Engineer position at N26.\n\nI'd like to schedule a 45-minute call on Tuesday, June 16, 2026 at 3:00 PM CET via Google Meet. I'll send the meeting link separately.\n\nThe role is fully remote within the EU. We offer 85,000–105,000 EUR gross/year depending on experience.\n\nPlease confirm your availability by June 10.\n\nBest,\nAnna Müller\nSenior Technical Recruiter\nN26 GmbH\nanna.mueller@n26.com",
+  "raw_meta": {
+    "sender": "anna.mueller@n26.com",
+    "thread_id": "thread-n26-003",
+    "message_id": "msg-n26-003"
+  },
+  "expected": {
+    "is_job_related": true,
+    "category": "interview_invite",
+    "action": "add_interview",
+    "stage": "interview",
+    "priority_level": 1,
+    "priority": "high",
+    "company_id": "n26",
+    "company_name": "N26 GmbH",
+    "employer_name": "Anna Müller",
+    "employer_id": "anna.mueller@n26.com",
+    "job_title": "DevOps Engineer",
+    "interview_date": "2026-06-16T14:00:00Z",
+    "response_deadline": "2026-06-10",
+    "call_platform": "google_meet",
+    "salary_min": 85000,
+    "salary_max": 105000,
+    "salary_currency": "EUR",
+    "salary_period": "annual",
+    "work_mode": "remote",
+    "seniority": "senior"
+  }
+}

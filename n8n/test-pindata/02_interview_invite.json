@@ -1,0 +1,11 @@
+[
+  {
+    "id": "msg_test_interview_001",
+    "threadId": "thread_interview_001",
+    "snippet": "Hallo Kirill, wir freuen uns, Sie zum technischen Interview einzuladen. Termin: Dienstag, 16. Juni 2026 um 14:00 Uhr CEST via Google Meet.",
+    "subject": "Einladung zum technischen Interview — Senior Backend Engineer",
+    "from": "Anna Schmidt <anna.schmidt@acme-solutions.de>",
+    "date": "2026-06-10T10:30:00Z",
+    "text": "Hallo Kirill,\n\nvielen Dank für Ihre Bewerbung als Senior Backend Engineer bei Acme Solutions GmbH.\n\nWir freuen uns, Sie zu einem technischen Interview einzuladen:\n\nTermin: Dienstag, 16. Juni 2026 um 14:00 Uhr CEST\nDauer: ca. 60 Minuten\nPlattform: Google Meet (Link folgt)\n\nBitte bestätigen Sie den Termin bis Freitag, 12. Juni 2026.\n\nDas Interview wird folgende Themen umfassen:\n- Systemdesign und Architektur\n- Python / FastAPI\n- PostgreSQL und Datenbankoptimierung\n\nMit freundlichen Grüßen,\nAnna Schmidt\nSenior HR Business Partner\nAcme Solutions GmbH\nBerlin, Germany"
+  }
+]

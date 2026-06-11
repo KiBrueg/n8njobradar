@@ -1,0 +1,30 @@
+{
+  "case_id": "10_follow_up",
+  "description": "Follow-up / status check email after interview — stage stays interview, action update_stage",
+  "input_source": "email",
+  "source_detail": "email",
+  "email_account_id": "gmail_main",
+  "email_address": "user@gmail.com",
+  "email_provider": "gmail",
+  "subject": "Re: Interview Follow-up — Platform Engineer @ Scale AI",
+  "date": "2026-06-08T15:00:00Z",
+  "raw_text": "Hi Kirill,\n\nJust following up on your interview last Thursday with our engineering team. We're currently finalising our decision and expect to get back to you by end of this week (Friday, June 12).\n\nIn the meantime, feel free to reach out if you have any questions.\n\nBest,\nRachel Kim\nRecruiter, Scale AI\nrachel.kim@scale.ai",
+  "raw_meta": {
+    "sender": "rachel.kim@scale.ai",
+    "thread_id": "thread-scaleai-010",
+    "message_id": "msg-scaleai-010"
+  },
+  "expected": {
+    "is_job_related": true,
+    "category": "follow_up",
+    "action": "update_stage",
+    "stage": "interview",
+    "priority_level": 1,
+    "priority": "high",
+    "company_id": "scale-ai",
+    "job_title": "Platform Engineer",
+    "response_deadline": "2026-06-12",
+    "has_had_call": true,
+    "note": "TRICKY: mentions 'last Thursday' (past call) → has_had_call: true. Response deadline 'by end of this week' = Friday June 12."
+  }
+}

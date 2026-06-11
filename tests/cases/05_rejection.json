@@ -1,0 +1,27 @@
+{
+  "case_id": "05_rejection",
+  "description": "Rejection after interview — stage rejected, action update_stage",
+  "input_source": "email",
+  "source_detail": "email",
+  "email_account_id": "gmail_main",
+  "email_address": "user@gmail.com",
+  "email_provider": "gmail",
+  "subject": "Re: Your application for Backend Engineer at CloudBase AG",
+  "date": "2026-06-05T11:30:00Z",
+  "raw_text": "Dear Kirill,\n\nThank you for taking the time to interview with us for the Backend Engineer position at CloudBase AG.\n\nAfter careful consideration, we have decided to move forward with another candidate whose experience more closely matches our current needs.\n\nWe appreciate your interest in CloudBase AG and wish you all the best in your job search.\n\nBest regards,\nLena Schneider\nHR Manager\nCloudBase AG",
+  "raw_meta": {
+    "sender": "lena.schneider@cloudbase.ag",
+    "thread_id": "thread-cb-005",
+    "message_id": "msg-cb-005"
+  },
+  "expected": {
+    "is_job_related": true,
+    "category": "rejection",
+    "action": "update_stage",
+    "stage": "rejected",
+    "priority_level": 1,
+    "priority": "high",
+    "company_id": "cloudbase-ag",
+    "has_had_call": true
+  }
+}

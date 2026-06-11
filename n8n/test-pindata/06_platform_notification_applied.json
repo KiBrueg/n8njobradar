@@ -1,0 +1,11 @@
+[
+  {
+    "id": "msg_test_applied_001",
+    "threadId": "thread_applied_001",
+    "snippet": "Ihre Bewerbung für Senior Software Engineer bei Zalando SE wurde erfolgreich übermittelt.",
+    "subject": "Bewerbungsbestätigung: Senior Software Engineer bei Zalando SE",
+    "from": "noreply@stepstone.de",
+    "date": "2026-06-10T13:00:00Z",
+    "text": "Hallo Kirill Brüggemann,\n\nIhre Bewerbung wurde erfolgreich übermittelt!\n\nPosition: Senior Software Engineer\nUnternehmen: Zalando SE\nStandort: Berlin, Deutschland\nEingegangen am: 10. Juni 2026 um 13:00 Uhr\n\nDas Unternehmen wird Ihre Bewerbung prüfen und sich bei Ihnen melden.\n\nSie können den Status Ihrer Bewerbung jederzeit in Ihrem StepStone-Profil einsehen.\n\nViel Erfolg!\nIhr StepStone-Team"
+  }
+]
