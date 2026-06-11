@@ -19,16 +19,16 @@
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.1,
       "position": [200, 300],
-      "notes": "Runs 3h after API/scraper flows (04:00) to give processing time.\nSends one Telegram message with top 5 jobs discovered in the last 24h."
+      "notes": "Runs 3h after API/scraper flows (04:00).\nSends all jobs from last 24h grouped by compatibility tier."
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT\n  j.job_title,\n  c.name                                                    AS company_name,\n  j.location,\n  j.work_mode::text,\n  j.priority::text,\n  j.source_url,\n  j.summary,\n  COALESCE((ev.parsed_json->>'relevance_score')::int, 0)   AS relevance_score\nFROM jobs j\nJOIN companies c ON c.company_id = j.company_id\nJOIN LATERAL (\n  SELECT parsed_json\n  FROM job_events\n  WHERE job_id = j.id\n  ORDER BY created_at DESC\n  LIMIT 1\n) ev ON TRUE\nWHERE j.created_at >= NOW() - INTERVAL '24 hours'\n  AND COALESCE((ev.parsed_json->>'relevance_score')::int, 0) >= 80\nORDER BY relevance_score DESC\nLIMIT 5;",
+        "query": "SELECT\n  j.job_title,\n  c.name                                                    AS company_name,\n  j.location,\n  j.work_mode::text,\n  j.priority::text,\n  j.source_url,\n  j.summary,\n  COALESCE((ev.parsed_json->>'relevance_score')::int, 0)   AS relevance_score\nFROM jobs j\nJOIN companies c ON c.company_id = j.company_id\nJOIN LATERAL (\n  SELECT parsed_json\n  FROM job_events\n  WHERE job_id = j.id\n  ORDER BY created_at DESC\n  LIMIT 1\n) ev ON TRUE\nWHERE j.created_at >= NOW() - INTERVAL '24 hours'\nORDER BY relevance_score DESC;",
         "options": {}
       },
       "id": "n_db_query",
-      "name": "DB: Fetch TOP-5 Jobs",
+      "name": "DB: Fetch All Jobs 24h",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [440, 300],
@@ -38,18 +38,18 @@
           "name": "radar"
         }
       },
-      "notes": "Fetches top 5 newly discovered jobs (created in last 24h) with relevance >= 80.\nrelevance_score lives in job_events.parsed_json — retrieved via LATERAL JOIN."
+      "notes": "All jobs from last 24h, sorted by relevance DESC.\nNo threshold — all go into digest grouped by tier."
     },
     {
       "parameters": {
-        "jsCode": "// Aggregate all rows from Postgres into a single Telegram message.\n// Returns [] if no qualifying jobs found — flow stops silently.\n\nconst rows = $input.all().map(item => item.json);\n\n// Filter out the Postgres 'no rows' edge case (single row with null job_title)\nconst jobs = rows.filter(r => r.job_title);\n\nif (jobs.length === 0) {\n  return []; // Nothing to send — stop\n}\n\nfunction esc(text) {\n  return (text || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\n}\n\nconst medals = ['\\u{1F947}', '\\u{1F948}', '\\u{1F949}', '4\\uFE0F\\u20E3', '5\\uFE0F\\u20E3'];\n\nconst today = new Date().toLocaleDateString('de-DE', {\n  timeZone: 'Europe/Berlin',\n  day: '2-digit', month: '2-digit', year: 'numeric'\n});\n\nconst lines = [\n  '\\u{1F4CA} <b>JobRadar — Daily Digest</b>',\n  '<i>Top jobs discovered in the last 24h</i>',\n  ''\n];\n\njobs.forEach((job, i) => {\n  const medal = medals[i] || `${i + 1}.`;\n  const location = esc(job.location || 'N/A');\n  const workMode = job.work_mode ? ` (${esc(job.work_mode)})` : '';\n  const summary = job.summary ? esc(job.summary).substring(0, 120) + (job.summary.length > 120 ? '\\u2026' : '') : '';\n\n  lines.push(`${medal} <b>${esc(job.job_title)}</b>`);\n  lines.push(`   \\u{1F3E2} ${esc(job.company_name)} | \\u{1F4CD} ${location}${workMode}`);\n  lines.push(`   \\u{2B50} Relevance: <b>${job.relevance_score}/100</b>`);\n  if (summary) lines.push(`   \\u{1F4AC} <i>${summary}</i>`);\n  if (job.source_url) lines.push(`   \\u{1F517} <a href=\"${esc(job.source_url)}\">View posting</a>`);\n  lines.push('');\n});\n\nlines.push(`<i>\\u{1F4C5} ${today} | ${jobs.length} job${jobs.length !== 1 ? 's' : ''} matched</i>`);\n\nreturn [{ json: { text: lines.join('\\n') } }];"
+        "jsCode": "const rows = $input.all().map(item => item.json);\nconst jobs = rows.filter(r => r.job_title);\n\nif (jobs.length === 0) return [];\n\nfunction esc(text) {\n  return (text || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\n}\n\nconst today = new Date().toLocaleDateString('de-DE', {\n  timeZone: 'Europe/Berlin',\n  day: '2-digit', month: '2-digit', year: 'numeric'\n});\n\nconst high = jobs.filter(j => j.relevance_score >= 80);\nconst mid  = jobs.filter(j => j.relevance_score >= 50 && j.relevance_score < 80);\nconst low  = jobs.filter(j => j.relevance_score < 50);\n\nconst lines = [\n  `\\u{1F4CA} <b>JobRadar \\u2014 ${today}</b>`,\n  `<i>${jobs.length} ${jobs.length === 1 ? 'вакансия' : 'вакансий'} за 24ч</i>`,\n  ''\n];\n\n// HIGH tier — full details\nif (high.length > 0) {\n  lines.push('\\u{1F525} <b>Высокая совместимость</b>');\n  const medals = ['\\u{1F947}','\\u{1F948}','\\u{1F949}','4\\uFE0F\\u20E3','5\\uFE0F\\u20E3','6\\uFE0F\\u20E3','7\\uFE0F\\u20E3','8\\uFE0F\\u20E3','9\\uFE0F\\u20E3','\\u{1F51F}'];\n  high.forEach((job, i) => {\n    const medal = medals[i] || `${i + 1}.`;\n    const location = job.location ? ` | \\u{1F4CD} ${esc(job.location)}` : '';\n    const wm = job.work_mode ? ` (${esc(job.work_mode)})` : '';\n    const summary = job.summary\n      ? esc(job.summary).substring(0, 120) + (job.summary.length > 120 ? '\\u2026' : '')\n      : '';\n    lines.push(`${medal} <b>${esc(job.job_title)}</b>`);\n    lines.push(`   \\u{1F3E2} ${esc(job.company_name)}${location}${wm}`);\n    lines.push(`   \\u2B50 <b>${job.relevance_score}/100</b>`);\n    if (summary) lines.push(`   \\u{1F4AC} <i>${summary}</i>`);\n    if (job.source_url) lines.push(`   \\u{1F517} <a href=\"${esc(job.source_url)}\">Открыть</a>`);\n    lines.push('');\n  });\n}\n\n// MID tier — brief\nif (mid.length > 0) {\n  lines.push('\\u2B50 <b>Средняя совместимость</b>');\n  mid.forEach(job => {\n    const link = job.source_url ? ` \\u2014 <a href=\"${esc(job.source_url)}\">\\u{1F517}</a>` : '';\n    lines.push(`\\u2022 <b>${esc(job.job_title)}</b> @ ${esc(job.company_name)} [${job.relevance_score}]${link}`);\n  });\n  lines.push('');\n}\n\n// LOW tier — list only\nif (low.length > 0) {\n  lines.push('\\u{1F4CB} <b>Низкая совместимость</b>');\n  low.forEach(job => {\n    const link = job.source_url ? ` <a href=\"${esc(job.source_url)}\">\\u{1F517}</a>` : '';\n    lines.push(`\\u2022 ${esc(job.job_title)} @ ${esc(job.company_name)}${link}`);\n  });\n}\n\nreturn [{ json: { text: lines.join('\\n') } }];"
       },
       "id": "n_format",
       "name": "Format Digest Message",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [660, 300],
-      "notes": "Aggregates all DB rows into one Telegram HTML message.\nReturns [] if no qualifying jobs — silently stops the flow."
+      "notes": "Groups all jobs into 3 tiers by relevance_score:\n🔥 ≥80 — full details\n⭐ 50–79 — brief\n📋 <50 — list with link\nReturns [] if no jobs — flow stops silently."
     },
     {
       "parameters": {
@@ -72,10 +72,10 @@
   "connections": {
     "Schedule: Daily 07:00": {
       "main": [
-        [{ "node": "DB: Fetch TOP-5 Jobs", "type": "main", "index": 0 }]
+        [{ "node": "DB: Fetch All Jobs 24h", "type": "main", "index": 0 }]
       ]
     },
-    "DB: Fetch TOP-5 Jobs": {
+    "DB: Fetch All Jobs 24h": {
       "main": [
         [{ "node": "Format Digest Message", "type": "main", "index": 0 }]
       ]

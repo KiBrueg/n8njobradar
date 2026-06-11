@@ -288,7 +288,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const category = $('Parse LLM Response').item.json.job_event.category || 'other';\n\nconst LABEL_MAP = {\n  'interview_invite': 'job/interview',\n  'offer':            'job/offer',\n  'rejection':        'job/rejected',\n  'test_task':        'job/test-task',\n  'newsletter':       'job/newsletter',\n  'hr_invite':        'job/active',\n  'follow_up':        'job/active',\n  'job_posting':      'job/active',\n  'platform_notification': 'job/active',\n  'manual_note':      'job/active',\n  'other':            'job/active'\n};\n\nreturn [{ json: {\n  job_id:         $input.item.json.job_id,\n  job_id_fuzzy:   $input.item.json.job_id_fuzzy,\n  stage:          $input.item.json.stage,\n  priority:       $input.item.json.priority,\n  summary:        $input.item.json.summary,\n  interview_date: $input.item.json.interview_date,\n  event_id:       $input.item.json.event_id,\n  gmail_label:    LABEL_MAP[category] || 'job/active'\n} }];"
+        "jsCode": "const event    = $('Parse LLM Response').item.json.job_event;\nconst category = event.category || 'other';\n\nconst LABEL_MAP = {\n  'interview_invite': 'job/interview',\n  'offer':            'job/offer',\n  'rejection':        'job/rejected',\n  'test_task':        'job/test-task',\n  'newsletter':       'job/newsletter',\n  'hr_invite':        'job/active',\n  'follow_up':        'job/active',\n  'job_posting':      'job/active',\n  'platform_notification': 'job/active',\n  'manual_note':      'job/active',\n  'other':            'job/active'\n};\n\nreturn [{ json: {\n  job_id:          $input.item.json.job_id,\n  job_id_fuzzy:    $input.item.json.job_id_fuzzy,\n  stage:           $input.item.json.stage,\n  priority:        $input.item.json.priority,\n  summary:         $input.item.json.summary,\n  interview_date:  $input.item.json.interview_date,\n  event_id:        $input.item.json.event_id,\n  gmail_label:     LABEL_MAP[category] || 'job/active',\n  category:        category,\n  company_name:    event.company_name    || null,\n  job_title:       event.job_title       || null,\n  salary_min:      event.salary_min      || null,\n  salary_max:      event.salary_max      || null,\n  salary_currency: event.salary_currency || null\n} }];"
       },
       "id": "76e539c7-e19d-47aa-b485-cbbdcb410e35",
       "name": "Map Category: Gmail Label",
@@ -297,7 +297,8 @@
       "position": [
         -416,
         64
-      ]
+      ],
+      "onError": "continueRegularOutput"
     },
     {
       "parameters": {
@@ -321,7 +322,8 @@
           "id": "7rf7G4mjBXt01V7T",
           "name": "Gmail account"
         }
-      }
+      },
+      "onError": "continueRegularOutput"
     },
     {
       "parameters": {
@@ -334,7 +336,8 @@
       "position": [
         240,
         -224
-      ]
+      ],
+      "onError": "continueRegularOutput"
     },
     {
       "parameters": {
@@ -369,7 +372,8 @@
       "position": [
         496,
         -112
-      ]
+      ],
+      "onError": "continueRegularOutput"
     },
     {
       "parameters": {
@@ -464,7 +468,8 @@
       "position": [
         32,
         464
-      ]
+      ],
+      "onError": "continueRegularOutput"
     },
     {
       "parameters": {
@@ -521,7 +526,8 @@
         192
       ],
       "id": "a41eb2d5-3cc9-4d12-97f4-2eb2e2280fee",
-      "name": "Format for Calendar"
+      "name": "Format for Calendar",
+      "onError": "continueRegularOutput"
     },
     {
       "parameters": {
@@ -654,6 +660,54 @@
           "name": "Google Calendar account"
         }
       },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "cond_offer",
+              "leftValue": "={{ $json.category }}",
+              "rightValue": "offer",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "offer-if-node-0001",
+      "name": "IF: category = offer",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [-200, 700],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendMessage",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ chat_id: $env.TELEGRAM_CHAT_ID, parse_mode: 'HTML', text: [ '\\u{1F389} <b>ОФФЕР ПОЛУЧЕН!</b>', '', '\\u{1F3E2} <b>' + ($json.company_name || 'Компания') + '</b>', '\\u{1F4BC} ' + ($json.job_title || '\\u2014'), ($json.salary_min ? '\\u{1F4B0} ' + $json.salary_min + ($json.salary_max ? '\\u2013' + $json.salary_max : '') + ' ' + ($json.salary_currency || '') : null), ($json.interview_date ? '\\u{1F4C5} Дата выхода: ' + $json.interview_date.substring(0, 10) : null), '', ($json.summary ? '\\u{1F4CB} ' + $json.summary.substring(0, 300) : null) ].filter(Boolean).join('\\n') }) }}",
+        "options": { "timeout": 10000 }
+      },
+      "id": "offer-tg-node-0002",
+      "name": "Telegram: Offer Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [64, 700],
       "onError": "continueRegularOutput"
     }
   ],
@@ -819,6 +873,11 @@
       "main": [
         [
           {
+            "node": "IF: category = offer",
+            "type": "main",
+            "index": 0
+          },
+          {
             "node": "IF: priority = high",
             "type": "main",
             "index": 0
@@ -834,6 +893,18 @@
             "index": 0
           }
         ]
+      ]
+    },
+    "IF: category = offer": {
+      "main": [
+        [
+          {
+            "node": "Telegram: Offer Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
       ]
     },
     "Gmail: Fetch Labels": {
