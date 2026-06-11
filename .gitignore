@@ -26,6 +26,7 @@ NEXT_SESSION.md
 outputs/
 *.bak
 *.sql.gz
+n8n/*-clean.json
 
 # --- OS ---
 .DS_Store
