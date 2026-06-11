@@ -456,7 +456,7 @@
     },
     {
       "parameters": {
-        "url": "={{ 'https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=' + new Date(new Date().setHours(0,0,0,0)).toISOString() + '&timeMax=' + new Date(new Date().setHours(23,59,59,999)).toISOString() + '&q=' + encodeURIComponent('[Список вакансий]') + '&singleEvents=true' }}",
+        "url": "={{ 'https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=' + new Date(new Date().setHours(0,0,0,0)).toISOString() + '&timeMax=' + new Date(new Date().setHours(23,59,59,999)).toISOString() + '&q=' + encodeURIComponent('[JobRadar]') + '&singleEvents=true' }}",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "googleCalendarOAuth2Api",
         "options": {
@@ -481,7 +481,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Find existing \"[Список вакансий]\" event from today's events\nconst items = $input.item.json.items || [];\nconst listEvent = items.find(e => (e.summary || '').includes('[Список вакансий]'));\n\n// Build new vacancy entry for description\nconst prev = $('Format for Calendar').first().json;\nconst entry = [\n  '<b>———————————</b>',\n  '<b>' + (prev.summary || prev.job_id_fuzzy || 'Вакансия') + '</b>',\n  'Стадия: ' + (prev.stage || '—'),\n  'Приоритет: ' + (prev.priority || '—'),\n  'Label: ' + (prev.gmail_label || '—'),\n  'ID: ' + (prev.job_id_fuzzy || '—')\n].join('<br>');\n\nconst existingDesc = listEvent ? (listEvent.description || '') : '';\nconst newDesc = existingDesc ? existingDesc + '<br><br>' + entry : entry;\n\nreturn [{ json: {\n  list_event_id: listEvent ? listEvent.id : null,\n  list_event_found: !!listEvent,\n  new_description: newDesc\n} }];\n"
+        "jsCode": "// Find existing \"[JobRadar]\" event from today's events\nconst items = $input.item.json.items || [];\nconst listEvent = items.find(e => (e.summary || '').includes('[JobRadar]'));\n\n// Build new vacancy entry for description\nconst prev = $('Format for Calendar').first().json;\nconst entry = [\n  '<b>———————————</b>',\n  '<b>' + (prev.summary || prev.job_id_fuzzy || 'Вакансия') + '</b>',\n  'Стадия: ' + (prev.stage || '—'),\n  'Приоритет: ' + (prev.priority || '—'),\n  'Label: ' + (prev.gmail_label || '—'),\n  'ID: ' + (prev.job_id_fuzzy || '—')\n].join('<br>');\n\nconst existingDesc = listEvent ? (listEvent.description || '') : '';\nconst newDesc = existingDesc ? existingDesc + '<br><br>' + entry : entry;\n\nreturn [{ json: {\n  list_event_id: listEvent ? listEvent.id : null,\n  list_event_found: !!listEvent,\n  new_description: newDesc\n} }];\n"
       },
       "id": "d1e2f3a4-b5c6-7890-abcd-100000000002",
       "name": "GCal: Parse List Event",
@@ -566,7 +566,7 @@
         "sendBody": true,
         "contentType": "raw",
         "rawContentType": "application/json",
-        "body": "={{ JSON.stringify({ summary: \"[Список вакансий] \" + new Date().toISOString().substring(0, 10), start: { date: new Date().toISOString().substring(0, 10) }, end: { date: new Date().toISOString().substring(0, 10) }, description: $json.new_description || \"\" }) }}",
+        "body": "={{ JSON.stringify({ summary: \"[JobRadar] \" + new Date().toISOString().substring(0, 10), start: { date: new Date().toISOString().substring(0, 10) }, end: { date: new Date().toISOString().substring(0, 10) }, description: $json.new_description || \"\" }) }}",
         "options": {
           "timeout": 10000
         }
