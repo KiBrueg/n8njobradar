@@ -83,6 +83,8 @@ const EXCLUDE_TITLE_KW = [
   'staff engineer', 'principal ',
   'lead engineer', 'tech lead', 'engineering lead',
   'head of', 'director', 'vp ', 'vice president',
+  'account executive', 'account manager', 'sales manager',
+  'marketing manager', 'product marketing',
 ];
 // Regex checked against full text: filters out "5+ years of experience" requirements.
 // Matches: "5 years experience", "6+ Jahre Berufserfahrung", "10 years of experience" etc.
@@ -850,6 +852,8 @@ if (rest.length > 0) {
   lines.push('\\uD83D\\uDCCB <b>Weitere (40-69):</b>');
   rest.slice(0, 15).forEach(j => {
     lines.push('\\u2022 ' + (j.job_title || '?') + ' @ ' + (j.company_name || '?') + ' <code>' + (j.relevance_score || '?') + '/100</code>');
+    if (j.location) lines.push('  \\uD83D\\uDCCD ' + j.location);
+    if (j.source_url) lines.push('  <a href="' + j.source_url + '">Link</a>');
   });
   lines.push('');
 }
