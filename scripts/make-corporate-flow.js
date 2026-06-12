@@ -710,11 +710,121 @@ function calendarInterviewNode(col) {
   };
 }
 
-// ── IF: relevance >= 70 ─────────────────────────────────────────────────────
-function ifHighRelevanceNode(col) {
+// ── Enrich: add resolved fields to DB output (per-item) ─────────────────────
+// Uses index-match against Prepare DB Params (.all()) to avoid paired-item issues.
+function enrichNode(col) {
   return {
-    id: 'n_if_relevance',
-    name: 'IF: relevance >= 70',
+    id: 'n_enrich',
+    name: 'Enrich: Add Resolved Fields',
+    type: 'n8n-nodes-base.code',
+    typeVersion: 2,
+    position: pos(col, 2),
+    parameters: {
+      jsCode: `const allPrep = $('Prepare DB Params').all();
+return $input.all().map((item, i) => {
+  const prep = allPrep[i] ? allPrep[i].json : {};
+  const res = prep.resolved  || {};
+  const ev  = prep.job_event || {};
+  return { json: {
+    company_name:    res.company_name    || null,
+    job_title:       res.job_title       || null,
+    source_url:      res.source_url      || null,
+    relevance_score: ev.relevance_score  || null,
+    location:        ev.location         || null,
+    work_mode:       ev.work_mode        || null
+  }};
+});`
+    }
+  };
+}
+
+// ── Aggregate: collect all enriched jobs ─────────────────────────────────────
+function aggregateNode(col) {
+  return {
+    id: 'n_aggregate',
+    name: 'Aggregate: All Jobs',
+    type: 'n8n-nodes-base.aggregate',
+    typeVersion: 1,
+    position: pos(col, 2),
+    parameters: {
+      aggregate: 'aggregateAllItemData',
+      destinationFieldName: 'jobs',
+      options: {}
+    }
+  };
+}
+
+// ── Format Summary: sort, filter, build Telegram + Calendar text ─────────────
+function formatSummaryNode(col) {
+  return {
+    id: 'n_format_summary',
+    name: 'Format: Corporate Summary',
+    type: 'n8n-nodes-base.code',
+    typeVersion: 2,
+    position: pos(col, 2),
+    parameters: {
+      jsCode: `const jobs = ($json.jobs || []).map(j => j.json || j);
+
+// Sort by relevance DESC, nulls last
+jobs.sort((a, b) => (b.relevance_score || 0) - (a.relevance_score || 0));
+
+// Filter: relevance >= 40
+const relevant = jobs.filter(j => (j.relevance_score || 0) >= 40);
+
+if (relevant.length === 0) {
+  return [{ json: { skip: true, telegram_text: '', calendar_description: '', relevant_count: 0, total: jobs.length } }];
+}
+
+const top  = relevant.filter(j => j.relevance_score >= 70);
+const rest = relevant.filter(j => j.relevance_score >= 40 && j.relevance_score < 70);
+
+// Telegram message
+const lines = ['\\u26A0\\uFE0F <b>[JobRadar Corporate] Neue Stellen</b>', ''];
+
+if (top.length > 0) {
+  lines.push('\\uD83D\\uDD25 <b>Top Matches (70+):</b>');
+  top.slice(0, 10).forEach(j => {
+    lines.push('\\u2022 <b>' + (j.job_title || '?') + '</b> @ ' + (j.company_name || '?') + ' <code>' + (j.relevance_score || '?') + '/100</code>');
+    if (j.location) lines.push('  \\uD83D\\uDCCD ' + j.location);
+    if (j.source_url) lines.push('  <a href="' + j.source_url + '">Link</a>');
+  });
+  lines.push('');
+}
+
+if (rest.length > 0) {
+  lines.push('\\uD83D\\uDCCB <b>Weitere (40-69):</b>');
+  rest.slice(0, 15).forEach(j => {
+    lines.push('\\u2022 ' + (j.job_title || '?') + ' @ ' + (j.company_name || '?') + ' <code>' + (j.relevance_score || '?') + '/100</code>');
+  });
+  lines.push('');
+}
+
+lines.push('Gesamt: ' + relevant.length + ' relevant von ' + jobs.length + ' gefunden');
+
+// Calendar description (Gmail-style HTML)
+const calLines = relevant.slice(0, 30).map(j =>
+  '<b>' + (j.company_name || '?') + '</b> \\u2014 ' + (j.job_title || '?') +
+  ' (' + (j.relevance_score || '?') + '/100)' +
+  (j.location ? ' | ' + j.location : '')
+);
+const calDesc = calLines.join('<br>');
+
+return [{ json: {
+  skip: false,
+  telegram_text: lines.join('\\n'),
+  calendar_description: calDesc,
+  relevant_count: relevant.length,
+  total: jobs.length
+}}];`
+    }
+  };
+}
+
+// ── IF: has relevant jobs ─────────────────────────────────────────────────────
+function ifHasRelevantNode(col) {
+  return {
+    id: 'n_if_has_relevant',
+    name: 'IF: has relevant jobs',
     type: 'n8n-nodes-base.if',
     typeVersion: 2.2,
     position: pos(col, 2),
@@ -722,10 +832,10 @@ function ifHighRelevanceNode(col) {
       conditions: {
         options: { caseSensitive: true, leftValue: '', typeValidation: 'loose', version: 2 },
         conditions: [{
-          id: 'cond_relevance',
-          leftValue: "={{ $('Prepare DB Params').first().json.job_event.relevance_score }}",
-          rightValue: 70,
-          operator: { type: 'number', operation: 'gte' }
+          id: 'cond_has_relevant',
+          leftValue: '={{ $json.relevant_count }}',
+          rightValue: 0,
+          operator: { type: 'number', operation: 'gt' }
         }],
         combinator: 'and'
       },
@@ -734,57 +844,11 @@ function ifHighRelevanceNode(col) {
   };
 }
 
-// ── Google Calendar: Discovered ─────────────────────────────────────────────
-function calendarDiscoveredNode(col) {
-  return {
-    id: 'n_cal_discovered',
-    name: 'Google Calendar: New Job',
-    type: 'n8n-nodes-base.googleCalendar',
-    typeVersion: 1.3,
-    position: pos(col, 2),
-    credentials: { googleCalendarOAuth2Api: { id: 'eLQTxfMJ6kryO1Iy', name: 'Google Calendar' } },
-    parameters: {
-      operation: 'create',
-      calendar: { __rl: true, value: 'primary', mode: 'list' },
-      title: "={{ '\\uD83D\\uDCCB [JobRadar] ' + ($('Prepare DB Params').first().json.resolved.job_title || 'Position') + ' @ ' + ($('Prepare DB Params').first().json.resolved.company_name || 'Company') }}",
-      start: "={{ $now.toISODate() + 'T09:00:00' }}",
-      end:   "={{ $now.toISODate() + 'T09:30:00' }}",
-      additionalFields: {
-        description: "={{ 'Relevance: ' + ($('Prepare DB Params').first().json.job_event.relevance_score || '?') + '/100\\nLocation: ' + ($('Prepare DB Params').first().json.resolved.source_url || '') + '\\n\\n' + ($('Prepare DB Params').first().json.job_event.summary || '') }}"
-      }
-    }
-  };
-}
-
-// ── IF: priority = high ─────────────────────────────────────────────────────
-function ifPriorityNode(col) {
-  return {
-    id: 'n_if_priority',
-    name: 'IF: priority = high',
-    type: 'n8n-nodes-base.if',
-    typeVersion: 2.2,
-    position: pos(col),
-    parameters: {
-      conditions: {
-        options: { caseSensitive: true, leftValue: '', typeValidation: 'strict', version: 2 },
-        conditions: [{
-          id: 'cond_priority',
-          leftValue: '={{ $json.priority }}',
-          rightValue: 'high',
-          operator: { type: 'string', operation: 'equals' }
-        }],
-        combinator: 'and'
-      },
-      options: {}
-    }
-  };
-}
-
-// ── Telegram alert ──────────────────────────────────────────────────────────
+// ── Telegram: Corporate Summary ───────────────────────────────────────────────
 function telegramNode(col) {
   return {
     id: 'n_telegram',
-    name: 'Telegram: Job Alert',
+    name: 'Telegram: Corporate Summary',
     type: 'n8n-nodes-base.httpRequest',
     typeVersion: 4.2,
     position: pos(col),
@@ -794,10 +858,125 @@ function telegramNode(col) {
       sendBody: true,
       contentType: 'raw',
       rawContentType: 'application/json',
-      body: "={{ JSON.stringify({ chat_id: $env.TELEGRAM_CHAT_ID, parse_mode: 'HTML', text: ['\\u{1F3E2} <b>[JobRadar Corporate] ' + ($('Parse LLM Response').first().json.job_event.company_name || 'Unknown') + '</b>', '<b>' + ($('Parse LLM Response').first().json.job_event.job_title || '') + '</b>', '', 'Phase: <code>' + ($json.stage || '') + '</code>  Prioritaet: <b>' + ($json.priority || '') + '</b>', '', ($json.summary || '')].filter(Boolean).join('\\n') }) }}",
+      body: "={{ JSON.stringify({ chat_id: $env.TELEGRAM_CHAT_ID, parse_mode: 'HTML', text: $json.telegram_text, disable_web_page_preview: true }) }}",
       options: { timeout: 10000 }
     }
   };
+}
+
+// ── Google Calendar: List today's events ─────────────────────────────────────
+function calendarListTodayNode(col) {
+  return {
+    id: 'n_cal_list_today',
+    name: 'Google Calendar: List Today',
+    type: 'n8n-nodes-base.googleCalendar',
+    typeVersion: 1.3,
+    position: pos(col, 3),
+    credentials: { googleCalendarOAuth2Api: { id: 'eLQTxfMJ6kryO1Iy', name: 'Google Calendar' } },
+    parameters: {
+      operation: 'getAll',
+      calendar: { __rl: true, value: 'primary', mode: 'list' },
+      returnAll: false,
+      limit: 50,
+      additionalFields: {
+        timeMin: "={{ $now.toISODate() + 'T00:00:00Z' }}",
+        timeMax: "={{ $now.toISODate() + 'T23:59:59Z' }}"
+      }
+    }
+  };
+}
+
+// ── Find [JobRadar Corporate] event ──────────────────────────────────────────
+function findCalendarCorpEventNode(col) {
+  return {
+    id: 'n_cal_find_corp',
+    name: 'Find [JobRadar Corporate] Event',
+    type: 'n8n-nodes-base.code',
+    typeVersion: 2,
+    position: pos(col, 3),
+    parameters: {
+      jsCode: `const items = $input.all().map(i => i.json);
+const todayEvent = items.find(e => (e.summary || '').includes('[JobRadar Corporate]'));
+const summary = $('Format: Corporate Summary').first().json;
+
+return [{ json: {
+  event_id:        todayEvent ? todayEvent.id : null,
+  event_found:     !!todayEvent,
+  new_description: summary.calendar_description,
+  event_title:     '[JobRadar Corporate] ' + $now.toISODate(),
+  existing_desc:   todayEvent ? (todayEvent.description || '') : ''
+}}];`
+    }
+  };
+}
+
+// ── IF: calendar event exists ─────────────────────────────────────────────────
+function ifCalendarCorpExistsNode(col) {
+  return {
+    id: 'n_if_cal_exists',
+    name: 'IF: calendar event exists',
+    type: 'n8n-nodes-base.if',
+    typeVersion: 2.2,
+    position: pos(col, 3),
+    parameters: {
+      conditions: {
+        options: { caseSensitive: true, leftValue: '', typeValidation: 'loose', version: 2 },
+        conditions: [{
+          id: 'cond_cal_exists',
+          leftValue: '={{ $json.event_found }}',
+          rightValue: true,
+          operator: { type: 'boolean', operation: 'true' }
+        }],
+        combinator: 'and'
+      },
+      options: {}
+    }
+  };
+}
+
+// ── Google Calendar: Update Corp Event ───────────────────────────────────────
+function calendarUpdateCorpNode(col) {
+  return {
+    id: 'n_cal_update_corp',
+    name: 'Google Calendar: Update Corp Event',
+    type: 'n8n-nodes-base.googleCalendar',
+    typeVersion: 1.3,
+    position: pos(col, 2),
+    credentials: { googleCalendarOAuth2Api: { id: 'eLQTxfMJ6kryO1Iy', name: 'Google Calendar' } },
+    parameters: {
+      operation: 'update',
+      calendar: { __rl: true, value: 'primary', mode: 'list' },
+      eventId: '={{ $json.event_id }}',
+      updateFields: {
+        description: "={{ $json.existing_desc ? $json.existing_desc + '<br><br>' + $json.new_description : $json.new_description }}"
+      }
+    }
+  };
+}
+
+// ── Google Calendar: Create Corp Event ───────────────────────────────────────
+function calendarCreateCorpNode(col) {
+  return {
+    id: 'n_cal_create_corp',
+    name: 'Google Calendar: Create Corp Event',
+    type: 'n8n-nodes-base.googleCalendar',
+    typeVersion: 1.3,
+    position: pos(col, 4),
+    credentials: { googleCalendarOAuth2Api: { id: 'eLQTxfMJ6kryO1Iy', name: 'Google Calendar' } },
+    parameters: {
+      operation: 'create',
+      calendar: { __rl: true, value: 'primary', mode: 'list' },
+      title: "={{ '[JobRadar Corporate] ' + $now.toISODate() }}",
+      start: "={{ $now.toISODate() + 'T09:00:00' }}",
+      end:   "={{ $now.toISODate() + 'T09:30:00' }}",
+      additionalFields: { description: '={{ $json.new_description }}' }
+    }
+  };
+}
+
+// ── IF: priority = high (kept for compatibility, unused) ─────────────────────
+function ifPriorityNode(col) {
+  return stopNode('n_if_priority_unused', 'Unused: Stop', col, 10);
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -851,32 +1030,41 @@ FIRECRAWL_STUBS.forEach((co, i) => {
 });
 
 // Pipeline nodes
-const mergeN = mergeNode(3);
-const kwFilterN = keywordFilterNode(4);
-const normalizeN = normalizeNode(5);
-const dedupN = dedupNode(6);
-const ifDedupN = ifNotProcessedNode(7);
-const llmN = llmNode(8);
-const parseN = parseNode(9);
-const ifRelatedN = ifJobRelatedNode(10);
+const mergeN         = mergeNode(3);
+const kwFilterN      = keywordFilterNode(4);
+const normalizeN     = normalizeNode(5);
+const dedupN         = dedupNode(6);
+const ifDedupN       = ifNotProcessedNode(7);
+const llmN           = llmNode(8);
+const parseN         = parseNode(9);
+const ifRelatedN     = ifJobRelatedNode(10);
 const stopNotRelatedN = stopNode('n_stop_not_related', 'Not Job Related: Stop', 11, 1);
-const prepareN = prepareDbNode(11);
-const dbWriteN = dbWriteNode(12);
-const ifPriorityN      = ifPriorityNode(13);
-const telegramN        = telegramNode(14);
-const stopLowPriorityN = stopNode('n_stop_low',  'Low Priority: Stop',  14, 1);
+const prepareN       = prepareDbNode(11);
+const dbWriteN       = dbWriteNode(12);
+
+// Per-job: interview calendar (unchanged)
 const ifInterviewN     = ifInterviewDateNode(13);
 const calInterviewN    = calendarInterviewNode(14);
 const stopNoInterviewN = stopNode('n_stop_no_interview', 'No Interview Date: Stop', 14, -2);
-const ifRelevanceN     = ifHighRelevanceNode(13);
-const calDiscoveredN   = calendarDiscoveredNode(14);
-const stopLowRelN      = stopNode('n_stop_low_rel', 'Low Relevance: Stop', 14, 2);
+
+// Aggregated pipeline: Enrich → Aggregate → Format → IF:relevant → Telegram + Calendar
+const enrichN        = enrichNode(13);
+const aggregateN     = aggregateNode(14);
+const formatSummaryN = formatSummaryNode(15);
+const ifHasRelevantN = ifHasRelevantNode(16);
+const telegramN      = telegramNode(17);
+const calListTodayN  = calendarListTodayNode(17);
+const findCalCorpN   = findCalendarCorpEventNode(18);
+const ifCalExistsN   = ifCalendarCorpExistsNode(19);
+const calUpdateCorpN = calendarUpdateCorpNode(20);
+const calCreateCorpN = calendarCreateCorpNode(20);
 
 nodes.push(mergeN, kwFilterN, normalizeN, dedupN, ifDedupN, llmN, parseN,
            ifRelatedN, stopNotRelatedN, prepareN, dbWriteN,
-           ifPriorityN, telegramN, stopLowPriorityN,
            ifInterviewN, calInterviewN, stopNoInterviewN,
-           ifRelevanceN, calDiscoveredN, stopLowRelN);
+           enrichN, aggregateN, formatSummaryN, ifHasRelevantN,
+           telegramN, calListTodayN, findCalCorpN, ifCalExistsN,
+           calUpdateCorpN, calCreateCorpN);
 
 // ── Build connections ───────────────────────────────────────────────────────
 
@@ -908,38 +1096,55 @@ allFlatNodes.forEach((n, i) => {
   connections[n.name] = { main: [[{ node: mergeN.name, type: 'main', index: i }]] };
 });
 
-// Pipeline connections
-connections[mergeN.name]     = { main: [[{ node: kwFilterN.name,     type: 'main', index: 0 }]] };
-connections[kwFilterN.name]  = { main: [[{ node: normalizeN.name,    type: 'main', index: 0 }]] };
-connections[normalizeN.name] = { main: [[{ node: dedupN.name,        type: 'main', index: 0 }]] };
-connections[dedupN.name]     = { main: [[{ node: ifDedupN.name,      type: 'main', index: 0 }]] };
+// Pipeline connections (up to DB write)
+connections[mergeN.name]     = { main: [[{ node: kwFilterN.name,    type: 'main', index: 0 }]] };
+connections[kwFilterN.name]  = { main: [[{ node: normalizeN.name,   type: 'main', index: 0 }]] };
+connections[normalizeN.name] = { main: [[{ node: dedupN.name,       type: 'main', index: 0 }]] };
+connections[dedupN.name]     = { main: [[{ node: ifDedupN.name,     type: 'main', index: 0 }]] };
 connections[ifDedupN.name]   = { main: [
   [{ node: llmN.name, type: 'main', index: 0 }],
   []
 ]};
-connections[llmN.name]       = { main: [[{ node: parseN.name,        type: 'main', index: 0 }]] };
-connections[parseN.name]     = { main: [[{ node: ifRelatedN.name,    type: 'main', index: 0 }]] };
+connections[llmN.name]       = { main: [[{ node: parseN.name,       type: 'main', index: 0 }]] };
+connections[parseN.name]     = { main: [[{ node: ifRelatedN.name,   type: 'main', index: 0 }]] };
 connections[ifRelatedN.name] = { main: [
-  [{ node: prepareN.name,         type: 'main', index: 0 }],
-  [{ node: stopNotRelatedN.name,  type: 'main', index: 0 }]
+  [{ node: prepareN.name,        type: 'main', index: 0 }],
+  [{ node: stopNotRelatedN.name, type: 'main', index: 0 }]
 ]};
-connections[prepareN.name]   = { main: [[{ node: dbWriteN.name,      type: 'main', index: 0 }]] };
-connections[dbWriteN.name]   = { main: [[
-  { node: ifPriorityN.name,  type: 'main', index: 0 },
+connections[prepareN.name]   = { main: [[{ node: dbWriteN.name,     type: 'main', index: 0 }]] };
+
+// DB write → per-job interview branch + aggregated pipeline (fan-out)
+connections[dbWriteN.name] = { main: [[
   { node: ifInterviewN.name, type: 'main', index: 0 },
-  { node: ifRelevanceN.name, type: 'main', index: 0 }
-]] };
-connections[ifPriorityN.name] = { main: [
-  [{ node: telegramN.name,        type: 'main', index: 0 }],
-  [{ node: stopLowPriorityN.name, type: 'main', index: 0 }]
-]};
+  { node: enrichN.name,      type: 'main', index: 0 }
+]]};
+
+// Per-job interview branch
 connections[ifInterviewN.name] = { main: [
   [{ node: calInterviewN.name,    type: 'main', index: 0 }],
   [{ node: stopNoInterviewN.name, type: 'main', index: 0 }]
 ]};
-connections[ifRelevanceN.name] = { main: [
-  [{ node: calDiscoveredN.name,   type: 'main', index: 0 }],
-  [{ node: stopLowRelN.name,      type: 'main', index: 0 }]
+
+// Aggregated pipeline
+connections[enrichN.name]        = { main: [[{ node: aggregateN.name,     type: 'main', index: 0 }]] };
+connections[aggregateN.name]     = { main: [[{ node: formatSummaryN.name, type: 'main', index: 0 }]] };
+connections[formatSummaryN.name] = { main: [[{ node: ifHasRelevantN.name, type: 'main', index: 0 }]] };
+
+// IF: has relevant → Telegram + Calendar pipeline in parallel; false → stop
+connections[ifHasRelevantN.name] = { main: [
+  [
+    { node: telegramN.name,     type: 'main', index: 0 },
+    { node: calListTodayN.name, type: 'main', index: 0 }
+  ],
+  []  // no relevant jobs: stop
+]};
+
+// Calendar pipeline
+connections[calListTodayN.name] = { main: [[{ node: findCalCorpN.name,   type: 'main', index: 0 }]] };
+connections[findCalCorpN.name]  = { main: [[{ node: ifCalExistsN.name,   type: 'main', index: 0 }]] };
+connections[ifCalExistsN.name]  = { main: [
+  [{ node: calUpdateCorpN.name, type: 'main', index: 0 }],
+  [{ node: calCreateCorpN.name, type: 'main', index: 0 }]
 ]};
 
 // ── Output ──────────────────────────────────────────────────────────────────

@@ -553,70 +553,6 @@
       }
     },
     {
-      "id": "n_if_priority",
-      "name": "IF: priority = high",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.2,
-      "position": [
-        3060,
-        300
-      ],
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict",
-            "version": 2
-          },
-          "conditions": [
-            {
-              "id": "cond_priority",
-              "leftValue": "={{ $json.priority }}",
-              "rightValue": "high",
-              "operator": {
-                "type": "string",
-                "operation": "equals"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      }
-    },
-    {
-      "id": "n_telegram",
-      "name": "Telegram: Job Alert",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        3280,
-        300
-      ],
-      "parameters": {
-        "method": "POST",
-        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendMessage",
-        "sendBody": true,
-        "contentType": "raw",
-        "rawContentType": "application/json",
-        "body": "={{ JSON.stringify({ chat_id: $env.TELEGRAM_CHAT_ID, parse_mode: 'HTML', text: ['\\u{1F3E2} <b>[JobRadar Corporate] ' + ($('Parse LLM Response').first().json.job_event.company_name || 'Unknown') + '</b>', '<b>' + ($('Parse LLM Response').first().json.job_event.job_title || '') + '</b>', '', 'Phase: <code>' + ($json.stage || '') + '</code>  Prioritaet: <b>' + ($json.priority || '') + '</b>', '', ($json.summary || '')].filter(Boolean).join('\\n') }) }}",
-        "options": {
-          "timeout": 10000
-        }
-      }
-    },
-    {
-      "id": "n_stop_low",
-      "name": "Low Priority: Stop",
-      "type": "n8n-nodes-base.noOp",
-      "typeVersion": 1,
-      "position": [
-        3280,
-        500
-      ]
-    },
-    {
       "id": "n_if_interview",
       "name": "IF: has interview_date",
       "type": "n8n-nodes-base.if",
@@ -690,12 +626,53 @@
       ]
     },
     {
-      "id": "n_if_relevance",
-      "name": "IF: relevance >= 70",
+      "id": "n_enrich",
+      "name": "Enrich: Add Resolved Fields",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3060,
+        700
+      ],
+      "parameters": {
+        "jsCode": "const allPrep = $('Prepare DB Params').all();\nreturn $input.all().map((item, i) => {\n  const prep = allPrep[i] ? allPrep[i].json : {};\n  const res = prep.resolved  || {};\n  const ev  = prep.job_event || {};\n  return { json: {\n    company_name:    res.company_name    || null,\n    job_title:       res.job_title       || null,\n    source_url:      res.source_url      || null,\n    relevance_score: ev.relevance_score  || null,\n    location:        ev.location         || null,\n    work_mode:       ev.work_mode        || null\n  }};\n});"
+      }
+    },
+    {
+      "id": "n_aggregate",
+      "name": "Aggregate: All Jobs",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        3280,
+        700
+      ],
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "jobs",
+        "options": {}
+      }
+    },
+    {
+      "id": "n_format_summary",
+      "name": "Format: Corporate Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3500,
+        700
+      ],
+      "parameters": {
+        "jsCode": "const jobs = ($json.jobs || []).map(j => j.json || j);\n\n// Sort by relevance DESC, nulls last\njobs.sort((a, b) => (b.relevance_score || 0) - (a.relevance_score || 0));\n\n// Filter: relevance >= 40\nconst relevant = jobs.filter(j => (j.relevance_score || 0) >= 40);\n\nif (relevant.length === 0) {\n  return [{ json: { skip: true, telegram_text: '', calendar_description: '', relevant_count: 0, total: jobs.length } }];\n}\n\nconst top  = relevant.filter(j => j.relevance_score >= 70);\nconst rest = relevant.filter(j => j.relevance_score >= 40 && j.relevance_score < 70);\n\n// Telegram message\nconst lines = ['\\u26A0\\uFE0F <b>[JobRadar Corporate] Neue Stellen</b>', ''];\n\nif (top.length > 0) {\n  lines.push('\\uD83D\\uDD25 <b>Top Matches (70+):</b>');\n  top.slice(0, 10).forEach(j => {\n    lines.push('\\u2022 <b>' + (j.job_title || '?') + '</b> @ ' + (j.company_name || '?') + ' <code>' + (j.relevance_score || '?') + '/100</code>');\n    if (j.location) lines.push('  \\uD83D\\uDCCD ' + j.location);\n    if (j.source_url) lines.push('  <a href=\"' + j.source_url + '\">Link</a>');\n  });\n  lines.push('');\n}\n\nif (rest.length > 0) {\n  lines.push('\\uD83D\\uDCCB <b>Weitere (40-69):</b>');\n  rest.slice(0, 15).forEach(j => {\n    lines.push('\\u2022 ' + (j.job_title || '?') + ' @ ' + (j.company_name || '?') + ' <code>' + (j.relevance_score || '?') + '/100</code>');\n  });\n  lines.push('');\n}\n\nlines.push('Gesamt: ' + relevant.length + ' relevant von ' + jobs.length + ' gefunden');\n\n// Calendar description (Gmail-style HTML)\nconst calLines = relevant.slice(0, 30).map(j =>\n  '<b>' + (j.company_name || '?') + '</b> \\u2014 ' + (j.job_title || '?') +\n  ' (' + (j.relevance_score || '?') + '/100)' +\n  (j.location ? ' | ' + j.location : '')\n);\nconst calDesc = calLines.join('<br>');\n\nreturn [{ json: {\n  skip: false,\n  telegram_text: lines.join('\\n'),\n  calendar_description: calDesc,\n  relevant_count: relevant.length,\n  total: jobs.length\n}}];"
+      }
+    },
+    {
+      "id": "n_if_has_relevant",
+      "name": "IF: has relevant jobs",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        3060,
+        3720,
         700
       ],
       "parameters": {
@@ -708,12 +685,12 @@
           },
           "conditions": [
             {
-              "id": "cond_relevance",
-              "leftValue": "={{ $('Prepare DB Params').first().json.job_event.relevance_score }}",
-              "rightValue": 70,
+              "id": "cond_has_relevant",
+              "leftValue": "={{ $json.relevant_count }}",
+              "rightValue": 0,
               "operator": {
                 "type": "number",
-                "operation": "gte"
+                "operation": "gt"
               }
             }
           ],
@@ -723,13 +700,138 @@
       }
     },
     {
-      "id": "n_cal_discovered",
-      "name": "Google Calendar: New Job",
+      "id": "n_telegram",
+      "name": "Telegram: Corporate Summary",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3940,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendMessage",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ chat_id: $env.TELEGRAM_CHAT_ID, parse_mode: 'HTML', text: $json.telegram_text, disable_web_page_preview: true }) }}",
+        "options": {
+          "timeout": 10000
+        }
+      }
+    },
+    {
+      "id": "n_cal_list_today",
+      "name": "Google Calendar: List Today",
       "type": "n8n-nodes-base.googleCalendar",
       "typeVersion": 1.3,
       "position": [
-        3280,
+        3940,
+        900
+      ],
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "eLQTxfMJ6kryO1Iy",
+          "name": "Google Calendar"
+        }
+      },
+      "parameters": {
+        "operation": "getAll",
+        "calendar": {
+          "__rl": true,
+          "value": "primary",
+          "mode": "list"
+        },
+        "returnAll": false,
+        "limit": 50,
+        "additionalFields": {
+          "timeMin": "={{ $now.toISODate() + 'T00:00:00Z' }}",
+          "timeMax": "={{ $now.toISODate() + 'T23:59:59Z' }}"
+        }
+      }
+    },
+    {
+      "id": "n_cal_find_corp",
+      "name": "Find [JobRadar Corporate] Event",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4160,
+        900
+      ],
+      "parameters": {
+        "jsCode": "const items = $input.all().map(i => i.json);\nconst todayEvent = items.find(e => (e.summary || '').includes('[JobRadar Corporate]'));\nconst summary = $('Format: Corporate Summary').first().json;\n\nreturn [{ json: {\n  event_id:        todayEvent ? todayEvent.id : null,\n  event_found:     !!todayEvent,\n  new_description: summary.calendar_description,\n  event_title:     '[JobRadar Corporate] ' + $now.toISODate(),\n  existing_desc:   todayEvent ? (todayEvent.description || '') : ''\n}}];"
+      }
+    },
+    {
+      "id": "n_if_cal_exists",
+      "name": "IF: calendar event exists",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        4380,
+        900
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "cond_cal_exists",
+              "leftValue": "={{ $json.event_found }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "n_cal_update_corp",
+      "name": "Google Calendar: Update Corp Event",
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        4600,
         700
+      ],
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "eLQTxfMJ6kryO1Iy",
+          "name": "Google Calendar"
+        }
+      },
+      "parameters": {
+        "operation": "update",
+        "calendar": {
+          "__rl": true,
+          "value": "primary",
+          "mode": "list"
+        },
+        "eventId": "={{ $json.event_id }}",
+        "updateFields": {
+          "description": "={{ $json.existing_desc ? $json.existing_desc + '<br><br>' + $json.new_description : $json.new_description }}"
+        }
+      }
+    },
+    {
+      "id": "n_cal_create_corp",
+      "name": "Google Calendar: Create Corp Event",
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        4600,
+        1100
       ],
       "credentials": {
         "googleCalendarOAuth2Api": {
@@ -744,23 +846,13 @@
           "value": "primary",
           "mode": "list"
         },
-        "title": "={{ '\\uD83D\\uDCCB [JobRadar] ' + ($('Prepare DB Params').first().json.resolved.job_title || 'Position') + ' @ ' + ($('Prepare DB Params').first().json.resolved.company_name || 'Company') }}",
+        "title": "={{ '[JobRadar Corporate] ' + $now.toISODate() }}",
         "start": "={{ $now.toISODate() + 'T09:00:00' }}",
         "end": "={{ $now.toISODate() + 'T09:30:00' }}",
         "additionalFields": {
-          "description": "={{ 'Relevance: ' + ($('Prepare DB Params').first().json.job_event.relevance_score || '?') + '/100\\nLocation: ' + ($('Prepare DB Params').first().json.resolved.source_url || '') + '\\n\\n' + ($('Prepare DB Params').first().json.job_event.summary || '') }}"
+          "description": "={{ $json.new_description }}"
         }
       }
-    },
-    {
-      "id": "n_stop_low_rel",
-      "name": "Low Relevance: Stop",
-      "type": "n8n-nodes-base.noOp",
-      "typeVersion": 1,
-      "position": [
-        3280,
-        700
-      ]
     }
   ],
   "connections": {
@@ -1097,35 +1189,12 @@
       "main": [
         [
           {
-            "node": "IF: priority = high",
-            "type": "main",
-            "index": 0
-          },
-          {
             "node": "IF: has interview_date",
             "type": "main",
             "index": 0
           },
           {
-            "node": "IF: relevance >= 70",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "IF: priority = high": {
-      "main": [
-        [
-          {
-            "node": "Telegram: Job Alert",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Low Priority: Stop",
+            "node": "Enrich: Add Resolved Fields",
             "type": "main",
             "index": 0
           }
@@ -1150,18 +1219,90 @@
         ]
       ]
     },
-    "IF: relevance >= 70": {
+    "Enrich: Add Resolved Fields": {
       "main": [
         [
           {
-            "node": "Google Calendar: New Job",
+            "node": "Aggregate: All Jobs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate: All Jobs": {
+      "main": [
+        [
+          {
+            "node": "Format: Corporate Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format: Corporate Summary": {
+      "main": [
+        [
+          {
+            "node": "IF: has relevant jobs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: has relevant jobs": {
+      "main": [
+        [
+          {
+            "node": "Telegram: Corporate Summary",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Google Calendar: List Today",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Google Calendar: List Today": {
+      "main": [
+        [
+          {
+            "node": "Find [JobRadar Corporate] Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find [JobRadar Corporate] Event": {
+      "main": [
+        [
+          {
+            "node": "IF: calendar event exists",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: calendar event exists": {
+      "main": [
+        [
+          {
+            "node": "Google Calendar: Update Corp Event",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Low Relevance: Stop",
+            "node": "Google Calendar: Create Corp Event",
             "type": "main",
             "index": 0
           }
