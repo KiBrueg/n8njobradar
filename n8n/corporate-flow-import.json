@@ -116,26 +116,26 @@
       }
     },
     {
-      "id": "n_gh_deliveryhero",
-      "name": "GH: Delivery Hero",
+      "id": "n_gh_getyourguide",
+      "name": "GH: GetYourGuide",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
         420,
         500
       ],
-      "notes": "Tech/Logistics, Berlin",
+      "notes": "Travel Tech, Berlin",
       "parameters": {
         "method": "GET",
-        "url": "https://boards-api.greenhouse.io/v1/boards/deliveryhero/jobs?content=true",
+        "url": "https://boards-api.greenhouse.io/v1/boards/getyourguide/jobs?content=true",
         "options": {
           "timeout": 15000
         }
       }
     },
     {
-      "id": "n_gh_flat_deliveryhero",
-      "name": "Flatten: GH Delivery Hero",
+      "id": "n_gh_flat_getyourguide",
+      "name": "Flatten: GH GetYourGuide",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -143,30 +143,30 @@
         500
       ],
       "parameters": {
-        "jsCode": "const resp = $input.item.json;\nconst jobs = Array.isArray(resp.jobs) ? resp.jobs : [];\nreturn jobs.map(j => ({ json: {\n  _source: 'greenhouse_api',\n  _company: 'Delivery Hero',\n  _company_slug: 'deliveryhero',\n  title: j.title || '',\n  location: (j.location && j.location.name) || 'Remote',\n  url: j.absolute_url || '',\n  published_at: j.updated_at || null,\n  departments: Array.isArray(j.departments) ? j.departments.map(d => d.name).join(', ') : '',\n  content: j.content ? j.content.replace(/<[^>]+>/g, ' ').substring(0, 3000) : ''\n} }));"
+        "jsCode": "const resp = $input.item.json;\nconst jobs = Array.isArray(resp.jobs) ? resp.jobs : [];\nreturn jobs.map(j => ({ json: {\n  _source: 'greenhouse_api',\n  _company: 'GetYourGuide',\n  _company_slug: 'getyourguide',\n  title: j.title || '',\n  location: (j.location && j.location.name) || 'Remote',\n  url: j.absolute_url || '',\n  published_at: j.updated_at || null,\n  departments: Array.isArray(j.departments) ? j.departments.map(d => d.name).join(', ') : '',\n  content: j.content ? j.content.replace(/<[^>]+>/g, ' ').substring(0, 3000) : ''\n} }));"
       }
     },
     {
-      "id": "n_gh_teamviewer",
-      "name": "GH: TeamViewer",
+      "id": "n_gh_sumup",
+      "name": "GH: SumUp",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
         420,
         700
       ],
-      "notes": "Remote Access/Automation, Goeppingen",
+      "notes": "Fintech/Payments, Berlin",
       "parameters": {
         "method": "GET",
-        "url": "https://boards-api.greenhouse.io/v1/boards/teamviewer/jobs?content=true",
+        "url": "https://boards-api.greenhouse.io/v1/boards/sumup/jobs?content=true",
         "options": {
           "timeout": 15000
         }
       }
     },
     {
-      "id": "n_gh_flat_teamviewer",
-      "name": "Flatten: GH TeamViewer",
+      "id": "n_gh_flat_sumup",
+      "name": "Flatten: GH SumUp",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -174,7 +174,7 @@
         700
       ],
       "parameters": {
-        "jsCode": "const resp = $input.item.json;\nconst jobs = Array.isArray(resp.jobs) ? resp.jobs : [];\nreturn jobs.map(j => ({ json: {\n  _source: 'greenhouse_api',\n  _company: 'TeamViewer',\n  _company_slug: 'teamviewer',\n  title: j.title || '',\n  location: (j.location && j.location.name) || 'Remote',\n  url: j.absolute_url || '',\n  published_at: j.updated_at || null,\n  departments: Array.isArray(j.departments) ? j.departments.map(d => d.name).join(', ') : '',\n  content: j.content ? j.content.replace(/<[^>]+>/g, ' ').substring(0, 3000) : ''\n} }));"
+        "jsCode": "const resp = $input.item.json;\nconst jobs = Array.isArray(resp.jobs) ? resp.jobs : [];\nreturn jobs.map(j => ({ json: {\n  _source: 'greenhouse_api',\n  _company: 'SumUp',\n  _company_slug: 'sumup',\n  title: j.title || '',\n  location: (j.location && j.location.name) || 'Remote',\n  url: j.absolute_url || '',\n  published_at: j.updated_at || null,\n  departments: Array.isArray(j.departments) ? j.departments.map(d => d.name).join(', ') : '',\n  content: j.content ? j.content.replace(/<[^>]+>/g, ' ').substring(0, 3000) : ''\n} }));"
       }
     },
     {
@@ -260,6 +260,28 @@
         1900
       ],
       "notes": "Activate: jobs.siemens.com/?keywords=automation\nReplace with Firecrawl HTTP node when ready."
+    },
+    {
+      "id": "n_fc_stub_deliveryhero",
+      "name": "STUB: Delivery Hero Jobs",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        420,
+        2100
+      ],
+      "notes": "Activate: careers.deliveryhero.com (custom ATS)\nReplace with Firecrawl HTTP node when ready."
+    },
+    {
+      "id": "n_fc_stub_teamviewer",
+      "name": "STUB: TeamViewer Jobs",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        420,
+        2300
+      ],
+      "notes": "Activate: teamviewer.com/en/company/careers (custom ATS)\nReplace with Firecrawl HTTP node when ready."
     },
     {
       "id": "n_merge",
@@ -567,12 +589,12 @@
             "index": 0
           },
           {
-            "node": "GH: Delivery Hero",
+            "node": "GH: GetYourGuide",
             "type": "main",
             "index": 0
           },
           {
-            "node": "GH: TeamViewer",
+            "node": "GH: SumUp",
             "type": "main",
             "index": 0
           },
@@ -622,22 +644,22 @@
         ]
       ]
     },
-    "GH: Delivery Hero": {
+    "GH: GetYourGuide": {
       "main": [
         [
           {
-            "node": "Flatten: GH Delivery Hero",
+            "node": "Flatten: GH GetYourGuide",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "GH: TeamViewer": {
+    "GH: SumUp": {
       "main": [
         [
           {
-            "node": "Flatten: GH TeamViewer",
+            "node": "Flatten: GH SumUp",
             "type": "main",
             "index": 0
           }
@@ -699,7 +721,7 @@
         ]
       ]
     },
-    "Flatten: GH Delivery Hero": {
+    "Flatten: GH GetYourGuide": {
       "main": [
         [
           {
@@ -710,7 +732,7 @@
         ]
       ]
     },
-    "Flatten: GH TeamViewer": {
+    "Flatten: GH SumUp": {
       "main": [
         [
           {

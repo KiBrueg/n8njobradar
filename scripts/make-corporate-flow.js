@@ -14,11 +14,11 @@ const path = require('path');
 
 // ── Greenhouse companies ────────────────────────────────────────────────────
 const GREENHOUSE_COMPANIES = [
-  { slug: 'celonis',       label: 'Celonis',        note: 'Process Mining/Automation, Munich' },
-  { slug: 'hellofresh',   label: 'HelloFresh',      note: 'Tech/Operations, Berlin' },
-  { slug: 'n26',          label: 'N26',             note: 'Fintech, Berlin' },
-  { slug: 'deliveryhero', label: 'Delivery Hero',   note: 'Tech/Logistics, Berlin' },
-  { slug: 'teamviewer',   label: 'TeamViewer',      note: 'Remote Access/Automation, Goeppingen' },
+  { slug: 'celonis',      label: 'Celonis',      note: 'Process Mining/Automation, Munich' },
+  { slug: 'hellofresh',  label: 'HelloFresh',   note: 'Tech/Operations, Berlin' },
+  { slug: 'n26',         label: 'N26',          note: 'Fintech, Berlin' },
+  { slug: 'getyourguide', label: 'GetYourGuide', note: 'Travel Tech, Berlin' },
+  { slug: 'sumup',       label: 'SumUp',        note: 'Fintech/Payments, Berlin' },
 ];
 
 // ── Lever companies ─────────────────────────────────────────────────────────
@@ -39,8 +39,10 @@ const DIRECT_HTTP = [
 
 // ── Firecrawl stubs (activate later) ───────────────────────────────────────
 const FIRECRAWL_STUBS = [
-  { id: 'sap',     label: 'SAP Jobs',     note: 'Activate: jobs.sap.com/search/?q=automation+engineer' },
-  { id: 'siemens', label: 'Siemens Jobs', note: 'Activate: jobs.siemens.com/?keywords=automation' },
+  { id: 'sap',          label: 'SAP Jobs',          note: 'Activate: jobs.sap.com/search/?q=automation+engineer' },
+  { id: 'siemens',      label: 'Siemens Jobs',      note: 'Activate: jobs.siemens.com/?keywords=automation' },
+  { id: 'deliveryhero', label: 'Delivery Hero Jobs', note: 'Activate: careers.deliveryhero.com (custom ATS)' },
+  { id: 'teamviewer',   label: 'TeamViewer Jobs',   note: 'Activate: teamviewer.com/en/company/careers (custom ATS)' },
 ];
 
 // ── Keyword filter (applied before LLM to save tokens) ─────────────────────
