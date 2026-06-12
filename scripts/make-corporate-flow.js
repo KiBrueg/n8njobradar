@@ -309,14 +309,12 @@ function dedupNode(col) {
     credentials: { postgres: { id: 'ZjjVGIqiRAUVlCk6', name: 'radar' } },
     parameters: {
       operation: 'executeQuery',
-      query: `SELECT je.job_id_fuzzy, j.updated_at
-FROM job_events je
-JOIN jobs j ON j.job_id_fuzzy = je.job_id_fuzzy
-WHERE je.job_id_fuzzy = {{ $json.normalized_input.raw_meta.job_url
+      query: `SELECT COUNT(*) AS cnt
+FROM jobs
+WHERE source_url = {{ $json.normalized_input.raw_meta.job_url
   ? "'" + $json.normalized_input.raw_meta.job_url.replace(/'/g,"''").substring(0,200) + "'"
   : "'__no_url__'" }}
-  AND j.updated_at > NOW() - INTERVAL '7 days'
-LIMIT 1;`,
+  AND updated_at > NOW() - INTERVAL '7 days';`,
       options: {}
     }
   };
@@ -335,9 +333,9 @@ function ifNotProcessedNode(col) {
         options: { caseSensitive: true, leftValue: '', typeValidation: 'strict', version: 2 },
         conditions: [{
           id: 'cond_dedup',
-          leftValue: '={{ $json.length }}',
-          rightValue: 0,
-          operator: { type: 'number', operation: 'equals' }
+          leftValue: '={{ $json.cnt }}',
+          rightValue: '0',
+          operator: { type: 'string', operation: 'equals' }
         }],
         combinator: 'and'
       },

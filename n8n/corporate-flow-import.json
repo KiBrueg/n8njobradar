@@ -391,7 +391,7 @@
       },
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT je.job_id_fuzzy, j.updated_at\nFROM job_events je\nJOIN jobs j ON j.job_id_fuzzy = je.job_id_fuzzy\nWHERE je.job_id_fuzzy = {{ $json.normalized_input.raw_meta.job_url\n  ? \"'\" + $json.normalized_input.raw_meta.job_url.replace(/'/g,\"''\").substring(0,200) + \"'\"\n  : \"'__no_url__'\" }}\n  AND j.updated_at > NOW() - INTERVAL '7 days'\nLIMIT 1;",
+        "query": "SELECT COUNT(*) AS cnt\nFROM jobs\nWHERE source_url = {{ $json.normalized_input.raw_meta.job_url\n  ? \"'\" + $json.normalized_input.raw_meta.job_url.replace(/'/g,\"''\").substring(0,200) + \"'\"\n  : \"'__no_url__'\" }}\n  AND updated_at > NOW() - INTERVAL '7 days';",
         "options": {}
       }
     },
@@ -415,10 +415,10 @@
           "conditions": [
             {
               "id": "cond_dedup",
-              "leftValue": "={{ $json.length }}",
-              "rightValue": 0,
+              "leftValue": "={{ $json.cnt }}",
+              "rightValue": "0",
               "operator": {
-                "type": "number",
+                "type": "string",
                 "operation": "equals"
               }
             }
