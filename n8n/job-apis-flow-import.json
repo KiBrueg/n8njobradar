@@ -594,7 +594,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Adzuna response: { results: [...jobs], count: N }\nconst data = .item.json.results || [];\nif (data.length === 0) return [];\nreturn data.map(job => ({ json: {\n  title: job.title || '',\n  company: (job.company && job.company.display_name) || '',\n  location: (job.location && job.location.display_name) || '',\n  url: job.redirect_url || '',\n  description: (job.description || '').substring(0, 3000),\n  created_at: job.created || null,\n  tags: job.category ? [job.category.tag] : [],\n  source_label: 'adzuna',\n  source_detail: 'adzuna_api'\n} }));"
+        "jsCode": "// Adzuna response: { results: [...jobs], count: N }\nconst data = $input.first().json.results || [];\nif (data.length === 0) return [];\nreturn data.map(function(job) { return { json: {\n  title: job.title || \"\",\n  company: (job.company && job.company.display_name) || \"\",\n  location: (job.location && job.location.display_name) || \"\",\n  url: job.redirect_url || \"\",\n  description: (job.description || \"\").substring(0, 3000),\n  created_at: job.created || null,\n  tags: job.category ? [job.category.tag] : [],\n  source_label: \"adzuna\",\n  source_detail: \"adzuna_api\"\n} }; });"
       },
       "id": "n_adzuna_flatten",
       "name": "Flatten: Adzuna",
