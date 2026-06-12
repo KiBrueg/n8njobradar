@@ -356,9 +356,9 @@
         1080,
         300
       ],
-      "notes": "Filters irrelevant jobs before LLM call to save tokens.",
+      "notes": "Keeps AI/automation jobs. Discards: senior/lead/head roles; 5+ years experience requirements.",
       "parameters": {
-        "jsCode": "const KEYWORDS = ['automation', 'engineer', 'developer', 'devops', 'platform', 'workflow', 'integration', 'python', 'machine learning', 'ai ', 'n8n', 'data engineer', 'backend', 'software', 'cloud', 'infrastructure'];\nreturn $input.all().filter(item => {\n  const job = item.json;\n  const text = [(job.title || ''), (job.departments || ''), (job.content || '')].join(' ').toLowerCase();\n  return KEYWORDS.some(kw => text.includes(kw));\n});"
+        "jsCode": "const KEYWORDS = ['automation', 'automat', 'rpa', 'robotic process', 'process automation', 'workflow automation', 'low-code', 'no-code', 'machine learning', 'deep learning', 'neural network', 'artificial intelligence', 'ai engineer', 'ai developer', 'ai specialist', 'ai researcher', 'ai architect', 'llm', 'large language model', 'generative ai', 'genai', 'gen-ai', 'prompt engineer', 'vector search', 'rag ', 'künstliche intelligenz', 'ki engineer', 'ki developer', 'ki-', ' ki ', 'maschinelles lernen', 'automatisierung', 'mlops', 'dataops', 'data engineer', 'data pipeline', 'etl', 'n8n', 'zapier', 'airflow', 'prefect', 'dagster', 'make.com', 'integration engineer', 'integration developer', 'devops', 'platform engineer', 'process mining'];\nconst EXCLUDE_TITLE = ['senior ', 'sr. ', 'sr ', 'staff engineer', 'principal ', 'lead engineer', 'tech lead', 'engineering lead', 'head of', 'director', 'vp ', 'vice president'];\nconst EXP_REGEX = new RegExp('\\\\b([5-9]|\\\\d{2})\\\\+?\\\\s*(?:years?|jahre?)(?:\\\\s+of)?\\\\s*(?:experience|erfahrung|berufserfahrung)', 'i');\n\nreturn $input.all().filter(item => {\n  const job = item.json;\n  const title = (job.title || '').toLowerCase();\n  const fullText = [title, (job.departments || ''), (job.content || '')].join(' ').toLowerCase();\n\n  // Discard senior/lead/head/director titles\n  if (EXCLUDE_TITLE.some(ex => title.includes(ex))) return false;\n  // Discard postings requiring 5+ years of experience\n  if (EXP_REGEX.test(fullText)) return false;\n  // Keep only AI/automation-relevant roles\n  return KEYWORDS.some(kw => fullText.includes(kw));\n});"
       }
     },
     {
@@ -456,7 +456,7 @@
         "sendBody": true,
         "contentType": "raw",
         "rawContentType": "application/json",
-        "body": "={{ JSON.stringify({ model: 'qwen/qwen3-30b-a3b-instruct-2507', max_tokens: 2048, messages: [{ role: 'system', content: $env.JOBRADAR_SYSTEM_PROMPT }, { role: 'user', content: JSON.stringify($json.normalized_input) }] }) }}",
+        "body": "={{ JSON.stringify({ model: 'qwen/qwen3-30b-a3b-instruct-2507', max_tokens: 1500, messages: [{ role: 'system', content: $env.JOBRADAR_SYSTEM_PROMPT }, { role: 'user', content: '/no_think\\n\\nINSTRUCTION: The JSON below is a job posting scraped directly from a corporate career page API (Greenhouse or Lever). Classify it as category=job_posting, is_job_related=true, action=create_job. Evaluate relevance_score per candidate profile. Output JSON only.\\n\\n' + JSON.stringify($json.normalized_input) }] }) }}",
         "options": {
           "timeout": 60000
         }

@@ -41,11 +41,46 @@ const FIRECRAWL_STUBS = [
 ];
 
 // ── Keyword filter (applied before LLM to save tokens) ─────────────────────
+// Strict AI/automation focus — jobs without these keywords are discarded.
+// Broad terms (engineer, developer, software, backend, cloud) intentionally
+// excluded to avoid sending irrelevant postings to the LLM.
 const KEYWORDS = [
-  'automation', 'engineer', 'developer', 'devops', 'platform',
-  'workflow', 'integration', 'python', 'machine learning', 'ai ',
-  'n8n', 'data engineer', 'backend', 'software', 'cloud', 'infrastructure'
+  // Automation (EN/DE)
+  'automation', 'automat', 'rpa', 'robotic process', 'process automation',
+  'workflow automation', 'low-code', 'no-code',
+  // AI / ML (English)
+  'machine learning', 'deep learning', 'neural network',
+  'artificial intelligence',
+  'ai engineer', 'ai developer', 'ai specialist', 'ai researcher', 'ai architect',
+  'llm', 'large language model', 'generative ai', 'genai', 'gen-ai',
+  'prompt engineer', 'vector search', 'rag ',
+  // AI / ML (German)
+  'künstliche intelligenz', 'ki engineer', 'ki developer', 'ki-', ' ki ',
+  'maschinelles lernen', 'automatisierung',
+  // Data Engineering / MLOps
+  'mlops', 'dataops', 'data engineer', 'data pipeline', 'etl',
+  // Workflow / integration tools (strong signal)
+  'n8n', 'zapier', 'airflow', 'prefect', 'dagster', 'make.com',
+  'integration engineer', 'integration developer',
+  // DevOps / Platform (often automation-adjacent)
+  'devops', 'platform engineer',
+  // Process intelligence
+  'process mining',
 ];
+
+// ── Exclusion filter ─────────────────────────────────────────────────────────
+// Jobs matching these are discarded even if they contain AI/automation keywords.
+// Checked against title only (to avoid false positives from job description text).
+const EXCLUDE_TITLE_KW = [
+  'senior ', 'sr. ', 'sr ',
+  'staff engineer', 'principal ',
+  'lead engineer', 'tech lead', 'engineering lead',
+  'head of', 'director', 'vp ', 'vice president',
+];
+// Regex checked against full text: filters out "5+ years of experience" requirements.
+// Matches: "5 years experience", "6+ Jahre Berufserfahrung", "10 years of experience" etc.
+const EXCLUDE_EXP_REGEX_SRC =
+  '\\\\b([5-9]|\\\\d{2})\\\\+?\\\\s*(?:years?|jahre?)(?:\\\\s+of)?\\\\s*(?:experience|erfahrung|berufserfahrung)';
 
 // ══════════════════════════════════════════════════════════════════════════════
 // Node builders
@@ -237,19 +272,30 @@ function mergeNode(col) {
 // ── Keyword filter (Code node before LLM) ──────────────────────────────────
 function keywordFilterNode(col) {
   const kwList = KEYWORDS.map(k => `'${k}'`).join(', ');
+  const exList = EXCLUDE_TITLE_KW.map(k => `'${k}'`).join(', ');
   return {
     id: 'n_kw_filter',
     name: 'Keyword Filter',
     type: 'n8n-nodes-base.code',
     typeVersion: 2,
     position: pos(col),
-    notes: 'Filters irrelevant jobs before LLM call to save tokens.',
+    notes: 'Keeps AI/automation jobs. Discards: senior/lead/head roles; 5+ years experience requirements.',
     parameters: {
       jsCode: `const KEYWORDS = [${kwList}];
+const EXCLUDE_TITLE = [${exList}];
+const EXP_REGEX = new RegExp('${EXCLUDE_EXP_REGEX_SRC}', 'i');
+
 return $input.all().filter(item => {
   const job = item.json;
-  const text = [(job.title || ''), (job.departments || ''), (job.content || '')].join(' ').toLowerCase();
-  return KEYWORDS.some(kw => text.includes(kw));
+  const title = (job.title || '').toLowerCase();
+  const fullText = [title, (job.departments || ''), (job.content || '')].join(' ').toLowerCase();
+
+  // Discard senior/lead/head/director titles
+  if (EXCLUDE_TITLE.some(ex => title.includes(ex))) return false;
+  // Discard postings requiring 5+ years of experience
+  if (EXP_REGEX.test(fullText)) return false;
+  // Keep only AI/automation-relevant roles
+  return KEYWORDS.some(kw => fullText.includes(kw));
 });`
     }
   };
@@ -369,7 +415,7 @@ function llmNode(col) {
       sendBody: true,
       contentType: 'raw',
       rawContentType: 'application/json',
-      body: "={{ JSON.stringify({ model: 'qwen/qwen3-30b-a3b-instruct-2507', max_tokens: 2048, messages: [{ role: 'system', content: $env.JOBRADAR_SYSTEM_PROMPT }, { role: 'user', content: JSON.stringify($json.normalized_input) }] }) }}",
+      body: "={{ JSON.stringify({ model: 'qwen/qwen3-30b-a3b-instruct-2507', max_tokens: 1500, messages: [{ role: 'system', content: $env.JOBRADAR_SYSTEM_PROMPT }, { role: 'user', content: '/no_think\\n\\nINSTRUCTION: The JSON below is a job posting scraped directly from a corporate career page API (Greenhouse or Lever). Classify it as category=job_posting, is_job_related=true, action=create_job. Evaluate relevance_score per candidate profile. Output JSON only.\\n\\n' + JSON.stringify($json.normalized_input) }] }) }}",
       options: { timeout: 60000 }
     }
   };
