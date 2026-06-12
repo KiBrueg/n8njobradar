@@ -232,7 +232,7 @@
         }
       },
       "id": "n_claude",
-      "name": "LLM Call (OpenRouter)",
+      "name": "DeepSeek API",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
@@ -245,7 +245,7 @@
         "jsCode": "const body = $input.item.json;\nlet jobEvent;\ntry {\n  let raw = (body.choices[0].message.content || '').trim();\n  // Strip Qwen3/CoT thinking blocks: <think>...</think>\n  raw = raw.replace(/<think>[\\s\\S]*?<\\/think>/gi, '').trim();\n  // Strip markdown code fences: ```json ... ```\n  raw = raw.replace(/^```(?:json)?\\s*/i, '').replace(/\\s*```$/, '').trim();\n  jobEvent = JSON.parse(raw);\n} catch (err) {\n  throw new Error('LLM returned invalid JSON: ' + String(body?.choices?.[0]?.message?.content || '').substring(0, 300));\n}\n\nif (typeof jobEvent.is_job_related !== 'boolean') {\n  throw new Error('Parse error: is_job_related must be boolean, got: ' + typeof jobEvent.is_job_related);\n}\nif (typeof jobEvent.injection_suspected !== 'boolean') {\n  jobEvent.injection_suspected = false;\n}\n\nconst ALLOWED_ACTIONS = ['create_job','update_stage','add_interview','add_deadline','log_only','flag_error','ignore'];\nif (!ALLOWED_ACTIONS.includes(jobEvent.action)) {\n  throw new Error('Parse error: invalid action value: ' + String(jobEvent.action));\n}\n\nif (jobEvent.company_id && !/^[a-z0-9][a-z0-9-]*[a-z0-9]$/.test(jobEvent.company_id)) {\n  jobEvent.company_id = jobEvent.company_id.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/--+/g, '-').replace(/^-|-$/g, '');\n}\n\nif (!Array.isArray(jobEvent.tech_stack)) jobEvent.tech_stack = [];\nif (!Array.isArray(jobEvent.key_requirements)) jobEvent.key_requirements = [];\n\n// Business rule: job_posting is always job-related regardless of LLM decision\nconst JOB_RELATED_CATEGORIES = ['job_posting','hr_invite','interview_invite','test_task','offer','rejection','follow_up','platform_notification','manual_note'];\nif (JOB_RELATED_CATEGORIES.includes(jobEvent.category)) {\n  jobEvent.is_job_related = true;\n}\n\njobEvent.is_job_related_str = jobEvent.is_job_related ? 'yes' : 'no';\n\nreturn [{ json: { job_event: jobEvent } }];"
       },
       "id": "n_parse",
-      "name": "Parse LLM Response",
+      "name": "Parse DeepSeek Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -389,82 +389,16 @@
       ]
     },
     {
-      "parameters": {
-        "method": "POST",
-        "url": "https://www.googleapis.com/calendar/v3/calendars/primary/events",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "googleCalendarOAuth2Api",
-        "sendBody": true,
-        "contentType": "raw",
-        "rawContentType": "application/json",
-        "body": "={{ JSON.stringify({ summary: 'Interview: ' + ($('Parse LLM Response').item.json.job_event.job_title || $json.job_id_fuzzy || 'Job') + ($('Parse LLM Response').item.json.job_event.company_name ? ' @ ' + $('Parse LLM Response').item.json.job_event.company_name : ''), description: [($('Parse LLM Response').item.json.job_event.company_name ? '<b>Unternehmen:</b> ' + $('Parse LLM Response').item.json.job_event.company_name : null), ($('Parse LLM Response').item.json.job_event.job_title ? '<b>Position:</b> ' + $('Parse LLM Response').item.json.job_event.job_title : null), ($json.interview_date ? '<b>Datum:</b> ' + String($json.interview_date).substring(0, 10) : null), ($json.stage ? '<b>Phase:</b> ' + $json.stage : null), ($json.priority ? '<b>Prioritaet:</b> ' + $json.priority : null), ($json.job_id_fuzzy ? '<b>ID:</b> ' + $json.job_id_fuzzy : null)].filter(Boolean).join('<br>'), start: { date: String($json.interview_date).substring(0, 10) }, end: { date: String($json.interview_date).substring(0, 10) }, reminders: { useDefault: true } }) }}",
-        "options": {
-          "timeout": 10000
-        }
-      },
+      "parameters": {},
       "id": "n_calendar_todo",
-      "name": "Google Calendar: Create Event",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "name": "TODO: Google Calendar",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
       "position": [
         3350,
         360
       ],
-      "notes": "Replace with Google Calendar node.\nCreate event: job_title @ company_name, start=interview_date, duration=1h.\nUse $('DB: Write All').item.json for job data.",
-      "credentials": {
-        "googleCalendarOAuth2Api": {
-          "id": "eLQTxfMJ6kryO1Iy",
-          "name": "Google Calendar account"
-        }
-      }
-    },
-    {
-      "id": "n_if_priority_manual",
-      "name": "IF: priority = high",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.2,
-      "position": [
-        3130,
-        540
-      ],
-      "parameters": {
-        "conditions": {
-          "conditions": [
-            {
-              "id": "cond_priority",
-              "leftValue": "={{ $json.priority }}",
-              "rightValue": "high",
-              "operator": {
-                "type": "string",
-                "operation": "equals"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      }
-    },
-    {
-      "id": "n_telegram_manual",
-      "name": "Telegram: Job Alert",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        3350,
-        520
-      ],
-      "parameters": {
-        "method": "POST",
-        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendMessage",
-        "sendBody": true,
-        "contentType": "raw",
-        "rawContentType": "application/json",
-        "body": "={{ JSON.stringify({ chat_id: $env.TELEGRAM_CHAT_ID, parse_mode: 'HTML', text: ['\\u{1F514} <b>[JobRadar] ' + ($('Parse LLM Response').item.json.job_event.company_name || 'Unknown') + '</b>', '<b>' + ($('Parse LLM Response').item.json.job_event.job_title || '') + '</b>', '', 'Phase: <code>' + ($json.stage || '') + '</code>  Prioritaet: <b>' + ($json.priority || '') + '</b>', (($('Parse LLM Response').item.json.job_event.salary_min || $('Parse LLM Response').item.json.job_event.salary_max) ? 'Gehalt: ' + [$('Parse LLM Response').item.json.job_event.salary_min, $('Parse LLM Response').item.json.job_event.salary_max].filter(Boolean).join('-') + ' ' + ($('Parse LLM Response').item.json.job_event.salary_currency || '') : null), '', ($json.summary || '')].filter(Boolean).join('\\n') }) }}",
-        "options": {
-          "timeout": 10000
-        }
-      }
+      "notes": "Replace with Google Calendar node.\nCreate event: job_title @ company_name, start=interview_date, duration=1h.\nUse $('DB: Write All').item.json for job data."
     }
   ],
   "connections": {
@@ -502,6 +436,28 @@
         [
           {
             "node": "Sender Risk Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DeepSeek API": {
+      "main": [
+        [
+          {
+            "node": "Parse DeepSeek Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse DeepSeek Response": {
+      "main": [
+        [
+          {
+            "node": "IF: is_job_related",
             "type": "main",
             "index": 0
           }
@@ -549,11 +505,6 @@
             "node": "IF: interview_date present",
             "type": "main",
             "index": 0
-          },
-          {
-            "node": "IF: priority = high",
-            "type": "main",
-            "index": 0
           }
         ]
       ]
@@ -562,7 +513,7 @@
       "main": [
         [
           {
-            "node": "Google Calendar: Create Event",
+            "node": "TODO: Google Calendar",
             "type": "main",
             "index": 0
           }
@@ -585,7 +536,7 @@
       "main": [
         [
           {
-            "node": "LLM Call (OpenRouter)",
+            "node": "DeepSeek API",
             "type": "main",
             "index": 0
           }
@@ -626,40 +577,6 @@
             "index": 0
           }
         ]
-      ]
-    },
-    "LLM Call (OpenRouter)": {
-      "main": [
-        [
-          {
-            "node": "Parse LLM Response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse LLM Response": {
-      "main": [
-        [
-          {
-            "node": "IF: is_job_related",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "IF: priority = high": {
-      "main": [
-        [
-          {
-            "node": "Telegram: Job Alert",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        []
       ]
     }
   },
