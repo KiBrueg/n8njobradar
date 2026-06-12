@@ -88,6 +88,7 @@ function greenhouseNode(company, col, row) {
     typeVersion: 4.2,
     position: pos(col, row),
     notes: company.note,
+    onError: 'continueRegularOutput',
     parameters: {
       method: 'GET',
       url: `https://boards-api.greenhouse.io/v1/boards/${company.slug}/jobs?content=true`,
@@ -130,6 +131,7 @@ function leverNode(company, col, row) {
     typeVersion: 4.2,
     position: pos(col, row),
     notes: company.note,
+    onError: 'continueRegularOutput',
     parameters: {
       method: 'GET',
       url: `https://api.lever.co/v0/postings/${company.slug}?mode=json`,
@@ -171,6 +173,7 @@ function directHttpNode(company, col, row) {
     typeVersion: 4.2,
     position: pos(col, row),
     notes: company.note,
+    onError: 'continueRegularOutput',
     parameters: {
       method: 'GET',
       url: company.url,

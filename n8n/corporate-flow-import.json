@@ -32,6 +32,7 @@
         -100
       ],
       "notes": "Process Mining/Automation, Munich",
+      "onError": "continueRegularOutput",
       "parameters": {
         "method": "GET",
         "url": "https://boards-api.greenhouse.io/v1/boards/celonis/jobs?content=true",
@@ -63,6 +64,7 @@
         100
       ],
       "notes": "Tech/Operations, Berlin",
+      "onError": "continueRegularOutput",
       "parameters": {
         "method": "GET",
         "url": "https://boards-api.greenhouse.io/v1/boards/hellofresh/jobs?content=true",
@@ -94,6 +96,7 @@
         300
       ],
       "notes": "Fintech, Berlin",
+      "onError": "continueRegularOutput",
       "parameters": {
         "method": "GET",
         "url": "https://boards-api.greenhouse.io/v1/boards/n26/jobs?content=true",
@@ -125,6 +128,7 @@
         500
       ],
       "notes": "Travel Tech, Berlin",
+      "onError": "continueRegularOutput",
       "parameters": {
         "method": "GET",
         "url": "https://boards-api.greenhouse.io/v1/boards/getyourguide/jobs?content=true",
@@ -156,6 +160,7 @@
         700
       ],
       "notes": "Fintech/Payments, Berlin",
+      "onError": "continueRegularOutput",
       "parameters": {
         "method": "GET",
         "url": "https://boards-api.greenhouse.io/v1/boards/sumup/jobs?content=true",
@@ -187,6 +192,7 @@
         700
       ],
       "notes": "AI Research, Heidelberg",
+      "onError": "continueRegularOutput",
       "parameters": {
         "method": "GET",
         "url": "https://api.lever.co/v0/postings/aleph-alpha?mode=json",
@@ -218,6 +224,7 @@
         900
       ],
       "notes": "Berlin, Tech/Platform",
+      "onError": "continueRegularOutput",
       "parameters": {
         "method": "GET",
         "url": "https://jobs.zalando.com/api/jobs/?limit=100&offset=0",
