@@ -577,7 +577,32 @@
     {
       "parameters": {
         "method": "GET",
-        "url": "=https://api.adzuna.com/v1/api/jobs/de/search/1?app_id={{ $env.ADZUNA_APP_ID }}&app_key={{ $env.ADZUNA_APP_KEY }}&results_per_page=50&what=automation+engineer+KI+RPA+LLM&content-type=application/json",
+        "url": "https://api.adzuna.com/v1/api/jobs/de/search/1",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "app_id",
+              "value": "={{ $env.ADZUNA_APP_ID }}"
+            },
+            {
+              "name": "app_key",
+              "value": "={{ $env.ADZUNA_APP_KEY }}"
+            },
+            {
+              "name": "results_per_page",
+              "value": "50"
+            },
+            {
+              "name": "what",
+              "value": "automation engineer KI RPA LLM"
+            },
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
         "options": {
           "timeout": 15000
         }
