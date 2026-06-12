@@ -274,14 +274,18 @@ return $input.all().map(item => {
       email_account_id: null,
       email_address: null,
       email_provider: null,
-      subject: j.title || null,
+      subject: '[JOB POSTING] ' + (j.title || '') + ' @ ' + (j._company || ''),
       date: now,
       raw_text: [
-        'Title: ' + (j.title || ''),
+        '=== JOB POSTING FROM CORPORATE CAREER PAGE ===',
+        'Source: ' + (j._source || 'corporate_api'),
         'Company: ' + (j._company || ''),
+        'Position: ' + (j.title || ''),
         'Location: ' + (j.location || ''),
         'Department: ' + (j.departments || ''),
+        'URL: ' + (j.url || ''),
         '',
+        '=== JOB DESCRIPTION ===',
         j.content || ''
       ].join('\\n').substring(0, 8000),
       raw_meta: {
