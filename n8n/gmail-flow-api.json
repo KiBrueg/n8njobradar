@@ -442,7 +442,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const d = $input.item.json;\n\n// Build HTML description for Google Calendar\nconst parts = [];\nif (d.summary)        parts.push('<b>📋 Описание:</b> ' + d.summary);\nif (d.stage)          parts.push('<b>📍 Стадия:</b> ' + d.stage);\nif (d.priority)       parts.push('<b>⭐ Приоритет:</b> ' + d.priority);\nif (d.gmail_label)    parts.push('<b>🏷 Label:</b> ' + d.gmail_label);\nif (d.job_id_fuzzy)   parts.push('<b>🆔 ID:</b> ' + d.job_id_fuzzy);\n\nreturn [{ json: {\n  ...d,\n  calendar_description: parts.join('<br>'),\n  has_interview_date: !!(d.interview_date)\n} }];\n"
+        "jsCode": "const d = $input.item.json;\n\n// Build HTML description for Google Calendar (German labels, ASCII only)\nconst parts = [];\nif (d.company)         parts.push('<b>Unternehmen:</b> ' + d.company);\nif (d.position)        parts.push('<b>Position:</b> ' + d.position);\nif (d.interview_date)  parts.push('<b>Datum:</b> ' + d.interview_date);\nif (d.stage)           parts.push('<b>Phase:</b> ' + d.stage);\nif (d.priority)        parts.push('<b>Prioritaet:</b> ' + d.priority);\nif (d.work_format)     parts.push('<b>Format:</b> ' + d.work_format);\nif (d.salary_range)    parts.push('<b>Gehalt:</b> ' + d.salary_range);\nif (d.gmail_label)     parts.push('<b>Label:</b> ' + d.gmail_label);\nif (d.job_id_fuzzy)    parts.push('<b>ID:</b> ' + d.job_id_fuzzy);\n\nreturn [{ json: {\n  ...d,\n  calendar_description: parts.join('<br>'),\n  has_interview_date: !!(d.interview_date)\n} }];\n"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
