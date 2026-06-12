@@ -358,8 +358,8 @@
       ],
       "notes": "Filters irrelevant jobs before LLM call to save tokens.",
       "parameters": {
-        "jsCode": "const KEYWORDS = ['automation', 'engineer', 'developer', 'devops', 'platform', 'workflow', 'integration', 'python', 'machine learning', 'ai ', 'n8n', 'data engineer', 'backend', 'software', 'cloud', 'infrastructure'];\nconst job = $input.item.json;\nconst text = [(job.title || ''), (job.departments || ''), (job.content || '')].join(' ').toLowerCase();\nconst match = KEYWORDS.some(kw => text.includes(kw));\nif (!match) return [];\nreturn [{ json: job }];",
-        "mode": "runOnceForEachItem"
+        "jsCode": "const KEYWORDS = ['automation', 'engineer', 'developer', 'devops', 'platform', 'workflow', 'integration', 'python', 'machine learning', 'ai ', 'n8n', 'data engineer', 'backend', 'software', 'cloud', 'infrastructure'];\nreturn $input.all().filter(item => {\n  const job = item.json;\n  const text = [(job.title || ''), (job.departments || ''), (job.content || '')].join(' ').toLowerCase();\n  return KEYWORDS.some(kw => text.includes(kw));\n});",
+        "mode": "runOnceForAllItems"
       }
     },
     {

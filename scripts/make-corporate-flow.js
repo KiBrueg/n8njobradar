@@ -246,12 +246,12 @@ function keywordFilterNode(col) {
     notes: 'Filters irrelevant jobs before LLM call to save tokens.',
     parameters: {
       jsCode: `const KEYWORDS = [${kwList}];
-const job = $input.item.json;
-const text = [(job.title || ''), (job.departments || ''), (job.content || '')].join(' ').toLowerCase();
-const match = KEYWORDS.some(kw => text.includes(kw));
-if (!match) return [];
-return [{ json: job }];`,
-      mode: 'runOnceForEachItem'
+return $input.all().filter(item => {
+  const job = item.json;
+  const text = [(job.title || ''), (job.departments || ''), (job.content || '')].join(' ').toLowerCase();
+  return KEYWORDS.some(kw => text.includes(kw));
+});`,
+      mode: 'runOnceForAllItems'
     }
   };
 }
