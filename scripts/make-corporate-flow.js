@@ -19,6 +19,8 @@ const GREENHOUSE_COMPANIES = [
   { slug: 'n26',         label: 'N26',          note: 'Fintech, Berlin' },
   { slug: 'getyourguide', label: 'GetYourGuide', note: 'Travel Tech, Berlin' },
   { slug: 'sumup',       label: 'SumUp',        note: 'Fintech/Payments, Berlin' },
+  { slug: 'babbel',      label: 'Babbel',       note: 'EdTech/Language, Berlin' },
+  { slug: 'contentful',  label: 'Contentful',   note: 'Headless CMS, Berlin' },
 ];
 
 // ── Lever companies ─────────────────────────────────────────────────────────
@@ -27,15 +29,7 @@ const LEVER_COMPANIES = [
 ];
 
 // ── Direct HTTP (JSON APIs) ─────────────────────────────────────────────────
-const DIRECT_HTTP = [
-  {
-    id: 'zalando',
-    label: 'Zalando',
-    url: 'https://jobs.zalando.com/api/jobs/?limit=100&offset=0',
-    note: 'Berlin, Tech/Platform',
-    source_detail: 'zalando_api'
-  },
-];
+const DIRECT_HTTP = [];
 
 // ── Firecrawl stubs (activate later) ───────────────────────────────────────
 const FIRECRAWL_STUBS = [
@@ -43,6 +37,7 @@ const FIRECRAWL_STUBS = [
   { id: 'siemens',      label: 'Siemens Jobs',      note: 'Activate: jobs.siemens.com/?keywords=automation' },
   { id: 'deliveryhero', label: 'Delivery Hero Jobs', note: 'Activate: careers.deliveryhero.com (custom ATS)' },
   { id: 'teamviewer',   label: 'TeamViewer Jobs',   note: 'Activate: teamviewer.com/en/company/careers (custom ATS)' },
+  { id: 'zalando',      label: 'Zalando Jobs',      note: 'Activate: jobs.zalando.com -- no public API, needs Firecrawl' },
 ];
 
 // ── Keyword filter (applied before LLM to save tokens) ─────────────────────

@@ -29,7 +29,7 @@
       "typeVersion": 4.2,
       "position": [
         420,
-        -100
+        -300
       ],
       "notes": "Process Mining/Automation, Munich",
       "onError": "continueRegularOutput",
@@ -48,7 +48,7 @@
       "typeVersion": 2,
       "position": [
         640,
-        -100
+        -300
       ],
       "parameters": {
         "jsCode": "const resp = $input.item.json;\nconst jobs = Array.isArray(resp.jobs) ? resp.jobs : [];\nreturn jobs.map(j => ({ json: {\n  _source: 'greenhouse_api',\n  _company: 'Celonis',\n  _company_slug: 'celonis',\n  title: j.title || '',\n  location: (j.location && j.location.name) || 'Remote',\n  url: j.absolute_url || '',\n  published_at: j.updated_at || null,\n  departments: Array.isArray(j.departments) ? j.departments.map(d => d.name).join(', ') : '',\n  content: j.content ? j.content.replace(/<[^>]+>/g, ' ').substring(0, 3000) : ''\n} }));"
@@ -61,7 +61,7 @@
       "typeVersion": 4.2,
       "position": [
         420,
-        100
+        -100
       ],
       "notes": "Tech/Operations, Berlin",
       "onError": "continueRegularOutput",
@@ -80,7 +80,7 @@
       "typeVersion": 2,
       "position": [
         640,
-        100
+        -100
       ],
       "parameters": {
         "jsCode": "const resp = $input.item.json;\nconst jobs = Array.isArray(resp.jobs) ? resp.jobs : [];\nreturn jobs.map(j => ({ json: {\n  _source: 'greenhouse_api',\n  _company: 'HelloFresh',\n  _company_slug: 'hellofresh',\n  title: j.title || '',\n  location: (j.location && j.location.name) || 'Remote',\n  url: j.absolute_url || '',\n  published_at: j.updated_at || null,\n  departments: Array.isArray(j.departments) ? j.departments.map(d => d.name).join(', ') : '',\n  content: j.content ? j.content.replace(/<[^>]+>/g, ' ').substring(0, 3000) : ''\n} }));"
@@ -93,7 +93,7 @@
       "typeVersion": 4.2,
       "position": [
         420,
-        300
+        100
       ],
       "notes": "Fintech, Berlin",
       "onError": "continueRegularOutput",
@@ -112,7 +112,7 @@
       "typeVersion": 2,
       "position": [
         640,
-        300
+        100
       ],
       "parameters": {
         "jsCode": "const resp = $input.item.json;\nconst jobs = Array.isArray(resp.jobs) ? resp.jobs : [];\nreturn jobs.map(j => ({ json: {\n  _source: 'greenhouse_api',\n  _company: 'N26',\n  _company_slug: 'n26',\n  title: j.title || '',\n  location: (j.location && j.location.name) || 'Remote',\n  url: j.absolute_url || '',\n  published_at: j.updated_at || null,\n  departments: Array.isArray(j.departments) ? j.departments.map(d => d.name).join(', ') : '',\n  content: j.content ? j.content.replace(/<[^>]+>/g, ' ').substring(0, 3000) : ''\n} }));"
@@ -125,7 +125,7 @@
       "typeVersion": 4.2,
       "position": [
         420,
-        500
+        300
       ],
       "notes": "Travel Tech, Berlin",
       "onError": "continueRegularOutput",
@@ -144,7 +144,7 @@
       "typeVersion": 2,
       "position": [
         640,
-        500
+        300
       ],
       "parameters": {
         "jsCode": "const resp = $input.item.json;\nconst jobs = Array.isArray(resp.jobs) ? resp.jobs : [];\nreturn jobs.map(j => ({ json: {\n  _source: 'greenhouse_api',\n  _company: 'GetYourGuide',\n  _company_slug: 'getyourguide',\n  title: j.title || '',\n  location: (j.location && j.location.name) || 'Remote',\n  url: j.absolute_url || '',\n  published_at: j.updated_at || null,\n  departments: Array.isArray(j.departments) ? j.departments.map(d => d.name).join(', ') : '',\n  content: j.content ? j.content.replace(/<[^>]+>/g, ' ').substring(0, 3000) : ''\n} }));"
@@ -157,7 +157,7 @@
       "typeVersion": 4.2,
       "position": [
         420,
-        700
+        500
       ],
       "notes": "Fintech/Payments, Berlin",
       "onError": "continueRegularOutput",
@@ -176,10 +176,74 @@
       "typeVersion": 2,
       "position": [
         640,
-        700
+        500
       ],
       "parameters": {
         "jsCode": "const resp = $input.item.json;\nconst jobs = Array.isArray(resp.jobs) ? resp.jobs : [];\nreturn jobs.map(j => ({ json: {\n  _source: 'greenhouse_api',\n  _company: 'SumUp',\n  _company_slug: 'sumup',\n  title: j.title || '',\n  location: (j.location && j.location.name) || 'Remote',\n  url: j.absolute_url || '',\n  published_at: j.updated_at || null,\n  departments: Array.isArray(j.departments) ? j.departments.map(d => d.name).join(', ') : '',\n  content: j.content ? j.content.replace(/<[^>]+>/g, ' ').substring(0, 3000) : ''\n} }));"
+      }
+    },
+    {
+      "id": "n_gh_babbel",
+      "name": "GH: Babbel",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        420,
+        700
+      ],
+      "notes": "EdTech/Language, Berlin",
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "method": "GET",
+        "url": "https://boards-api.greenhouse.io/v1/boards/babbel/jobs?content=true",
+        "options": {
+          "timeout": 15000
+        }
+      }
+    },
+    {
+      "id": "n_gh_flat_babbel",
+      "name": "Flatten: GH Babbel",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        700
+      ],
+      "parameters": {
+        "jsCode": "const resp = $input.item.json;\nconst jobs = Array.isArray(resp.jobs) ? resp.jobs : [];\nreturn jobs.map(j => ({ json: {\n  _source: 'greenhouse_api',\n  _company: 'Babbel',\n  _company_slug: 'babbel',\n  title: j.title || '',\n  location: (j.location && j.location.name) || 'Remote',\n  url: j.absolute_url || '',\n  published_at: j.updated_at || null,\n  departments: Array.isArray(j.departments) ? j.departments.map(d => d.name).join(', ') : '',\n  content: j.content ? j.content.replace(/<[^>]+>/g, ' ').substring(0, 3000) : ''\n} }));"
+      }
+    },
+    {
+      "id": "n_gh_contentful",
+      "name": "GH: Contentful",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        420,
+        900
+      ],
+      "notes": "Headless CMS, Berlin",
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "method": "GET",
+        "url": "https://boards-api.greenhouse.io/v1/boards/contentful/jobs?content=true",
+        "options": {
+          "timeout": 15000
+        }
+      }
+    },
+    {
+      "id": "n_gh_flat_contentful",
+      "name": "Flatten: GH Contentful",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        900
+      ],
+      "parameters": {
+        "jsCode": "const resp = $input.item.json;\nconst jobs = Array.isArray(resp.jobs) ? resp.jobs : [];\nreturn jobs.map(j => ({ json: {\n  _source: 'greenhouse_api',\n  _company: 'Contentful',\n  _company_slug: 'contentful',\n  title: j.title || '',\n  location: (j.location && j.location.name) || 'Remote',\n  url: j.absolute_url || '',\n  published_at: j.updated_at || null,\n  departments: Array.isArray(j.departments) ? j.departments.map(d => d.name).join(', ') : '',\n  content: j.content ? j.content.replace(/<[^>]+>/g, ' ').substring(0, 3000) : ''\n} }));"
       }
     },
     {
@@ -189,7 +253,7 @@
       "typeVersion": 4.2,
       "position": [
         420,
-        700
+        900
       ],
       "notes": "AI Research, Heidelberg",
       "onError": "continueRegularOutput",
@@ -208,42 +272,10 @@
       "typeVersion": 2,
       "position": [
         640,
-        700
+        900
       ],
       "parameters": {
         "jsCode": "const jobs = Array.isArray($input.item.json) ? $input.item.json : [];\nreturn jobs.map(j => ({ json: {\n  _source: 'lever_api',\n  _company: 'Aleph Alpha',\n  _company_slug: 'aleph-alpha',\n  title: j.text || '',\n  location: (j.categories && j.categories.location) || 'Remote',\n  url: j.hostedUrl || '',\n  published_at: j.createdAt ? new Date(j.createdAt).toISOString() : null,\n  departments: (j.categories && j.categories.department) || '',\n  content: j.descriptionPlain ? j.descriptionPlain.substring(0, 3000) : ''\n} }));"
-      }
-    },
-    {
-      "id": "n_http_zalando",
-      "name": "HTTP: Zalando",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        420,
-        900
-      ],
-      "notes": "Berlin, Tech/Platform",
-      "onError": "continueRegularOutput",
-      "parameters": {
-        "method": "GET",
-        "url": "https://jobs.zalando.com/api/jobs/?limit=100&offset=0",
-        "options": {
-          "timeout": 15000
-        }
-      }
-    },
-    {
-      "id": "n_http_flat_zalando",
-      "name": "Flatten: Zalando",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        640,
-        900
-      ],
-      "parameters": {
-        "jsCode": "// Zalando API response normalization\n// Adjust field names if API structure changes\nconst resp = $input.item.json;\nconst jobs = Array.isArray(resp.results) ? resp.results :\n             Array.isArray(resp.jobs) ? resp.jobs :\n             Array.isArray(resp) ? resp : [];\nreturn jobs.map(j => ({ json: {\n  _source: 'zalando_api',\n  _company: 'Zalando',\n  title: j.title || j.job_title || j.name || '',\n  location: j.location || j.city || 'Unknown',\n  url: j.url || j.link || j.apply_url || '',\n  published_at: j.published_at || j.created_at || j.date || null,\n  departments: j.department || j.team || j.category || '',\n  content: (j.description || j.summary || '').replace(/<[^>]+>/g, ' ').substring(0, 3000)\n} }));"
       }
     },
     {
@@ -253,7 +285,7 @@
       "typeVersion": 1,
       "position": [
         420,
-        1700
+        1900
       ],
       "notes": "Activate: jobs.sap.com/search/?q=automation+engineer\nReplace with Firecrawl HTTP node when ready."
     },
@@ -264,7 +296,7 @@
       "typeVersion": 1,
       "position": [
         420,
-        1900
+        2100
       ],
       "notes": "Activate: jobs.siemens.com/?keywords=automation\nReplace with Firecrawl HTTP node when ready."
     },
@@ -275,7 +307,7 @@
       "typeVersion": 1,
       "position": [
         420,
-        2100
+        2300
       ],
       "notes": "Activate: careers.deliveryhero.com (custom ATS)\nReplace with Firecrawl HTTP node when ready."
     },
@@ -286,9 +318,20 @@
       "typeVersion": 1,
       "position": [
         420,
-        2300
+        2500
       ],
       "notes": "Activate: teamviewer.com/en/company/careers (custom ATS)\nReplace with Firecrawl HTTP node when ready."
+    },
+    {
+      "id": "n_fc_stub_zalando",
+      "name": "STUB: Zalando Jobs",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        420,
+        2700
+      ],
+      "notes": "Activate: jobs.zalando.com -- no public API, needs Firecrawl\nReplace with Firecrawl HTTP node when ready."
     },
     {
       "id": "n_merge",
@@ -301,7 +344,7 @@
       ],
       "parameters": {
         "mode": "append",
-        "numberInputs": 7
+        "numberInputs": 8
       }
     },
     {
@@ -606,12 +649,17 @@
             "index": 0
           },
           {
-            "node": "Lever: Aleph Alpha",
+            "node": "GH: Babbel",
             "type": "main",
             "index": 0
           },
           {
-            "node": "HTTP: Zalando",
+            "node": "GH: Contentful",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Lever: Aleph Alpha",
             "type": "main",
             "index": 0
           }
@@ -673,22 +721,33 @@
         ]
       ]
     },
-    "Lever: Aleph Alpha": {
+    "GH: Babbel": {
       "main": [
         [
           {
-            "node": "Flatten: Lever Aleph Alpha",
+            "node": "Flatten: GH Babbel",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "HTTP: Zalando": {
+    "GH: Contentful": {
       "main": [
         [
           {
-            "node": "Flatten: Zalando",
+            "node": "Flatten: GH Contentful",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lever: Aleph Alpha": {
+      "main": [
+        [
+          {
+            "node": "Flatten: Lever Aleph Alpha",
             "type": "main",
             "index": 0
           }
@@ -750,7 +809,7 @@
         ]
       ]
     },
-    "Flatten: Lever Aleph Alpha": {
+    "Flatten: GH Babbel": {
       "main": [
         [
           {
@@ -761,13 +820,24 @@
         ]
       ]
     },
-    "Flatten: Zalando": {
+    "Flatten: GH Contentful": {
       "main": [
         [
           {
             "node": "Merge: All Corporate",
             "type": "main",
             "index": 6
+          }
+        ]
+      ]
+    },
+    "Flatten: Lever Aleph Alpha": {
+      "main": [
+        [
+          {
+            "node": "Merge: All Corporate",
+            "type": "main",
+            "index": 7
           }
         ]
       ]
