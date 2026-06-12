@@ -47,23 +47,13 @@
             {
               "name": "Authorization",
               "value": "=Bearer {{ $env.FIRECRAWL_API_KEY }}"
-            },
-            {
-              "name": "Content-Type",
-              "value": "application/json"
             }
           ]
         },
         "sendBody": true,
-        "contentType": "json",
-        "body": {
-          "url": "={{ $json.url }}",
-          "formats": [
-            "markdown"
-          ],
-          "onlyMainContent": true,
-          "waitFor": 2000
-        },
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ url: $json.url, formats: ['markdown'], onlyMainContent: true, waitFor: 2000 }) }}",
         "options": {
           "timeout": 30000
         }
