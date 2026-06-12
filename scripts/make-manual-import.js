@@ -40,6 +40,18 @@ clean.nodes = clean.nodes.map(node => {
     if (Object.keys(n.credentials).length === 0) delete n.credentials;
   }
 
+  // Fix IF nodes: add missing conditions.options (required by n8n typeVersion 2.2)
+  if (n.type === 'n8n-nodes-base.if' && n.parameters && n.parameters.conditions) {
+    if (!n.parameters.conditions.options) {
+      n.parameters.conditions.options = {
+        caseSensitive: true,
+        leftValue: '',
+        typeValidation: 'strict',
+        version: 2
+      };
+    }
+  }
+
   // Rename DeepSeek -> OpenRouter node names
   if (n.name === 'DeepSeek API') n.name = 'LLM Call (OpenRouter)';
   if (n.name === 'Parse DeepSeek Response') n.name = 'Parse LLM Response';

@@ -107,7 +107,13 @@
               }
             }
           ],
-          "combinator": "and"
+          "combinator": "and",
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
         },
         "options": {}
       },
@@ -164,7 +170,13 @@
               }
             }
           ],
-          "combinator": "and"
+          "combinator": "and",
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
         },
         "options": {}
       },
@@ -255,7 +267,13 @@
               }
             }
           ],
-          "combinator": "and"
+          "combinator": "and",
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
         },
         "options": {}
       },
@@ -351,7 +369,13 @@
               }
             }
           ],
-          "combinator": "and"
+          "combinator": "and",
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
         },
         "options": {}
       },
