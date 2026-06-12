@@ -415,7 +415,7 @@ function llmNode(col) {
       sendBody: true,
       contentType: 'raw',
       rawContentType: 'application/json',
-      body: "={{ JSON.stringify({ model: 'qwen/qwen3-30b-a3b-instruct-2507', max_tokens: 1500, messages: [{ role: 'system', content: $env.JOBRADAR_SYSTEM_PROMPT }, { role: 'user', content: '/no_think\\n\\nINSTRUCTION: The JSON below is a job posting scraped directly from a corporate career page API (Greenhouse or Lever). Classify it as category=job_posting, is_job_related=true, action=create_job. Evaluate relevance_score per candidate profile. Output JSON only.\\n\\n' + JSON.stringify($json.normalized_input) }] }) }}",
+      body: "={{ JSON.stringify({ model: 'qwen/qwen3-30b-a3b-instruct-2507', max_tokens: 1500, messages: [{ role: 'system', content: $env.JOBRADAR_SYSTEM_PROMPT }, { role: 'user', content: '/no_think\\n\\nCONTEXT: This is a job posting scraped from a corporate career page API (Greenhouse/Lever). Extract ALL available fields: company_name from raw_meta.company, job_title from subject or raw_text Position field, location, tech_stack, key_requirements, source_url from raw_meta.job_url. Set category=job_posting, is_job_related=true, action=create_job. Evaluate relevance_score per candidate profile. Output JSON only.\\n\\n' + JSON.stringify($json.normalized_input) }] }) }}",
       options: { timeout: 60000 }
     }
   };
@@ -504,8 +504,8 @@ function prepareDbNode(col) {
     typeVersion: 2,
     position: pos(col),
     parameters: {
-      jsCode: `const e = $input.item.json.job_event;
-const ni = $('Normalize: Corporate Job').item.json.normalized_input;
+      jsCode: `const e = $input.first().json.job_event;
+const ni = $('Normalize: Corporate Job').first().json.normalized_input;
 
 function sql(v) { if (v===null||v===undefined) return 'NULL'; return "'"+ String(v).replace(/'/g,"''") +"'"; }
 function num(v) { if (v===null||v===undefined) return 'NULL'; const n=parseFloat(v); return isNaN(n)?'NULL':String(n); }
@@ -686,7 +686,7 @@ function telegramNode(col) {
       sendBody: true,
       contentType: 'raw',
       rawContentType: 'application/json',
-      body: "={{ JSON.stringify({ chat_id: $env.TELEGRAM_CHAT_ID, parse_mode: 'HTML', text: ['\\u{1F3E2} <b>[JobRadar Corporate] ' + ($('Parse LLM Response').item.json.job_event.company_name || 'Unknown') + '</b>', '<b>' + ($('Parse LLM Response').item.json.job_event.job_title || '') + '</b>', '', 'Phase: <code>' + ($json.stage || '') + '</code>  Prioritaet: <b>' + ($json.priority || '') + '</b>', '', ($json.summary || '')].filter(Boolean).join('\\n') }) }}",
+      body: "={{ JSON.stringify({ chat_id: $env.TELEGRAM_CHAT_ID, parse_mode: 'HTML', text: ['\\u{1F3E2} <b>[JobRadar Corporate] ' + ($('Parse LLM Response').first().json.job_event.company_name || 'Unknown') + '</b>', '<b>' + ($('Parse LLM Response').first().json.job_event.job_title || '') + '</b>', '', 'Phase: <code>' + ($json.stage || '') + '</code>  Prioritaet: <b>' + ($json.priority || '') + '</b>', '', ($json.summary || '')].filter(Boolean).join('\\n') }) }}",
       options: { timeout: 10000 }
     }
   };
