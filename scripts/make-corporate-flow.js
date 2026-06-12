@@ -518,16 +518,32 @@ function arr(vals) {
   return "'"+'{'+ parts.join(',') +'}'+"'";
 }
 function jsonb(v) { if (!v) return "'{}'::jsonb"; return "'"+ JSON.stringify(v).replace(/'/g,"''") +"'::jsonb"; }
+function slugify(s) { return (s||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,''); }
+
+// Fallbacks: use raw_meta structured data when LLM returns null
+const titleFromSubject = (ni.subject||'').replace(/^\\[JOB POSTING\\]\\s*/i,'').split(' @ ')[0].trim() || null;
+const companyId   = e.company_id   || ni.raw_meta.company_slug || slugify(ni.raw_meta.company) || 'unknown';
+const companyName = e.company_name || ni.raw_meta.company      || 'Unknown Company';
+const jobTitle    = e.job_title    || titleFromSubject          || null;
+const sourceUrl   = e.source_url   || ni.raw_meta.job_url      || null;
+const jobIdFuzzy  = e.job_id_fuzzy || [companyId, slugify(jobTitle||'unknown'), slugify(e.location||'unknown')].join('__');
 
 return [{ json: {
   job_event: e,
+  resolved: {
+    company_id:   companyId,
+    company_name: companyName,
+    job_title:    jobTitle,
+    source_url:   sourceUrl,
+    job_id_fuzzy: jobIdFuzzy
+  },
   db: {
-    company_id_sql:           sql(e.company_id||'unknown'),
-    company_name_sql:         sql(e.company_name||ni.raw_meta.company||'Unknown Company'),
+    company_id_sql:           sql(companyId),
+    company_name_sql:         sql(companyName),
     employer_id_sql:          sql(e.employer_id),
     employer_name_sql:        sql(e.employer_name),
-    job_id_fuzzy_sql:         sql(e.job_id_fuzzy||'unknown__unknown__unknown'),
-    job_title_sql:            sql(e.job_title),
+    job_id_fuzzy_sql:         sql(jobIdFuzzy),
+    job_title_sql:            sql(jobTitle),
     location_sql:             sql(e.location),
     job_thread_key_sql:       sql(e.job_thread_key),
     seniority_sql:            en(e.seniority,'seniority_enum'),
@@ -549,7 +565,7 @@ return [{ json: {
     has_had_call_sql:         bool(e.has_had_call),
     call_count_sql:           String(e.call_count||0),
     last_call_date_sql:       dt(e.last_call_date),
-    source_url_sql:           sql(ni.raw_meta.job_url||e.source_url),
+    source_url_sql:           sql(sourceUrl),
     source_input_sql:         en('scraped','input_source_enum'),
     summary_sql:              sql(e.summary),
     category_sql:             en(e.category,'job_category_enum'),
@@ -644,6 +660,98 @@ SELECT
   (SELECT summary FROM j) AS summary,
   (SELECT id FROM ev) AS event_id;`,
       options: {}
+    }
+  };
+}
+
+// ── IF: has interview_date ──────────────────────────────────────────────────
+function ifInterviewDateNode(col) {
+  return {
+    id: 'n_if_interview',
+    name: 'IF: has interview_date',
+    type: 'n8n-nodes-base.if',
+    typeVersion: 2.2,
+    position: pos(col, -2),
+    parameters: {
+      conditions: {
+        options: { caseSensitive: true, leftValue: '', typeValidation: 'loose', version: 2 },
+        conditions: [{
+          id: 'cond_interview',
+          leftValue: "={{ $('Prepare DB Params').first().json.job_event.interview_date }}",
+          rightValue: '',
+          operator: { type: 'string', operation: 'isNotEmpty' }
+        }],
+        combinator: 'and'
+      },
+      options: {}
+    }
+  };
+}
+
+// ── Google Calendar: Interview ───────────────────────────────────────────────
+function calendarInterviewNode(col) {
+  return {
+    id: 'n_cal_interview',
+    name: 'Google Calendar: Interview',
+    type: 'n8n-nodes-base.googleCalendar',
+    typeVersion: 1.3,
+    position: pos(col, -2),
+    credentials: { googleCalendarOAuth2Api: { id: 'eLQTxfMJ6kryO1Iy', name: 'Google Calendar' } },
+    parameters: {
+      operation: 'create',
+      calendar: { __rl: true, value: 'primary', mode: 'list' },
+      title: "={{ '\\uD83C\\uDFAF Interview: ' + ($('Prepare DB Params').first().json.resolved.job_title || 'Position') + ' @ ' + ($('Prepare DB Params').first().json.resolved.company_name || 'Company') }}",
+      start: "={{ ($('Prepare DB Params').first().json.job_event.interview_date || '').substring(0, 10) + 'T10:00:00' }}",
+      end:   "={{ ($('Prepare DB Params').first().json.job_event.interview_date || '').substring(0, 10) + 'T11:00:00' }}",
+      additionalFields: {
+        description: "={{ ($('Prepare DB Params').first().json.job_event.summary || '') + '\\n\\n' + ($('Prepare DB Params').first().json.resolved.source_url || '') }}"
+      }
+    }
+  };
+}
+
+// ── IF: relevance >= 70 ─────────────────────────────────────────────────────
+function ifHighRelevanceNode(col) {
+  return {
+    id: 'n_if_relevance',
+    name: 'IF: relevance >= 70',
+    type: 'n8n-nodes-base.if',
+    typeVersion: 2.2,
+    position: pos(col, 2),
+    parameters: {
+      conditions: {
+        options: { caseSensitive: true, leftValue: '', typeValidation: 'loose', version: 2 },
+        conditions: [{
+          id: 'cond_relevance',
+          leftValue: "={{ $('Prepare DB Params').first().json.job_event.relevance_score }}",
+          rightValue: 70,
+          operator: { type: 'number', operation: 'gte' }
+        }],
+        combinator: 'and'
+      },
+      options: {}
+    }
+  };
+}
+
+// ── Google Calendar: Discovered ─────────────────────────────────────────────
+function calendarDiscoveredNode(col) {
+  return {
+    id: 'n_cal_discovered',
+    name: 'Google Calendar: New Job',
+    type: 'n8n-nodes-base.googleCalendar',
+    typeVersion: 1.3,
+    position: pos(col, 2),
+    credentials: { googleCalendarOAuth2Api: { id: 'eLQTxfMJ6kryO1Iy', name: 'Google Calendar' } },
+    parameters: {
+      operation: 'create',
+      calendar: { __rl: true, value: 'primary', mode: 'list' },
+      title: "={{ '\\uD83D\\uDCCB [JobRadar] ' + ($('Prepare DB Params').first().json.resolved.job_title || 'Position') + ' @ ' + ($('Prepare DB Params').first().json.resolved.company_name || 'Company') }}",
+      start: "={{ $now.toISODate() + 'T09:00:00' }}",
+      end:   "={{ $now.toISODate() + 'T09:30:00' }}",
+      additionalFields: {
+        description: "={{ 'Relevance: ' + ($('Prepare DB Params').first().json.job_event.relevance_score || '?') + '/100\\nLocation: ' + ($('Prepare DB Params').first().json.resolved.source_url || '') + '\\n\\n' + ($('Prepare DB Params').first().json.job_event.summary || '') }}"
+      }
     }
   };
 }
@@ -754,12 +862,21 @@ const ifRelatedN = ifJobRelatedNode(10);
 const stopNotRelatedN = stopNode('n_stop_not_related', 'Not Job Related: Stop', 11, 1);
 const prepareN = prepareDbNode(11);
 const dbWriteN = dbWriteNode(12);
-const ifPriorityN = ifPriorityNode(13);
-const telegramN = telegramNode(14);
-const stopLowPriorityN = stopNode('n_stop_low', 'Low Priority: Stop', 14, 1);
+const ifPriorityN      = ifPriorityNode(13);
+const telegramN        = telegramNode(14);
+const stopLowPriorityN = stopNode('n_stop_low',  'Low Priority: Stop',  14, 1);
+const ifInterviewN     = ifInterviewDateNode(13);
+const calInterviewN    = calendarInterviewNode(14);
+const stopNoInterviewN = stopNode('n_stop_no_interview', 'No Interview Date: Stop', 14, -2);
+const ifRelevanceN     = ifHighRelevanceNode(13);
+const calDiscoveredN   = calendarDiscoveredNode(14);
+const stopLowRelN      = stopNode('n_stop_low_rel', 'Low Relevance: Stop', 14, 2);
 
 nodes.push(mergeN, kwFilterN, normalizeN, dedupN, ifDedupN, llmN, parseN,
-           ifRelatedN, stopNotRelatedN, prepareN, dbWriteN, ifPriorityN, telegramN, stopLowPriorityN);
+           ifRelatedN, stopNotRelatedN, prepareN, dbWriteN,
+           ifPriorityN, telegramN, stopLowPriorityN,
+           ifInterviewN, calInterviewN, stopNoInterviewN,
+           ifRelevanceN, calDiscoveredN, stopLowRelN);
 
 // ── Build connections ───────────────────────────────────────────────────────
 
@@ -807,10 +924,22 @@ connections[ifRelatedN.name] = { main: [
   [{ node: stopNotRelatedN.name,  type: 'main', index: 0 }]
 ]};
 connections[prepareN.name]   = { main: [[{ node: dbWriteN.name,      type: 'main', index: 0 }]] };
-connections[dbWriteN.name]   = { main: [[{ node: ifPriorityN.name,   type: 'main', index: 0 }]] };
+connections[dbWriteN.name]   = { main: [[
+  { node: ifPriorityN.name,  type: 'main', index: 0 },
+  { node: ifInterviewN.name, type: 'main', index: 0 },
+  { node: ifRelevanceN.name, type: 'main', index: 0 }
+]] };
 connections[ifPriorityN.name] = { main: [
   [{ node: telegramN.name,        type: 'main', index: 0 }],
   [{ node: stopLowPriorityN.name, type: 'main', index: 0 }]
+]};
+connections[ifInterviewN.name] = { main: [
+  [{ node: calInterviewN.name,    type: 'main', index: 0 }],
+  [{ node: stopNoInterviewN.name, type: 'main', index: 0 }]
+]};
+connections[ifRelevanceN.name] = { main: [
+  [{ node: calDiscoveredN.name,   type: 'main', index: 0 }],
+  [{ node: stopLowRelN.name,      type: 'main', index: 0 }]
 ]};
 
 // ── Output ──────────────────────────────────────────────────────────────────
