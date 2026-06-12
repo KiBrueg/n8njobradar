@@ -32,7 +32,7 @@
         -300
       ],
       "notes": "Process Mining/Automation, Munich",
-      "onError": "continueRegularOutput",
+      "onError": "continueErrorOutput",
       "parameters": {
         "method": "GET",
         "url": "https://boards-api.greenhouse.io/v1/boards/celonis/jobs?content=true",
@@ -64,7 +64,7 @@
         -100
       ],
       "notes": "Tech/Operations, Berlin",
-      "onError": "continueRegularOutput",
+      "onError": "continueErrorOutput",
       "parameters": {
         "method": "GET",
         "url": "https://boards-api.greenhouse.io/v1/boards/hellofresh/jobs?content=true",
@@ -96,7 +96,7 @@
         100
       ],
       "notes": "Fintech, Berlin",
-      "onError": "continueRegularOutput",
+      "onError": "continueErrorOutput",
       "parameters": {
         "method": "GET",
         "url": "https://boards-api.greenhouse.io/v1/boards/n26/jobs?content=true",
@@ -128,7 +128,7 @@
         300
       ],
       "notes": "Travel Tech, Berlin",
-      "onError": "continueRegularOutput",
+      "onError": "continueErrorOutput",
       "parameters": {
         "method": "GET",
         "url": "https://boards-api.greenhouse.io/v1/boards/getyourguide/jobs?content=true",
@@ -160,7 +160,7 @@
         500
       ],
       "notes": "Fintech/Payments, Berlin",
-      "onError": "continueRegularOutput",
+      "onError": "continueErrorOutput",
       "parameters": {
         "method": "GET",
         "url": "https://boards-api.greenhouse.io/v1/boards/sumup/jobs?content=true",
@@ -192,7 +192,7 @@
         700
       ],
       "notes": "EdTech/Language, Berlin",
-      "onError": "continueRegularOutput",
+      "onError": "continueErrorOutput",
       "parameters": {
         "method": "GET",
         "url": "https://boards-api.greenhouse.io/v1/boards/babbel/jobs?content=true",
@@ -224,7 +224,7 @@
         900
       ],
       "notes": "Headless CMS, Berlin",
-      "onError": "continueRegularOutput",
+      "onError": "continueErrorOutput",
       "parameters": {
         "method": "GET",
         "url": "https://boards-api.greenhouse.io/v1/boards/contentful/jobs?content=true",
@@ -256,7 +256,7 @@
         900
       ],
       "notes": "AI Research, Heidelberg",
-      "onError": "continueRegularOutput",
+      "onError": "continueErrorOutput",
       "parameters": {
         "method": "GET",
         "url": "https://api.lever.co/v0/postings/aleph-alpha?mode=json",
@@ -635,7 +635,7 @@
         700
       ],
       "parameters": {
-        "jsCode": "const allPrep = $('Prepare DB Params').all();\nreturn $input.all().map((item, i) => {\n  const prep = allPrep[i] ? allPrep[i].json : {};\n  const res = prep.resolved  || {};\n  const ev  = prep.job_event || {};\n  return { json: {\n    company_name:    res.company_name    || null,\n    job_title:       res.job_title       || null,\n    source_url:      res.source_url      || null,\n    relevance_score: ev.relevance_score  || null,\n    location:        ev.location         || null,\n    work_mode:       ev.work_mode        || null\n  }};\n});"
+        "jsCode": "const allPrep = $('Prepare DB Params').all();\nreturn $input.all().map((item, i) => {\n  const prep = allPrep[i] ? allPrep[i].json : {};\n  const res = prep.resolved  || {};\n  const ev  = prep.job_event || {};\n  // Fallback: passed keyword filter = at least moderate relevance.\n  // LLM often returns null for relevance_score on scraped postings.\n  const score = ev.relevance_score || 50;\n  const prio  = ev.priority || (score >= 70 ? 'high' : score >= 40 ? 'medium' : 'low');\n  return { json: {\n    company_name:    res.company_name || null,\n    job_title:       res.job_title    || null,\n    source_url:      res.source_url   || null,\n    relevance_score: score,\n    priority:        prio,\n    location:        ev.location  || null,\n    work_mode:       ev.work_mode || null\n  }};\n});"
       }
     },
     {

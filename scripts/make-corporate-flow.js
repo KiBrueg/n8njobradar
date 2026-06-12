@@ -118,7 +118,7 @@ function greenhouseNode(company, col, row) {
     typeVersion: 4.2,
     position: pos(col, row),
     notes: company.note,
-    onError: 'continueRegularOutput',
+    onError: 'continueErrorOutput',
     parameters: {
       method: 'GET',
       url: `https://boards-api.greenhouse.io/v1/boards/${company.slug}/jobs?content=true`,
@@ -161,7 +161,7 @@ function leverNode(company, col, row) {
     typeVersion: 4.2,
     position: pos(col, row),
     notes: company.note,
-    onError: 'continueRegularOutput',
+    onError: 'continueErrorOutput',
     parameters: {
       method: 'GET',
       url: `https://api.lever.co/v0/postings/${company.slug}?mode=json`,
@@ -203,7 +203,7 @@ function directHttpNode(company, col, row) {
     typeVersion: 4.2,
     position: pos(col, row),
     notes: company.note,
-    onError: 'continueRegularOutput',
+    onError: 'continueErrorOutput',
     parameters: {
       method: 'GET',
       url: company.url,
@@ -725,13 +725,18 @@ return $input.all().map((item, i) => {
   const prep = allPrep[i] ? allPrep[i].json : {};
   const res = prep.resolved  || {};
   const ev  = prep.job_event || {};
+  // Fallback: passed keyword filter = at least moderate relevance.
+  // LLM often returns null for relevance_score on scraped postings.
+  const score = ev.relevance_score || 50;
+  const prio  = ev.priority || (score >= 70 ? 'high' : score >= 40 ? 'medium' : 'low');
   return { json: {
-    company_name:    res.company_name    || null,
-    job_title:       res.job_title       || null,
-    source_url:      res.source_url      || null,
-    relevance_score: ev.relevance_score  || null,
-    location:        ev.location         || null,
-    work_mode:       ev.work_mode        || null
+    company_name:    res.company_name || null,
+    job_title:       res.job_title    || null,
+    source_url:      res.source_url   || null,
+    relevance_score: score,
+    priority:        prio,
+    location:        ev.location  || null,
+    work_mode:       ev.work_mode || null
   }};
 });`
     }
