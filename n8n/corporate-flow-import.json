@@ -247,8 +247,8 @@
       }
     },
     {
-      "id": "n_lv_aleph_alpha",
-      "name": "Lever: Aleph Alpha",
+      "id": "n_ab_aleph_alpha",
+      "name": "Ashby: Aleph Alpha",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
@@ -259,15 +259,15 @@
       "onError": "continueErrorOutput",
       "parameters": {
         "method": "GET",
-        "url": "https://api.lever.co/v0/postings/aleph-alpha?mode=json",
+        "url": "https://api.ashbyhq.com/posting-api/job-board/AlephAlpha",
         "options": {
           "timeout": 15000
         }
       }
     },
     {
-      "id": "n_lv_flat_aleph_alpha",
-      "name": "Flatten: Lever Aleph Alpha",
+      "id": "n_ab_flat_aleph_alpha",
+      "name": "Flatten: Ashby Aleph Alpha",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -275,7 +275,7 @@
         900
       ],
       "parameters": {
-        "jsCode": "const jobs = Array.isArray($input.first().json) ? $input.first().json : [];\nreturn jobs.map(j => ({ json: {\n  _source: 'lever_api',\n  _company: 'Aleph Alpha',\n  _company_slug: 'aleph-alpha',\n  title: j.text || '',\n  location: (j.categories && j.categories.location) || 'Remote',\n  url: j.hostedUrl || '',\n  published_at: j.createdAt ? new Date(j.createdAt).toISOString() : null,\n  departments: (j.categories && j.categories.department) || '',\n  content: j.descriptionPlain ? j.descriptionPlain.substring(0, 3000) : ''\n} }));"
+        "jsCode": "const raw = $input.first().json;\nconst jobs = Array.isArray(raw.jobs) ? raw.jobs : [];\nreturn jobs.map(j => ({ json: {\n  _source: 'ashby_api',\n  _company: 'Aleph Alpha',\n  _company_slug: 'aleph-alpha',\n  title: j.title || '',\n  location: j.location || (j.address && j.address.city) || '',\n  url: j.jobUrl || '',\n  published_at: j.publishedAt || null,\n  departments: j.department || j.team || '',\n  content: j.descriptionPlain ? j.descriptionPlain.substring(0, 3000) : ''\n} }));"
       }
     },
     {
@@ -895,7 +895,7 @@
             "index": 0
           },
           {
-            "node": "Lever: Aleph Alpha",
+            "node": "Ashby: Aleph Alpha",
             "type": "main",
             "index": 0
           }
@@ -979,11 +979,11 @@
         ]
       ]
     },
-    "Lever: Aleph Alpha": {
+    "Ashby: Aleph Alpha": {
       "main": [
         [
           {
-            "node": "Flatten: Lever Aleph Alpha",
+            "node": "Flatten: Ashby Aleph Alpha",
             "type": "main",
             "index": 0
           }
@@ -1067,7 +1067,7 @@
         ]
       ]
     },
-    "Flatten: Lever Aleph Alpha": {
+    "Flatten: Ashby Aleph Alpha": {
       "main": [
         [
           {

@@ -25,7 +25,14 @@ const GREENHOUSE_COMPANIES = [
 
 // ── Lever companies ─────────────────────────────────────────────────────────
 const LEVER_COMPANIES = [
-  { slug: 'aleph-alpha',  label: 'Aleph Alpha',     note: 'AI Research, Heidelberg' },
+  // (none currently — add when a company uses Lever public API)
+];
+
+// ── Ashby companies ─────────────────────────────────────────────────────────
+// API: https://api.ashbyhq.com/posting-api/job-board/{token}
+// Response: { jobs: [...] } — each job has title, department, location, jobUrl, descriptionPlain
+const ASHBY_COMPANIES = [
+  { token: 'AlephAlpha', slug: 'aleph-alpha', label: 'Aleph Alpha', note: 'AI Research, Heidelberg' },
 ];
 
 // ── Direct HTTP (JSON APIs) ─────────────────────────────────────────────────
@@ -194,6 +201,49 @@ return jobs.map(j => ({ json: {
   };
 }
 
+// ── Ashby fetch nodes ────────────────────────────────────────────────────────
+function ashbyNode(company, col, row) {
+  return {
+    id: `n_ab_${company.slug.replace(/-/g, '_')}`,
+    name: `Ashby: ${company.label}`,
+    type: 'n8n-nodes-base.httpRequest',
+    typeVersion: 4.2,
+    position: pos(col, row),
+    notes: company.note,
+    onError: 'continueErrorOutput',
+    parameters: {
+      method: 'GET',
+      url: `https://api.ashbyhq.com/posting-api/job-board/${company.token}`,
+      options: { timeout: 15000 }
+    }
+  };
+}
+
+function ashbyFlattenNode(company, col, row) {
+  return {
+    id: `n_ab_flat_${company.slug.replace(/-/g, '_')}`,
+    name: `Flatten: Ashby ${company.label}`,
+    type: 'n8n-nodes-base.code',
+    typeVersion: 2,
+    position: pos(col, row),
+    parameters: {
+      jsCode: `const raw = $input.first().json;
+const jobs = Array.isArray(raw.jobs) ? raw.jobs : [];
+return jobs.map(j => ({ json: {
+  _source: 'ashby_api',
+  _company: '${company.label}',
+  _company_slug: '${company.slug}',
+  title: j.title || '',
+  location: j.location || (j.address && j.address.city) || '',
+  url: j.jobUrl || '',
+  published_at: j.publishedAt || null,
+  departments: j.department || j.team || '',
+  content: j.descriptionPlain ? j.descriptionPlain.substring(0, 3000) : ''
+} }));`
+    }
+  };
+}
+
 // ── Direct HTTP nodes ───────────────────────────────────────────────────────
 function directHttpNode(company, col, row) {
   return {
@@ -253,7 +303,7 @@ function firecrawlStubNode(company, col, row) {
 }
 
 // ── Merge node ──────────────────────────────────────────────────────────────
-const TOTAL_INPUTS = GREENHOUSE_COMPANIES.length + LEVER_COMPANIES.length + DIRECT_HTTP.length;
+const TOTAL_INPUTS = GREENHOUSE_COMPANIES.length + LEVER_COMPANIES.length + ASHBY_COMPANIES.length + DIRECT_HTTP.length;
 
 function mergeNode(col) {
   return {
@@ -1017,11 +1067,23 @@ LEVER_COMPANIES.forEach((co, i) => {
   lvFlatNodes.push(f);
 });
 
+// Ashby nodes
+const abNodes = [];
+const abFlatNodes = [];
+ASHBY_COMPANIES.forEach((co, i) => {
+  const offset = GREENHOUSE_COMPANIES.length + LEVER_COMPANIES.length;
+  const n = ashbyNode(co, 1, i + offset - Math.floor(TOTAL_INPUTS / 2));
+  const f = ashbyFlattenNode(co, 2, i + offset - Math.floor(TOTAL_INPUTS / 2));
+  nodes.push(n, f);
+  abNodes.push(n);
+  abFlatNodes.push(f);
+});
+
 // Direct HTTP nodes
 const httpNodes = [];
 const httpFlatNodes = [];
 DIRECT_HTTP.forEach((co, i) => {
-  const offset = GREENHOUSE_COMPANIES.length + LEVER_COMPANIES.length;
+  const offset = GREENHOUSE_COMPANIES.length + LEVER_COMPANIES.length + ASHBY_COMPANIES.length;
   const n = directHttpNode(co, 1, i + offset - Math.floor(TOTAL_INPUTS / 2));
   const f = directHttpFlattenNode(co, 2, i + offset - Math.floor(TOTAL_INPUTS / 2));
   nodes.push(n, f);
@@ -1078,6 +1140,7 @@ connections[triggerNode.name] = {
   main: [[
     ...ghNodes.map(n => ({ node: n.name, type: 'main', index: 0 })),
     ...lvNodes.map(n => ({ node: n.name, type: 'main', index: 0 })),
+    ...abNodes.map(n => ({ node: n.name, type: 'main', index: 0 })),
     ...httpNodes.map(n => ({ node: n.name, type: 'main', index: 0 })),
   ]]
 };
@@ -1090,13 +1153,17 @@ ghNodes.forEach((n, i) => {
 lvNodes.forEach((n, i) => {
   connections[n.name] = { main: [[{ node: lvFlatNodes[i].name, type: 'main', index: 0 }]] };
 });
+// Fetch → Flatten (Ashby)
+abNodes.forEach((n, i) => {
+  connections[n.name] = { main: [[{ node: abFlatNodes[i].name, type: 'main', index: 0 }]] };
+});
 // Fetch → Flatten (HTTP)
 httpNodes.forEach((n, i) => {
   connections[n.name] = { main: [[{ node: httpFlatNodes[i].name, type: 'main', index: 0 }]] };
 });
 
 // All Flatten → Merge (each to a different input port)
-const allFlatNodes = [...ghFlatNodes, ...lvFlatNodes, ...httpFlatNodes];
+const allFlatNodes = [...ghFlatNodes, ...lvFlatNodes, ...abFlatNodes, ...httpFlatNodes];
 allFlatNodes.forEach((n, i) => {
   connections[n.name] = { main: [[{ node: mergeN.name, type: 'main', index: i }]] };
 });
@@ -1168,6 +1235,6 @@ fs.writeFileSync(outPath, json, 'utf8');
 
 console.log('Flow 2b generated successfully');
 console.log('Nodes:', nodes.length);
-console.log('Sources:', TOTAL_INPUTS, '(Greenhouse:', GREENHOUSE_COMPANIES.length, '| Lever:', LEVER_COMPANIES.length, '| HTTP:', DIRECT_HTTP.length, ')');
+console.log('Sources:', TOTAL_INPUTS, '(Greenhouse:', GREENHOUSE_COMPANIES.length, '| Lever:', LEVER_COMPANIES.length, '| Ashby:', ASHBY_COMPANIES.length, '| HTTP:', DIRECT_HTTP.length, ')');
 console.log('Stubs (not connected):', FIRECRAWL_STUBS.length);
 console.log('Output:', outPath);
