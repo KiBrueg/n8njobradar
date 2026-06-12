@@ -309,13 +309,26 @@
       ]
     },
     {
+      "id": "n_format_cal_mailde",
+      "name": "Format for Calendar",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3080,
+        140
+      ],
+      "parameters": {
+        "jsCode": "const e = $('Parse LLM Response').item.json.job_event;\nconst db = $input.item.json;\nconst parts = [];\nif (e.company_name)    parts.push('<b>Unternehmen:</b> ' + e.company_name);\nif (e.job_title)       parts.push('<b>Position:</b> ' + e.job_title);\nif (db.interview_date) parts.push('<b>Datum:</b> ' + String(db.interview_date).substring(0, 10));\nif (db.stage)          parts.push('<b>Phase:</b> ' + db.stage);\nif (db.priority)       parts.push('<b>Prioritaet:</b> ' + db.priority);\nif (e.salary_min || e.salary_max) {\n  const range = [e.salary_min, e.salary_max].filter(Boolean).join('-');\n  parts.push('<b>Gehalt:</b> ' + range + (e.salary_currency ? ' ' + e.salary_currency : ''));\n}\nif (db.job_id_fuzzy) parts.push('<b>ID:</b> ' + db.job_id_fuzzy);\nreturn [{ json: { ...db, company_name: e.company_name || '', job_title: e.job_title || '', calendar_description: parts.join('<br>') } }];"
+      }
+    },
+    {
       "id": "n_gcal_mailde",
       "name": "Google Calendar: Create Event",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        3080,
-        160
+        3300,
+        140
       ],
       "parameters": {
         "method": "POST",
@@ -325,7 +338,7 @@
         "sendBody": true,
         "contentType": "raw",
         "rawContentType": "application/json",
-        "body": "={{ JSON.stringify({  summary: 'Interview: ' + ($('Parse LLM Response').item.json.job_event.company_name || 'Unknown') + ' -- ' + ($('Parse LLM Response').item.json.job_event.job_title || '--'),  description: 'JobRadar event_id: ' + ($json.event_id || '') + '\\n\\n' + ($json.summary || ''),  start: { date: $json.interview_date },  end:   { date: $json.interview_date },  reminders: { useDefault: true }}) }}",
+        "body": "={{ JSON.stringify({ summary: 'Interview: ' + ($json.job_title || $json.job_id_fuzzy || 'Job') + ($json.company_name ? ' @ ' + $json.company_name : ''), description: $json.calendar_description || '', start: { date: String($json.interview_date).substring(0, 10) }, end: { date: String($json.interview_date).substring(0, 10) }, reminders: { useDefault: true } }) }}",
         "options": {
           "timeout": 10000
         }
@@ -379,7 +392,7 @@
         "sendBody": true,
         "contentType": "raw",
         "rawContentType": "application/json",
-        "body": "={{ JSON.stringify({  chat_id: $env.TELEGRAM_CHAT_ID,  parse_mode: 'HTML',  text: [    '\\u{1F514} <b>JobRadar: ' + ($('Parse LLM Response').item.json.job_event.company_name || 'Unknown') + '</b>',    ($('Parse LLM Response').item.json.job_event.job_title || '\\u2014'),    '',    'Stage: <code>' + ($json.stage || '') + '</code>  Priority: <b>' + ($json.priority || '') + '</b>',    '',    ($json.summary || '')  ].join('\\n')}) }}",
+        "body": "={{ JSON.stringify({ chat_id: $env.TELEGRAM_CHAT_ID, parse_mode: 'HTML', text: ['\\u{1F514} <b>[JobRadar] ' + ($('Parse LLM Response').item.json.job_event.company_name || 'Unknown') + '</b>', '<b>' + ($('Parse LLM Response').item.json.job_event.job_title || '') + '</b>', '', 'Phase: <code>' + ($json.stage || '') + '</code>  Prioritaet: <b>' + ($json.priority || '') + '</b>', (($('Parse LLM Response').item.json.job_event.salary_min || $('Parse LLM Response').item.json.job_event.salary_max) ? 'Gehalt: ' + [$('Parse LLM Response').item.json.job_event.salary_min, $('Parse LLM Response').item.json.job_event.salary_max].filter(Boolean).join('-') + ' ' + ($('Parse LLM Response').item.json.job_event.salary_currency || '') : null), '', ($json.summary || '')].filter(Boolean).join('\\n') }) }}",
         "options": {
           "timeout": 10000
         }
@@ -549,12 +562,23 @@
       "main": [
         [
           {
-            "node": "Google Calendar: Create Event",
+            "node": "Format for Calendar",
             "type": "main",
             "index": 0
           }
         ],
         []
+      ]
+    },
+    "Format for Calendar": {
+      "main": [
+        [
+          {
+            "node": "Google Calendar: Create Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "IF: priority = high": {
