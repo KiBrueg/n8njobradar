@@ -100,7 +100,7 @@ function greenhouseFlattenNode(company, col, row) {
     typeVersion: 2,
     position: pos(col, row),
     parameters: {
-      jsCode: `const resp = $input.item.json;
+      jsCode: `const resp = $input.first().json;
 const jobs = Array.isArray(resp.jobs) ? resp.jobs : [];
 return jobs.map(j => ({ json: {
   _source: 'greenhouse_api',
@@ -143,7 +143,7 @@ function leverFlattenNode(company, col, row) {
     typeVersion: 2,
     position: pos(col, row),
     parameters: {
-      jsCode: `const jobs = Array.isArray($input.item.json) ? $input.item.json : [];
+      jsCode: `const jobs = Array.isArray($input.first().json) ? $input.first().json : [];
 return jobs.map(j => ({ json: {
   _source: 'lever_api',
   _company: '${company.label}',
@@ -250,8 +250,7 @@ return $input.all().filter(item => {
   const job = item.json;
   const text = [(job.title || ''), (job.departments || ''), (job.content || '')].join(' ').toLowerCase();
   return KEYWORDS.some(kw => text.includes(kw));
-});`,
-      mode: 'runOnceForAllItems'
+});`
     }
   };
 }
@@ -265,36 +264,36 @@ function normalizeNode(col) {
     typeVersion: 2,
     position: pos(col),
     parameters: {
-      jsCode: `const j = $input.item.json;
-const now = new Date().toISOString();
-
-return [{ json: {
-  normalized_input: {
-    input_source: 'scraped',
-    source_detail: j._source || 'corporate_api',
-    email_account_id: null,
-    email_address: null,
-    email_provider: null,
-    subject: j.title || null,
-    date: now,
-    raw_text: [
-      'Title: ' + (j.title || ''),
-      'Company: ' + (j._company || ''),
-      'Location: ' + (j.location || ''),
-      'Department: ' + (j.departments || ''),
-      '',
-      j.content || ''
-    ].join('\\n').substring(0, 8000),
-    raw_meta: {
-      company: j._company || null,
-      company_slug: j._company_slug || null,
-      job_url: j.url || null,
-      published_at: j.published_at || null,
-      source: j._source || null
+      jsCode: `const now = new Date().toISOString();
+return $input.all().map(item => {
+  const j = item.json;
+  return { json: {
+    normalized_input: {
+      input_source: 'scraped',
+      source_detail: j._source || 'corporate_api',
+      email_account_id: null,
+      email_address: null,
+      email_provider: null,
+      subject: j.title || null,
+      date: now,
+      raw_text: [
+        'Title: ' + (j.title || ''),
+        'Company: ' + (j._company || ''),
+        'Location: ' + (j.location || ''),
+        'Department: ' + (j.departments || ''),
+        '',
+        j.content || ''
+      ].join('\\n').substring(0, 8000),
+      raw_meta: {
+        company: j._company || null,
+        company_slug: j._company_slug || null,
+        job_url: j.url || null,
+        published_at: j.published_at || null,
+        source: j._source || null
+      }
     }
-  }
-} }];`,
-      mode: 'runOnceForEachItem'
+  } };
+});`
     }
   };
 }

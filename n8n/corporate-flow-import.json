@@ -51,7 +51,7 @@
         -300
       ],
       "parameters": {
-        "jsCode": "const resp = $input.item.json;\nconst jobs = Array.isArray(resp.jobs) ? resp.jobs : [];\nreturn jobs.map(j => ({ json: {\n  _source: 'greenhouse_api',\n  _company: 'Celonis',\n  _company_slug: 'celonis',\n  title: j.title || '',\n  location: (j.location && j.location.name) || 'Remote',\n  url: j.absolute_url || '',\n  published_at: j.updated_at || null,\n  departments: Array.isArray(j.departments) ? j.departments.map(d => d.name).join(', ') : '',\n  content: j.content ? j.content.replace(/<[^>]+>/g, ' ').substring(0, 3000) : ''\n} }));"
+        "jsCode": "const resp = $input.first().json;\nconst jobs = Array.isArray(resp.jobs) ? resp.jobs : [];\nreturn jobs.map(j => ({ json: {\n  _source: 'greenhouse_api',\n  _company: 'Celonis',\n  _company_slug: 'celonis',\n  title: j.title || '',\n  location: (j.location && j.location.name) || 'Remote',\n  url: j.absolute_url || '',\n  published_at: j.updated_at || null,\n  departments: Array.isArray(j.departments) ? j.departments.map(d => d.name).join(', ') : '',\n  content: j.content ? j.content.replace(/<[^>]+>/g, ' ').substring(0, 3000) : ''\n} }));"
       }
     },
     {
@@ -83,7 +83,7 @@
         -100
       ],
       "parameters": {
-        "jsCode": "const resp = $input.item.json;\nconst jobs = Array.isArray(resp.jobs) ? resp.jobs : [];\nreturn jobs.map(j => ({ json: {\n  _source: 'greenhouse_api',\n  _company: 'HelloFresh',\n  _company_slug: 'hellofresh',\n  title: j.title || '',\n  location: (j.location && j.location.name) || 'Remote',\n  url: j.absolute_url || '',\n  published_at: j.updated_at || null,\n  departments: Array.isArray(j.departments) ? j.departments.map(d => d.name).join(', ') : '',\n  content: j.content ? j.content.replace(/<[^>]+>/g, ' ').substring(0, 3000) : ''\n} }));"
+        "jsCode": "const resp = $input.first().json;\nconst jobs = Array.isArray(resp.jobs) ? resp.jobs : [];\nreturn jobs.map(j => ({ json: {\n  _source: 'greenhouse_api',\n  _company: 'HelloFresh',\n  _company_slug: 'hellofresh',\n  title: j.title || '',\n  location: (j.location && j.location.name) || 'Remote',\n  url: j.absolute_url || '',\n  published_at: j.updated_at || null,\n  departments: Array.isArray(j.departments) ? j.departments.map(d => d.name).join(', ') : '',\n  content: j.content ? j.content.replace(/<[^>]+>/g, ' ').substring(0, 3000) : ''\n} }));"
       }
     },
     {
@@ -115,7 +115,7 @@
         100
       ],
       "parameters": {
-        "jsCode": "const resp = $input.item.json;\nconst jobs = Array.isArray(resp.jobs) ? resp.jobs : [];\nreturn jobs.map(j => ({ json: {\n  _source: 'greenhouse_api',\n  _company: 'N26',\n  _company_slug: 'n26',\n  title: j.title || '',\n  location: (j.location && j.location.name) || 'Remote',\n  url: j.absolute_url || '',\n  published_at: j.updated_at || null,\n  departments: Array.isArray(j.departments) ? j.departments.map(d => d.name).join(', ') : '',\n  content: j.content ? j.content.replace(/<[^>]+>/g, ' ').substring(0, 3000) : ''\n} }));"
+        "jsCode": "const resp = $input.first().json;\nconst jobs = Array.isArray(resp.jobs) ? resp.jobs : [];\nreturn jobs.map(j => ({ json: {\n  _source: 'greenhouse_api',\n  _company: 'N26',\n  _company_slug: 'n26',\n  title: j.title || '',\n  location: (j.location && j.location.name) || 'Remote',\n  url: j.absolute_url || '',\n  published_at: j.updated_at || null,\n  departments: Array.isArray(j.departments) ? j.departments.map(d => d.name).join(', ') : '',\n  content: j.content ? j.content.replace(/<[^>]+>/g, ' ').substring(0, 3000) : ''\n} }));"
       }
     },
     {
@@ -147,7 +147,7 @@
         300
       ],
       "parameters": {
-        "jsCode": "const resp = $input.item.json;\nconst jobs = Array.isArray(resp.jobs) ? resp.jobs : [];\nreturn jobs.map(j => ({ json: {\n  _source: 'greenhouse_api',\n  _company: 'GetYourGuide',\n  _company_slug: 'getyourguide',\n  title: j.title || '',\n  location: (j.location && j.location.name) || 'Remote',\n  url: j.absolute_url || '',\n  published_at: j.updated_at || null,\n  departments: Array.isArray(j.departments) ? j.departments.map(d => d.name).join(', ') : '',\n  content: j.content ? j.content.replace(/<[^>]+>/g, ' ').substring(0, 3000) : ''\n} }));"
+        "jsCode": "const resp = $input.first().json;\nconst jobs = Array.isArray(resp.jobs) ? resp.jobs : [];\nreturn jobs.map(j => ({ json: {\n  _source: 'greenhouse_api',\n  _company: 'GetYourGuide',\n  _company_slug: 'getyourguide',\n  title: j.title || '',\n  location: (j.location && j.location.name) || 'Remote',\n  url: j.absolute_url || '',\n  published_at: j.updated_at || null,\n  departments: Array.isArray(j.departments) ? j.departments.map(d => d.name).join(', ') : '',\n  content: j.content ? j.content.replace(/<[^>]+>/g, ' ').substring(0, 3000) : ''\n} }));"
       }
     },
     {
@@ -179,7 +179,7 @@
         500
       ],
       "parameters": {
-        "jsCode": "const resp = $input.item.json;\nconst jobs = Array.isArray(resp.jobs) ? resp.jobs : [];\nreturn jobs.map(j => ({ json: {\n  _source: 'greenhouse_api',\n  _company: 'SumUp',\n  _company_slug: 'sumup',\n  title: j.title || '',\n  location: (j.location && j.location.name) || 'Remote',\n  url: j.absolute_url || '',\n  published_at: j.updated_at || null,\n  departments: Array.isArray(j.departments) ? j.departments.map(d => d.name).join(', ') : '',\n  content: j.content ? j.content.replace(/<[^>]+>/g, ' ').substring(0, 3000) : ''\n} }));"
+        "jsCode": "const resp = $input.first().json;\nconst jobs = Array.isArray(resp.jobs) ? resp.jobs : [];\nreturn jobs.map(j => ({ json: {\n  _source: 'greenhouse_api',\n  _company: 'SumUp',\n  _company_slug: 'sumup',\n  title: j.title || '',\n  location: (j.location && j.location.name) || 'Remote',\n  url: j.absolute_url || '',\n  published_at: j.updated_at || null,\n  departments: Array.isArray(j.departments) ? j.departments.map(d => d.name).join(', ') : '',\n  content: j.content ? j.content.replace(/<[^>]+>/g, ' ').substring(0, 3000) : ''\n} }));"
       }
     },
     {
@@ -211,7 +211,7 @@
         700
       ],
       "parameters": {
-        "jsCode": "const resp = $input.item.json;\nconst jobs = Array.isArray(resp.jobs) ? resp.jobs : [];\nreturn jobs.map(j => ({ json: {\n  _source: 'greenhouse_api',\n  _company: 'Babbel',\n  _company_slug: 'babbel',\n  title: j.title || '',\n  location: (j.location && j.location.name) || 'Remote',\n  url: j.absolute_url || '',\n  published_at: j.updated_at || null,\n  departments: Array.isArray(j.departments) ? j.departments.map(d => d.name).join(', ') : '',\n  content: j.content ? j.content.replace(/<[^>]+>/g, ' ').substring(0, 3000) : ''\n} }));"
+        "jsCode": "const resp = $input.first().json;\nconst jobs = Array.isArray(resp.jobs) ? resp.jobs : [];\nreturn jobs.map(j => ({ json: {\n  _source: 'greenhouse_api',\n  _company: 'Babbel',\n  _company_slug: 'babbel',\n  title: j.title || '',\n  location: (j.location && j.location.name) || 'Remote',\n  url: j.absolute_url || '',\n  published_at: j.updated_at || null,\n  departments: Array.isArray(j.departments) ? j.departments.map(d => d.name).join(', ') : '',\n  content: j.content ? j.content.replace(/<[^>]+>/g, ' ').substring(0, 3000) : ''\n} }));"
       }
     },
     {
@@ -243,7 +243,7 @@
         900
       ],
       "parameters": {
-        "jsCode": "const resp = $input.item.json;\nconst jobs = Array.isArray(resp.jobs) ? resp.jobs : [];\nreturn jobs.map(j => ({ json: {\n  _source: 'greenhouse_api',\n  _company: 'Contentful',\n  _company_slug: 'contentful',\n  title: j.title || '',\n  location: (j.location && j.location.name) || 'Remote',\n  url: j.absolute_url || '',\n  published_at: j.updated_at || null,\n  departments: Array.isArray(j.departments) ? j.departments.map(d => d.name).join(', ') : '',\n  content: j.content ? j.content.replace(/<[^>]+>/g, ' ').substring(0, 3000) : ''\n} }));"
+        "jsCode": "const resp = $input.first().json;\nconst jobs = Array.isArray(resp.jobs) ? resp.jobs : [];\nreturn jobs.map(j => ({ json: {\n  _source: 'greenhouse_api',\n  _company: 'Contentful',\n  _company_slug: 'contentful',\n  title: j.title || '',\n  location: (j.location && j.location.name) || 'Remote',\n  url: j.absolute_url || '',\n  published_at: j.updated_at || null,\n  departments: Array.isArray(j.departments) ? j.departments.map(d => d.name).join(', ') : '',\n  content: j.content ? j.content.replace(/<[^>]+>/g, ' ').substring(0, 3000) : ''\n} }));"
       }
     },
     {
@@ -275,7 +275,7 @@
         900
       ],
       "parameters": {
-        "jsCode": "const jobs = Array.isArray($input.item.json) ? $input.item.json : [];\nreturn jobs.map(j => ({ json: {\n  _source: 'lever_api',\n  _company: 'Aleph Alpha',\n  _company_slug: 'aleph-alpha',\n  title: j.text || '',\n  location: (j.categories && j.categories.location) || 'Remote',\n  url: j.hostedUrl || '',\n  published_at: j.createdAt ? new Date(j.createdAt).toISOString() : null,\n  departments: (j.categories && j.categories.department) || '',\n  content: j.descriptionPlain ? j.descriptionPlain.substring(0, 3000) : ''\n} }));"
+        "jsCode": "const jobs = Array.isArray($input.first().json) ? $input.first().json : [];\nreturn jobs.map(j => ({ json: {\n  _source: 'lever_api',\n  _company: 'Aleph Alpha',\n  _company_slug: 'aleph-alpha',\n  title: j.text || '',\n  location: (j.categories && j.categories.location) || 'Remote',\n  url: j.hostedUrl || '',\n  published_at: j.createdAt ? new Date(j.createdAt).toISOString() : null,\n  departments: (j.categories && j.categories.department) || '',\n  content: j.descriptionPlain ? j.descriptionPlain.substring(0, 3000) : ''\n} }));"
       }
     },
     {
@@ -358,8 +358,7 @@
       ],
       "notes": "Filters irrelevant jobs before LLM call to save tokens.",
       "parameters": {
-        "jsCode": "const KEYWORDS = ['automation', 'engineer', 'developer', 'devops', 'platform', 'workflow', 'integration', 'python', 'machine learning', 'ai ', 'n8n', 'data engineer', 'backend', 'software', 'cloud', 'infrastructure'];\nreturn $input.all().filter(item => {\n  const job = item.json;\n  const text = [(job.title || ''), (job.departments || ''), (job.content || '')].join(' ').toLowerCase();\n  return KEYWORDS.some(kw => text.includes(kw));\n});",
-        "mode": "runOnceForAllItems"
+        "jsCode": "const KEYWORDS = ['automation', 'engineer', 'developer', 'devops', 'platform', 'workflow', 'integration', 'python', 'machine learning', 'ai ', 'n8n', 'data engineer', 'backend', 'software', 'cloud', 'infrastructure'];\nreturn $input.all().filter(item => {\n  const job = item.json;\n  const text = [(job.title || ''), (job.departments || ''), (job.content || '')].join(' ').toLowerCase();\n  return KEYWORDS.some(kw => text.includes(kw));\n});"
       }
     },
     {
@@ -372,8 +371,7 @@
         300
       ],
       "parameters": {
-        "jsCode": "const j = $input.item.json;\nconst now = new Date().toISOString();\n\nreturn [{ json: {\n  normalized_input: {\n    input_source: 'scraped',\n    source_detail: j._source || 'corporate_api',\n    email_account_id: null,\n    email_address: null,\n    email_provider: null,\n    subject: j.title || null,\n    date: now,\n    raw_text: [\n      'Title: ' + (j.title || ''),\n      'Company: ' + (j._company || ''),\n      'Location: ' + (j.location || ''),\n      'Department: ' + (j.departments || ''),\n      '',\n      j.content || ''\n    ].join('\\n').substring(0, 8000),\n    raw_meta: {\n      company: j._company || null,\n      company_slug: j._company_slug || null,\n      job_url: j.url || null,\n      published_at: j.published_at || null,\n      source: j._source || null\n    }\n  }\n} }];",
-        "mode": "runOnceForEachItem"
+        "jsCode": "const now = new Date().toISOString();\nreturn $input.all().map(item => {\n  const j = item.json;\n  return { json: {\n    normalized_input: {\n      input_source: 'scraped',\n      source_detail: j._source || 'corporate_api',\n      email_account_id: null,\n      email_address: null,\n      email_provider: null,\n      subject: j.title || null,\n      date: now,\n      raw_text: [\n        'Title: ' + (j.title || ''),\n        'Company: ' + (j._company || ''),\n        'Location: ' + (j.location || ''),\n        'Department: ' + (j.departments || ''),\n        '',\n        j.content || ''\n      ].join('\\n').substring(0, 8000),\n      raw_meta: {\n        company: j._company || null,\n        company_slug: j._company_slug || null,\n        job_url: j.url || null,\n        published_at: j.published_at || null,\n        source: j._source || null\n      }\n    }\n  } };\n});"
       }
     },
     {
