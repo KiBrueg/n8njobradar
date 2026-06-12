@@ -339,7 +339,7 @@
         "sendBody": true,
         "contentType": "raw",
         "rawContentType": "application/json",
-        "body": "={{ JSON.stringify({ summary: \"Interview: \" + ($json.summary || $json.job_id_fuzzy || \"Job\"), start: { date: ($json.interview_date || \"\").substring(0, 10) }, end: { date: ($json.interview_date || \"\").substring(0, 10) }, description: $json.calendar_description || \"\", reminders: { useDefault: true } }) }}",
+        "body": "={{ JSON.stringify({ summary: \"Interview: \" + ($json.position || $json.job_id_fuzzy || 'Job') + ($json.company ? ' @ ' + $json.company : ''), start: { date: ($json.interview_date || \"\").substring(0, 10) }, end: { date: ($json.interview_date || \"\").substring(0, 10) }, description: $json.calendar_description || \"\", reminders: { useDefault: true } }) }}",
         "options": {
           "timeout": 10000
         }
