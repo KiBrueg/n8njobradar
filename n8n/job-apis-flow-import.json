@@ -160,7 +160,7 @@
     {
       "parameters": {
         "mode": "append",
-        "numberInputs": 5,
+        "numberInputs": 6,
         "options": {}
       },
       "id": "n_merge",
@@ -573,6 +573,37 @@
       "parameters": {
         "jsCode": "// Himalayas response: { jobs: [...] }\nconst data = .item.json.jobs || [];\nif (data.length === 0) return [];\nreturn data.map(job => ({ json: { ...job, source_label: \"himalayas_api\" } }));"
       }
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.adzuna.com/v1/api/jobs/de/search/1?app_id={{ $env.ADZUNA_APP_ID }}&app_key={{ $env.ADZUNA_APP_KEY }}&results_per_page=50&what=automation+engineer+KI+RPA+LLM&content-type=application/json",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "n_adzuna_fetch",
+      "name": "Adzuna: Fetch Jobs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        1100
+      ],
+      "notes": "DE job board. Response: { results: [...], count: N }. Fields: title, description, redirect_url, company.display_name, location.display_name"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Adzuna response: { results: [...jobs], count: N }\nconst data = .item.json.results || [];\nif (data.length === 0) return [];\nreturn data.map(job => ({ json: {\n  title: job.title || '',\n  company: (job.company && job.company.display_name) || '',\n  location: (job.location && job.location.display_name) || '',\n  url: job.redirect_url || '',\n  description: (job.description || '').substring(0, 3000),\n  created_at: job.created || null,\n  tags: job.category ? [job.category.tag] : [],\n  source_label: 'adzuna',\n  source_detail: 'adzuna_api'\n} }));"
+      },
+      "id": "n_adzuna_flatten",
+      "name": "Flatten: Adzuna",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        1100
+      ]
     }
   ],
   "connections": {
@@ -601,6 +632,11 @@
           },
           {
             "node": "Himalayas: Fetch Jobs",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Adzuna: Fetch Jobs",
             "type": "main",
             "index": 0
           }
@@ -849,6 +885,28 @@
             "node": "Merge: All Sources",
             "type": "main",
             "index": 4
+          }
+        ]
+      ]
+    },
+    "Adzuna: Fetch Jobs": {
+      "main": [
+        [
+          {
+            "node": "Flatten: Adzuna",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Flatten: Adzuna": {
+      "main": [
+        [
+          {
+            "node": "Merge: All Sources",
+            "type": "main",
+            "index": 5
           }
         ]
       ]
