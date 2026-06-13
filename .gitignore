@@ -14,9 +14,21 @@ secrets/
 # --- Session summaries (contain real IPs, API keys, emails) ---
 sessions/
 
-# --- Personal CV data ---
+# --- Personal documents (CV, cover letters, drafts — never on GitHub) ---
 spec/base-lebenslauf.yaml
 spec/lebenslauf-template.html
+spec/lebenslauf*/
+spec/anschreiben*/
+spec/motivationsschreiben*/
+spec/cover-letter*/
+docs/lebenslauf*/
+docs/anschreiben*/
+personal/
+bewerbung/
+*.lebenslauf.*
+*.anschreiben.*
+*_cv.*
+*_resume.*
 
 # --- Internal session & Claude context files ---
 NEXT_SESSION.md
