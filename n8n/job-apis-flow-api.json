@@ -216,8 +216,8 @@
           "conditions": [
             {
               "id": "cond_fresh",
-              "leftValue": "={{ $json.cnt }}",
-              "rightValue": "0",
+              "leftValue": "={{ parseInt($json.cnt) }}",
+              "rightValue": 0,
               "operator": {
                 "type": "number",
                 "operation": "equal"
