@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "JobRadar — Flow 4: Job APIs (Combined)",
   "nodes": [
     {
@@ -541,7 +541,7 @@
         700
       ],
       "parameters": {
-        "jsCode": "// Jobicy response: { jobs: [...] }\nconst data = .item.json.jobs || [];\nif (data.length === 0) return [];\nreturn data.map(job => ({ json: { ...job, source_label: \"jobicy_api\" } }));"
+        "jsCode": "// Jobicy response: { jobs: [...] }\nconst data = $input.item.json.jobs || [];\nif (data.length === 0) return [];\nreturn data.map(job => ({ json: { ...job, source_label: \"jobicy_api\" } }));"
       }
     },
     {
@@ -554,7 +554,7 @@
         900
       ],
       "parameters": {
-        "jsCode": "// Himalayas response: { jobs: [...] }\nconst data = .item.json.jobs || [];\nif (data.length === 0) return [];\nreturn data.map(job => ({ json: { ...job, source_label: \"himalayas_api\" } }));"
+        "jsCode": "// Himalayas response: { jobs: [...] }\nconst data = $input.item.json.jobs || [];\nif (data.length === 0) return [];\nreturn data.map(job => ({ json: { ...job, source_label: \"himalayas_api\" } }));"
       }
     }
   ],

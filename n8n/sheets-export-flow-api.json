@@ -1,0 +1,69 @@
+{
+  "name": "JobRadar -- Flow 6: Sheets Export",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "n_trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT c.name as company, j.job_title, j.location, j.work_mode::text, j.current_stage::text, j.priority::text, j.source_url, j.summary, j.created_at::text, COALESCE((ev.parsed_json->>'relevance_score')::int, 0) AS relevance_score, COALESCE(ev.parsed_json->>'employer_name', '') AS employer_name FROM jobs j JOIN companies c ON c.company_id = j.company_id JOIN LATERAL (SELECT parsed_json FROM job_events WHERE job_id = j.id ORDER BY created_at DESC LIMIT 1) ev ON TRUE ORDER BY j.created_at DESC;",
+        "options": {}
+      },
+      "id": "n_db",
+      "name": "DB: Fetch All Jobs",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [420, 300],
+      "credentials": {
+        "postgres": {
+          "id": "ZjjVGIqiRAUVlCk6",
+          "name": "JobRadar Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const jobs = $input.all().map(item => item.json);\nreturn [{ json: { jobs } }];"
+      },
+      "id": "n_aggregate",
+      "name": "Aggregate Jobs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [640, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://script.google.com/macros/s/AKfycbwu5uhs-43EvKKZZB3S6LfVf5nDSsYGm-ZHXy9TSbPQa7pcthdGKDf_4mrGuRz9oxYyag/exec",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify($json) }}",
+        "options": { "timeout": 30000, "redirect": { "redirect": { "followRedirects": true, "maxRedirects": 5 } } }
+      },
+      "id": "n_gas",
+      "name": "GAS: Write to Sheets",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [860, 300]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [[{ "node": "DB: Fetch All Jobs", "type": "main", "index": 0 }]]
+    },
+    "DB: Fetch All Jobs": {
+      "main": [[{ "node": "Aggregate Jobs", "type": "main", "index": 0 }]]
+    },
+    "Aggregate Jobs": {
+      "main": [[{ "node": "GAS: Write to Sheets", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" }
+}
