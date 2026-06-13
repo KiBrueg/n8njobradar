@@ -184,22 +184,15 @@
     },
     {
       "id": "n_gh_babbel",
-      "name": "GH: Babbel",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "name": "GH: Babbel STUB",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
       "position": [
         420,
         700
       ],
-      "notes": "EdTech/Language, Berlin",
-      "onError": "continueErrorOutput",
-      "parameters": {
-        "method": "GET",
-        "url": "https://boards-api.greenhouse.io/v1/boards/babbel/jobs?content=true",
-        "options": {
-          "timeout": 15000
-        }
-      }
+      "parameters": {},
+      "notes": "Babbel left Greenhouse. Now on jobs.babbel.com (Elastic App Search, CSRF-protected — not callable from n8n directly). Add as Firecrawl target when needed."
     },
     {
       "id": "n_gh_flat_babbel",
@@ -885,7 +878,7 @@
             "index": 0
           },
           {
-            "node": "GH: Babbel",
+            "node": "GH: Babbel STUB",
             "type": "main",
             "index": 0
           },
@@ -957,7 +950,7 @@
         ]
       ]
     },
-    "GH: Babbel": {
+    "GH: Babbel STUB": {
       "main": [
         [
           {
