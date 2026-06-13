@@ -189,8 +189,10 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT id, updated_at\nFROM jobs\nWHERE source_url = {{ $json.normalized_input.raw_meta.url }}\n  AND updated_at > NOW() - INTERVAL '24 hours'\nLIMIT 1;",
-        "options": {}
+        "query": "SELECT COUNT(*) AS cnt\nFROM jobs\nWHERE source_url = $1\n  AND updated_at > NOW() - INTERVAL '24 hours';",
+        "options": {
+          "queryReplacement": "={{ [$json.normalized_input.raw_meta.url] }}"
+        }
       },
       "id": "n_dedup",
       "name": "Dedup Check",
@@ -214,12 +216,11 @@
           "conditions": [
             {
               "id": "cond_fresh",
-              "leftValue": "={{ $json.id }}",
-              "rightValue": "",
+              "leftValue": "={{ $json.cnt }}",
+              "rightValue": "0",
               "operator": {
-                "type": "string",
-                "operation": "isEmpty",
-                "singleValue": true
+                "type": "number",
+                "operation": "equal"
               }
             }
           ],
