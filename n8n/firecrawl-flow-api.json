@@ -362,6 +362,20 @@
           "timeout": 10000
         }
       }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================\n// Split: XING / Listing Page Parser\n//\n// For search result listing pages (XING etc.): splits the\n// Firecrawl markdown into individual job items. Each item\n// gets its own URL for proper per-job dedup & LLM processing.\n// Non-listing pages pass through as 1 item unchanged.\n// ============================================================\n\nconst LISTING_LABELS = ['xing-automation'];\n\nconst scrape = $input.item.json;\nconst target = $('Scrape Targets').item.json;\nconst label = target.label || '';\n\nif (!LISTING_LABELS.includes(label)) {\n  return [{ json: scrape }];\n}\n\nconst markdown = (scrape.data && scrape.data.markdown) || scrape.markdown || '';\n\n// Match numbered job entries: \"01. [Title](URL)\"\nconst entryRegex = /^(\\d{1,3})\\.\\s+\\[(.+?)\\]\\((https?:\\/\\/[^\\)\\s]+)\\)/gm;\nconst entries = [];\nlet m;\nwhile ((m = entryRegex.exec(markdown)) !== null) {\n  entries.push({ title: m[2], url: m[3], pos: m.index });\n}\n\nif (entries.length === 0) {\n  return [{ json: scrape }];\n}\n\nconst items = [];\nfor (let i = 0; i < entries.length; i++) {\n  const start = entries[i].pos;\n  const end = (i + 1 < entries.length) ? entries[i + 1].pos : markdown.length;\n  const section = markdown.substring(start, end);\n\n  const url = entries[i].url;\n  const linkTitle = entries[i].title;\n\n  // Canonical title from ## heading\n  const h2 = section.match(/^## (.+)$/m);\n  const title = h2 ? h2[1].trim() : linkTitle;\n\n  // Lines after ## heading: company, then location\n  let company = null, location = null;\n  if (h2) {\n    const rest = section.substring(h2.index + h2[0].length);\n    const lines = rest.split('\\n')\n      .map(l => l.trim())\n      .filter(l => l\n        && !l.startsWith('![')\n        && !l.startsWith('#')\n        && l !== 'Save job'\n        && l !== 'Urgently hiring'\n        && !l.startsWith('External job'));\n    company = lines[0] || null;\n    const loc = lines[1];\n    if (loc && !loc.includes('\\u20ac') && !/\\d+\\s+(hour|day|week|month)/.test(loc)) {\n      location = loc.replace(/\\s*\\*+.*$/, '').trim() || null;\n    }\n  }\n\n  // Salary: job type prefix + €\n  const salaryM = section.match(/((?:Full-time|Part-time|Freelance|Temporary)\\s*)?\\u20ac[\\d\\s,.\\u2013\\-]+(?:\\u2013\\s*\\u20ac[\\d\\s,.]+)?/);\n  const salary = salaryM ? salaryM[0].trim() : null;\n\n  // Posted date: \"N days/hours/weeks ago\"\n  const dateM = section.match(/(\\d+\\s+(?:hour|day|week|month)s?\\s+ago)/i);\n  const postedAgo = dateM ? dateM[1].trim() : null;\n\n  // Compact snippet for LLM\n  const snip = ['# ' + title];\n  if (company)   snip.push('Company: ' + company);\n  if (location)  snip.push('Location: ' + location);\n  if (salary)    snip.push('Salary/Type: ' + salary);\n  if (postedAgo) snip.push('Posted: ' + postedAgo);\n  snip.push('Source: XING');\n  snip.push('URL: ' + url);\n\n  items.push({\n    json: {\n      success: true,\n      data: {\n        markdown: snip.join('\\n'),\n        metadata: {\n          sourceURL: url,\n          title: title + (company ? ' \\u2014 ' + company : '')\n        }\n      }\n    }\n  });\n}\n\nreturn items;"
+      },
+      "id": "n_split_listings",
+      "name": "Split: XING Listings",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        990,
+        300
+      ],
+      "notes": "For listing pages (XING search results): splits markdown into individual job items.\nEach item gets its own xing.com URL for per-job dedup.\nNon-listing pages (single job detail pages) pass through unchanged as 1 item."
     }
   ],
   "connections": {
@@ -391,7 +405,7 @@
       "main": [
         [
           {
-            "node": "Normalize Item",
+            "node": "Split: XING Listings",
             "type": "main",
             "index": 0
           }
@@ -399,6 +413,17 @@
         [
           {
             "node": "Scrape Failed: Stop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split: XING Listings": {
+      "main": [
+        [
+          {
+            "node": "Normalize Item",
             "type": "main",
             "index": 0
           }
