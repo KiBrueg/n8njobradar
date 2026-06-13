@@ -49,6 +49,7 @@
         440,
         100
       ],
+      "onError": "continueErrorOutput",
       "notes": "Returns up to 25 jobs. Response: { data: [...] }"
     },
     {
@@ -80,6 +81,7 @@
         440,
         300
       ],
+      "onError": "continueErrorOutput",
       "notes": "Response: { jobs: [...], job-count: N }"
     },
     {
@@ -116,6 +118,7 @@
         440,
         500
       ],
+      "onError": "continueErrorOutput",
       "notes": "Returns JSON array. [0] = legal notice, [1+] = jobs.\nUser-Agent header required to avoid 403."
     },
     {
@@ -129,7 +132,8 @@
       "position": [
         660,
         100
-      ]
+      ],
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -142,7 +146,8 @@
       "position": [
         660,
         300
-      ]
+      ],
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -155,7 +160,8 @@
       "position": [
         660,
         500
-      ]
+      ],
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -438,6 +444,7 @@
         440,
         700
       ],
+      "onError": "continueErrorOutput",
       "parameters": {
         "method": "GET",
         "url": "https://jobicy.com/api/v2/remote-jobs",
@@ -473,6 +480,7 @@
         440,
         900
       ],
+      "onError": "continueErrorOutput",
       "parameters": {
         "method": "GET",
         "url": "https://himalayas.app/jobs/api",
@@ -540,6 +548,7 @@
         660,
         700
       ],
+      "onError": "continueErrorOutput",
       "parameters": {
         "jsCode": "// Jobicy response: { jobs: [...] }\nconst data = $input.item.json.jobs || [];\nif (data.length === 0) return [];\nreturn data.map(job => ({ json: { ...job, source_label: \"jobicy_api\" } }));"
       }
@@ -553,6 +562,7 @@
         660,
         900
       ],
+      "onError": "continueErrorOutput",
       "parameters": {
         "jsCode": "// Himalayas response: { jobs: [...] }\nconst data = $input.item.json.jobs || [];\nif (data.length === 0) return [];\nreturn data.map(job => ({ json: { ...job, source_label: \"himalayas_api\" } }));"
       }

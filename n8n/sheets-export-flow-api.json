@@ -12,7 +12,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT c.name as company, j.job_title, j.location, j.work_mode::text, j.current_stage::text, j.priority::text, j.source_url, j.summary, j.created_at::text, COALESCE((ev.parsed_json->>'relevance_score')::int, 0) AS relevance_score, COALESCE(ev.parsed_json->>'employer_name', '') AS employer_name FROM jobs j JOIN companies c ON c.company_id = j.company_id JOIN LATERAL (SELECT parsed_json FROM job_events WHERE job_id = j.id ORDER BY created_at DESC LIMIT 1) ev ON TRUE ORDER BY j.created_at DESC;",
+        "query": "SELECT c.name as company, j.job_title, j.location, j.work_mode::text, j.current_stage::text, j.source_url, j.summary, j.created_at::text, COALESCE((ev.parsed_json->>'relevance_score')::int, 0) AS relevance_score, COALESCE(ev.parsed_json->>'employer_name', '') AS employer_name FROM jobs j JOIN companies c ON c.company_id = j.company_id JOIN LATERAL (SELECT parsed_json FROM job_events WHERE job_id = j.id ORDER BY created_at DESC LIMIT 1) ev ON TRUE ORDER BY j.created_at DESC;",
         "options": {}
       },
       "id": "n_db",
@@ -40,7 +40,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://script.google.com/macros/s/AKfycbwu5uhs-43EvKKZZB3S6LfVf5nDSsYGm-ZHXy9TSbPQa7pcthdGKDf_4mrGuRz9oxYyag/exec",
+        "url": "https://script.google.com/macros/s/AKfycbx4_d2DdInLPZMU3-ie3HySrSlkBjlL9dS-_WGclRc8blUC5f1c19aa2nss5eyQzJuiKg/exec",
         "sendBody": true,
         "contentType": "raw",
         "rawContentType": "application/json",
