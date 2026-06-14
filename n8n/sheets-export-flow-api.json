@@ -23,7 +23,7 @@
       "credentials": {
         "postgres": {
           "id": "ZjjVGIqiRAUVlCk6",
-          "name": "radar"
+          "name": "JobRadar Postgres"
         }
       }
     },
