@@ -1,0 +1,437 @@
+{
+  "name": "JobRadar -- Flow 7: Gewerbe / Freelance Scraper",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 24,
+              "triggerAtHour": 4,
+              "triggerAtMinute": 30
+            }
+          ]
+        }
+      },
+      "id": "n_trigger",
+      "name": "Schedule: Daily 04:30",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [200, 300],
+      "notes": "30 min after Flow 2 (Firecrawl, 04:00). Avoids DB contention.\nScrapes freelance/project platforms for Gewerbe opportunities."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Freelance / Gewerbe project platforms.\n// All use Jina AI (free, JS-rendered) — no Firecrawl credits needed.\n// Labels containing 'xing' are split into individual project links.\n\nconst TARGETS = [\n  { url: 'https://www.freelancermap.de/projektboerse.html?q=python+automation+n8n&remoteOption=1', label: 'freelancermap-python' },\n  { url: 'https://www.gulp.de/gulp2/g/projekte?query=python+automation&location=remote',          label: 'gulp-python-remote' },\n  { url: 'https://www.malt.de/s?q=python+automation&remote=true',                                label: 'malt-python-remote' },\n  { url: 'https://www.freelance.de/projekte/?skill=python&skill=automation&remote=1',            label: 'freelancede-python' },\n  { url: 'https://www.xing.com/projekte?keywords=python+automation+KI&location=Deutschland&sort=date', label: 'xing-projekte-python' },\n];\n\nreturn TARGETS.map(t => ({ json: t }));\n"
+      },
+      "id": "n_targets",
+      "name": "Scrape Targets",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [420, 300],
+      "notes": "Freelance project platforms. Edit URLs / add targets here.\nAll scraped via Jina AI (GET r.jina.ai/{url}) — free, no API key."
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://r.jina.ai/{{ $json.url }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Accept",          "value": "text/plain" },
+            { "name": "X-Return-Format", "value": "markdown"  }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": { "responseFormat": "text" }
+          },
+          "timeout": 30000
+        }
+      },
+      "id": "n_jina_scrape",
+      "name": "Jina AI: Scrape",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [640, 300],
+      "notes": "FREE — no API key required, no credit limit.\nr.jina.ai renders JS and returns clean markdown."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Wrap Jina plain-text response into Firecrawl-compatible shape\n// so the downstream pipeline works unchanged.\n\nconst raw = $input.item.json;\nconst target = $('Scrape Targets').item.json;\n\nconst jinaMarkdown = (typeof raw.data === 'string' && raw.data.length > 0)\n  ? raw.data\n  : (typeof raw === 'string' ? raw : JSON.stringify(raw));\n\nreturn [{\n  json: {\n    success: true,\n    data: {\n      markdown: jinaMarkdown,\n      metadata: {\n        sourceURL: target.url,\n        title: target.label + ' — Jina AI',\n        scraper: 'jina'\n      }\n    }\n  }\n}];\n"
+      },
+      "id": "n_jina_format",
+      "name": "Jina: Format as Firecrawl",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [860, 300],
+      "notes": "Normalises Jina response to {success, data.markdown, data.metadata}.\nDownstream nodes treat Jina and Firecrawl output identically."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "id": "cond_ok",
+              "leftValue": "={{ $json.success }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "n_if_ok",
+      "name": "IF: scrape success",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [1080, 300]
+    },
+    {
+      "parameters": {},
+      "id": "n_scrape_fail",
+      "name": "Scrape Failed: Stop",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [1300, 520],
+      "notes": "Jina returned success=false. Check target URL or rate limit."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Split listing page into individual project items.\n// Handles: xing.com/projekte, freelancermap, gulp, malt, freelance.de\n\nconst LISTING_LABELS = ['xing-projekte-python', 'freelancermap-python', 'gulp-python-remote', 'malt-python-remote', 'freelancede-python'];\n\nconst scrape = $input.item.json;\nconst target = $('Scrape Targets').item.json;\nconst label  = target.label || '';\n\nif (!LISTING_LABELS.includes(label)) {\n  return [{ json: scrape }];\n}\n\nconst markdown = (scrape.data && scrape.data.markdown) || '';\nconst lines    = markdown.split('\\n');\n\n// URL pattern per platform\nconst patterns = {\n  'xing-projekte-python':  url => url.includes('xing.com/projekte/') && !url.includes('/search') && !url.includes('?keywords'),\n  'freelancermap-python':  url => url.includes('freelancermap.de/') && (url.includes('/projekt/') || url.includes('/freelancer-projekte/')),\n  'gulp-python-remote':    url => url.includes('gulp.de/') && url.includes('/project/'),\n  'malt-python-remote':    url => url.includes('malt.de/') && url.includes('/project/'),\n  'freelancede-python':    url => url.includes('freelance.de/Projekte/') || (url.includes('freelance.de/') && url.includes('&id='))\n};\n\nconst filterFn = patterns[label] || (() => false);\n\nconst linkPattern = /\\[([^\\]\\n]+)\\]\\((https?:\\/\\/[^\\)\\s\\n]{10,})\\)/g;\nconst seen = new Set();\nconst jobLinks = [];\nlet m;\n\nwhile ((m = linkPattern.exec(markdown)) !== null) {\n  const linkText = m[1].trim();\n  const url      = m[2].trim();\n  if (seen.has(url) || url === target.url) continue;\n  if (!filterFn(url)) continue;\n  seen.add(url);\n  jobLinks.push({ linkText, url, pos: m.index });\n}\n\nif (jobLinks.length === 0) {\n  // No individual links found — pass full page to LLM\n  return [{ json: scrape }];\n}\n\nreturn jobLinks.map(({ linkText, url, pos }) => {\n  const lineNum  = (markdown.substring(0, pos).match(/\\n/g) || []).length;\n  const ctxStart = Math.max(0, lineNum - 1);\n  const ctxEnd   = Math.min(lines.length, lineNum + 25);\n  const ctx = lines.slice(ctxStart, ctxEnd)\n    .map(l => l.trim())\n    .filter(l => l && !l.startsWith('!['));\n\n  const h2Line  = ctx.find(l => /^#{1,3}\\s/.test(l));\n  const title   = h2Line ? h2Line.replace(/^#{1,3}\\s+/, '').trim() : linkText;\n\n  return {\n    json: {\n      success: true,\n      data: {\n        markdown: ctx.join('\\n').substring(0, 5000),\n        metadata: {\n          sourceURL: url,\n          title: title,\n          platform: label\n        }\n      }\n    }\n  };\n});\n"
+      },
+      "id": "n_split",
+      "name": "Split: Project Listings",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1300, 300],
+      "notes": "Splits listing pages into individual project items per platform.\nIf no individual links found — passes full page to LLM.\nFallback: LLM extracts top project from the markdown."
+    },
+    {
+      "parameters": {
+        "jsCode": "const scrape = $input.item.json;\nconst target  = $('Scrape Targets').item.json;\n\nconst markdown  = (scrape.data && scrape.data.markdown) || scrape.markdown || '';\nconst sourceUrl = (scrape.data && scrape.data.metadata && scrape.data.metadata.sourceURL)\n               || target.url || null;\nconst pageTitle = (scrape.data && scrape.data.metadata && scrape.data.metadata.title) || null;\nconst platform  = (scrape.data && scrape.data.metadata && scrape.data.metadata.platform) || target.label || null;\n\nconst rawText = markdown.substring(0, 10000);\n\nreturn [{\n  json: {\n    normalized_input: {\n      input_source: 'scraped',\n      source_detail: 'gewerbe_scraped',\n      job_type:       'freelance',\n      email_account_id: null,\n      email_address:    null,\n      email_provider:   null,\n      subject:          pageTitle,\n      date:             null,\n      raw_text:         rawText,\n      raw_meta: {\n        url:      sourceUrl,\n        label:    target.label || null,\n        platform: platform\n      }\n    }\n  }\n}];"
+      },
+      "id": "n_normalize",
+      "name": "Normalize Item",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1520, 300],
+      "notes": "job_type = 'freelance' — stored in DB, filters Gewerbe from employment.\nsource_detail = 'gewerbe_scraped' for audit trail."
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT COUNT(*) AS cnt\nFROM jobs\nWHERE source_url = $1\n  AND updated_at > NOW() - INTERVAL '24 hours';",
+        "options": {
+          "queryReplacement": "={{ [$json.normalized_input.raw_meta.url] }}"
+        }
+      },
+      "id": "n_dedup",
+      "name": "Dedup Check",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1740, 300],
+      "credentials": {
+        "postgres": {
+          "id": "ZjjVGIqiRAUVlCk6",
+          "name": "JobRadar Postgres"
+        }
+      },
+      "notes": "Skip if this URL was already processed in the last 24h."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "id": "cond_fresh",
+              "leftValue": "={{ parseInt($json.cnt) }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "equal"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "n_if_fresh",
+      "name": "IF: not already fresh",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [1960, 300]
+    },
+    {
+      "parameters": {},
+      "id": "n_skip",
+      "name": "Already Fresh: Skip",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [2180, 520]
+    },
+    {
+      "parameters": {
+        "jsCode": "const ni = $('Normalize Item').item.json.normalized_input;\nreturn [{ json: { normalized_input: ni, hard_injection_detected: 'no' } }];"
+      },
+      "id": "n_security",
+      "name": "Skip Security Checks",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2180, 300],
+      "notes": "Trusted URLs from our config. No sender domain to verify.\nInjection check runs inside LLM via system prompt."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $env.OPENROUTER_API_KEY }}" },
+            { "name": "content-type",  "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ model: 'qwen/qwen3-30b-a3b-instruct-2507', max_tokens: 2048, messages: [{ role: 'system', content: $env.JOBRADAR_SYSTEM_PROMPT }, { role: 'user', content: JSON.stringify($json.normalized_input) }] }) }}",
+        "options": { "timeout": 60000 }
+      },
+      "id": "n_llm",
+      "name": "LLM Call (OpenRouter)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2400, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.item.json;\nlet jobEvent;\ntry {\n  let raw = (body.choices[0].message.content || '').trim();\n  raw = raw.replace(/<think>[\\s\\S]*?<\\/think>/gi, '').trim();\n  raw = raw.replace(/^```(?:json)?\\s*/i, '').replace(/\\s*```$/, '').trim();\n  jobEvent = JSON.parse(raw);\n} catch (err) {\n  throw new Error('LLM returned invalid JSON: ' + String(body?.choices?.[0]?.message?.content || '').substring(0, 300));\n}\n\nif (typeof jobEvent.is_job_related !== 'boolean') {\n  throw new Error('Parse error: is_job_related must be boolean, got: ' + typeof jobEvent.is_job_related);\n}\nif (typeof jobEvent.injection_suspected !== 'boolean') jobEvent.injection_suspected = false;\n\nconst ALLOWED_ACTIONS = ['create_job','update_stage','add_interview','add_deadline','log_only','flag_error','ignore'];\nif (!ALLOWED_ACTIONS.includes(jobEvent.action)) {\n  throw new Error('Parse error: invalid action value: ' + String(jobEvent.action));\n}\n\nif (jobEvent.company_id && !/^[a-z0-9][a-z0-9-]*[a-z0-9]$/.test(jobEvent.company_id)) {\n  jobEvent.company_id = jobEvent.company_id.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/--+/g, '-').replace(/^-|-$/g, '');\n}\n\nif (!Array.isArray(jobEvent.tech_stack))      jobEvent.tech_stack = [];\nif (!Array.isArray(jobEvent.key_requirements)) jobEvent.key_requirements = [];\n\nconst JOB_RELATED_CATEGORIES = ['job_posting','hr_invite','interview_invite','test_task','offer','rejection','follow_up','platform_notification','manual_note'];\nif (JOB_RELATED_CATEGORIES.includes(jobEvent.category)) jobEvent.is_job_related = true;\n\njobEvent.is_job_related_str = jobEvent.is_job_related ? 'yes' : 'no';\n\nreturn [{ json: { job_event: jobEvent } }];"
+      },
+      "id": "n_parse",
+      "name": "Parse LLM Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2620, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "id": "cond_related",
+              "leftValue": "={{ $json.job_event.is_job_related_str }}",
+              "rightValue": "yes",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "n_if_related",
+      "name": "IF: is_job_related",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [2840, 300]
+    },
+    {
+      "parameters": {},
+      "id": "n_not_related",
+      "name": "Not Job Related: Stop",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [3060, 520]
+    },
+    {
+      "parameters": {
+        "jsCode": "/* ============================================================\n   Prepare DB Params -- Gewerbe Flow\n   job_type = 'freelance'\n   input_source: scraped, no email fields\n   ============================================================ */\n\nconst e  = $input.item.json.job_event;\nconst ni = $('Normalize Item').item.json.normalized_input;\nconst rawText  = ni.raw_text;\nconst sourceUrl = (ni.raw_meta && ni.raw_meta.url) || null;\n\nfunction sql(v)  { if (v === null || v === undefined) return 'NULL'; return \"'\" + String(v).replace(/'/g, \"''\") + \"'\"; }\nfunction num(v)  { if (v === null || v === undefined) return 'NULL'; const n = parseFloat(v); return isNaN(n) ? 'NULL' : String(n); }\nfunction bool(v) { return v === true ? 'TRUE' : 'FALSE'; }\nfunction dt(v)   { return v ? \"'\" + String(v).replace(/'/g, \"''\") + \"'\" : 'NULL'; }\nfunction en(v,t) { return v ? \"'\" + String(v).replace(/'/g, \"''\") + \"'::\" + t : 'NULL'; }\nfunction arr(vals) {\n  if (!vals || vals.length === 0) return \"'{}'\";\n  const parts = vals.map(v => '\"' + String(v).replace(/\\\\/g,'\\\\\\\\').replace(/\"/g,'\\\\\"') + '\"');\n  return \"'\" + '{' + parts.join(',') + '}' + \"'\";\n}\nfunction jsonb(v) {\n  if (!v) return \"'{}'::jsonb\";\n  return \"'\" + JSON.stringify(v).replace(/'/g, \"''\") + \"'::jsonb\";\n}\n\nconst finalSourceUrl = sourceUrl || e.source_url || null;\n\nreturn [{\n  json: {\n    job_event: e,\n    db: {\n      company_id_sql:           sql(e.company_id           || 'unknown'),\n      company_name_sql:         sql(e.company_name         || 'Unknown Company'),\n      employer_id_sql:          sql(e.employer_id),\n      employer_name_sql:        sql(e.employer_name),\n      job_id_fuzzy_sql:         sql(e.job_id_fuzzy         || 'unknown__unknown__unknown'),\n      job_title_sql:            sql(e.job_title),\n      location_sql:             sql(e.location),\n      job_thread_key_sql:       sql(e.job_thread_key),\n      seniority_sql:            en(e.seniority,             'seniority_enum'),\n      work_mode_sql:            en(e.work_mode,             'work_mode_enum'),\n      work_mode_raw_sql:        sql(e.work_mode_raw),\n      working_hours_sql:        sql(e.working_hours),\n      salary_currency_sql:      sql(e.salary_currency),\n      salary_min_sql:           num(e.salary_min),\n      salary_max_sql:           num(e.salary_max),\n      salary_period_sql:        en(e.salary_period,         'salary_period_enum'),\n      tech_stack_sql:           arr(e.tech_stack),\n      key_requirements_sql:     arr(e.key_requirements),\n      current_stage_sql:        en(e.stage || 'discovered', 'job_stage_enum'),\n      priority_sql:             en(e.priority,              'priority_enum'),\n      priority_level_sql:       num(e.priority_level),\n      interview_date_sql:       dt(e.interview_date),\n      response_deadline_sql:    dt(e.response_deadline),\n      application_deadline_sql: dt(e.application_deadline),\n      has_had_call_sql:         bool(e.has_had_call),\n      call_count_sql:           String(e.call_count || 0),\n      last_call_date_sql:       dt(e.last_call_date),\n      source_url_sql:           sql(finalSourceUrl),\n      source_input_sql:         en('scraped',               'input_source_enum'),\n      job_type_sql:             sql('freelance'),\n      summary_sql:              sql(e.summary),\n      category_sql:             en(e.category,              'job_category_enum'),\n      action_sql:               sql(e.action),\n      is_job_related_sql:       bool(e.is_job_related),\n      call_platform_sql:        en(e.call_platform,         'call_platform_enum'),\n      call_platform_raw_sql:    sql(e.call_platform_raw),\n      raw_text_sql:             sql(rawText),\n      parsed_json_sql:          jsonb(e),\n      sender_risk_level_sql:    sql('unknown'),\n      sender_risk_signals_sql:  arr([])\n    }\n  }\n}];"
+      },
+      "id": "n_prepare",
+      "name": "Prepare DB Params",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3060, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH\nco AS (\n  INSERT INTO companies (company_id, name, meta)\n  VALUES ({{ $json.db.company_id_sql }}, {{ $json.db.company_name_sql }}, '{}')\n  ON CONFLICT (tenant_id, company_id) DO UPDATE SET updated_at = NOW()\n  RETURNING id\n),\nem AS (\n  INSERT INTO employers (employer_id, company_id, name)\n  SELECT {{ $json.db.employer_id_sql }},\n         {{ $json.db.company_id_sql }},\n         {{ $json.db.employer_name_sql }}\n  WHERE  {{ $json.db.employer_id_sql }} IS NOT NULL\n  ON CONFLICT (tenant_id, employer_id) DO UPDATE SET\n    name       = COALESCE(EXCLUDED.name, employers.name),\n    updated_at = NOW()\n  RETURNING id\n),\nj AS (\n  INSERT INTO jobs (\n    job_id_fuzzy,   company_id,      employer_id,\n    job_title,      location,        seniority,\n    work_mode,      work_mode_raw,   working_hours,\n    salary_currency, salary_min,     salary_max,     salary_period,\n    tech_stack,     key_requirements,\n    current_stage,  priority,        priority_level,\n    interview_date, response_deadline, application_deadline,\n    has_had_call,   call_count,      last_call_date,\n    source_url,     source_input,    summary,\n    job_type\n  ) VALUES (\n    {{ $json.db.job_id_fuzzy_sql }},\n    {{ $json.db.company_id_sql }},\n    {{ $json.db.employer_id_sql }},\n    {{ $json.db.job_title_sql }},\n    {{ $json.db.location_sql }},\n    {{ $json.db.seniority_sql }},\n    {{ $json.db.work_mode_sql }},\n    {{ $json.db.work_mode_raw_sql }},\n    {{ $json.db.working_hours_sql }},\n    {{ $json.db.salary_currency_sql }},\n    {{ $json.db.salary_min_sql }},\n    {{ $json.db.salary_max_sql }},\n    {{ $json.db.salary_period_sql }},\n    {{ $json.db.tech_stack_sql }},\n    {{ $json.db.key_requirements_sql }},\n    {{ $json.db.current_stage_sql }},\n    {{ $json.db.priority_sql }},\n    {{ $json.db.priority_level_sql }},\n    {{ $json.db.interview_date_sql }},\n    {{ $json.db.response_deadline_sql }},\n    {{ $json.db.application_deadline_sql }},\n    {{ $json.db.has_had_call_sql }},\n    {{ $json.db.call_count_sql }},\n    {{ $json.db.last_call_date_sql }},\n    {{ $json.db.source_url_sql }},\n    {{ $json.db.source_input_sql }},\n    {{ $json.db.summary_sql }},\n    {{ $json.db.job_type_sql }}\n  )\n  ON CONFLICT (tenant_id, job_id_fuzzy) DO UPDATE SET\n    current_stage        = EXCLUDED.current_stage,\n    priority             = EXCLUDED.priority,\n    priority_level       = EXCLUDED.priority_level,\n    interview_date       = COALESCE(EXCLUDED.interview_date, jobs.interview_date),\n    response_deadline    = COALESCE(EXCLUDED.response_deadline, jobs.response_deadline),\n    application_deadline = COALESCE(EXCLUDED.application_deadline, jobs.application_deadline),\n    tech_stack           = CASE WHEN array_length(EXCLUDED.tech_stack, 1) > 0\n                                THEN EXCLUDED.tech_stack ELSE jobs.tech_stack END,\n    source_url           = COALESCE(EXCLUDED.source_url, jobs.source_url),\n    summary              = EXCLUDED.summary,\n    job_type             = EXCLUDED.job_type,\n    updated_at           = NOW()\n  RETURNING id, job_id_fuzzy, current_stage::text, priority::text, summary, interview_date\n),\nev AS (\n  INSERT INTO job_events (\n    job_id,         job_thread_key,  job_id_fuzzy,\n    input_source,   source_detail,\n    category,       is_job_related,  action,\n    stage,          priority,        priority_level,\n    interview_date, response_deadline, application_deadline,\n    call_platform,  call_platform_raw,\n    raw_text,       parsed_json,\n    sender_risk_level, sender_risk_signals\n  )\n  SELECT\n    (SELECT id FROM j),\n    {{ $json.db.job_thread_key_sql }},\n    {{ $json.db.job_id_fuzzy_sql }},\n    {{ $json.db.source_input_sql }},\n    'gewerbe_scraped',\n    {{ $json.db.category_sql }},\n    {{ $json.db.is_job_related_sql }},\n    {{ $json.db.action_sql }},\n    {{ $json.db.current_stage_sql }},\n    {{ $json.db.priority_sql }},\n    {{ $json.db.priority_level_sql }},\n    {{ $json.db.interview_date_sql }},\n    {{ $json.db.response_deadline_sql }},\n    {{ $json.db.application_deadline_sql }},\n    {{ $json.db.call_platform_sql }},\n    {{ $json.db.call_platform_raw_sql }},\n    {{ $json.db.raw_text_sql }},\n    {{ $json.db.parsed_json_sql }},\n    {{ $json.db.sender_risk_level_sql }},\n    {{ $json.db.sender_risk_signals_sql }}\n  RETURNING id\n)\nSELECT\n  (SELECT id             FROM j) AS job_id,\n  (SELECT job_id_fuzzy   FROM j) AS job_id_fuzzy,\n  (SELECT current_stage  FROM j) AS stage,\n  (SELECT priority       FROM j) AS priority,\n  (SELECT summary        FROM j) AS summary,\n  (SELECT interview_date FROM j) AS interview_date,\n  (SELECT id             FROM ev) AS event_id;",
+        "options": {}
+      },
+      "id": "n_db_write",
+      "name": "DB: Write All",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [3280, 300],
+      "credentials": {
+        "postgres": {
+          "id": "ZjjVGIqiRAUVlCk6",
+          "name": "JobRadar Postgres"
+        }
+      },
+      "notes": "Idempotent upsert. job_type='freelance' stored permanently.\nsource_detail='gewerbe_scraped' in job_events for audit."
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================\n// Prepare Calendar Data — Gewerbe / KI Automation\n// Builds a structured project card for Google Calendar.\n// Color = relevance tier: green (hot) / yellow (medium) / graphite (low)\n// ============================================================\n\nconst e  = $('Parse LLM Response').item.json.job_event;\nconst ni = $('Normalize Item').item.json.normalized_input;\nconst db = $input.item.json;\n\nconst relevance = parseInt(e.relevance_score || 0);\n\n// --- Color tier ---\n// 2 = Sage (green)   → hot lead ≥80\n// 5 = Banana (yellow)→ interesting 50-79\n// 8 = Graphite (grey)→ low <50\nconst colorId = relevance >= 80 ? '2' : relevance >= 50 ? '5' : '8';\n\n// --- Rate / budget ---\nlet rateStr = '';\nif (e.salary_min) {\n  const period = e.salary_period === 'hourly'  ? '/h'\n               : e.salary_period === 'daily'   ? '/d'\n               : e.salary_period === 'monthly' ? '/mo'\n               : e.salary_period === 'project' ? ' Projekt'\n               : '';\n  const cur = e.salary_currency || 'EUR';\n  rateStr = ` | ${e.salary_min}${e.salary_max ? '–' + e.salary_max : ''}${cur}${period}`;\n}\n\n// --- Event title ---\nconst calSummary = '\\uD83D\\uDD27 '\n  + (e.job_title || 'Projekt')\n  + ' @ '\n  + (e.company_name || '?')\n  + rateStr;\n\n// --- Dates ---\nconst todayISO = new Date().toISOString().split('T')[0];\nconst calStart = e.application_deadline\n  ? e.application_deadline.substring(0, 10)\n  : e.response_deadline\n  ? e.response_deadline.substring(0, 10)\n  : todayISO;\nconst calEnd = calStart; // all-day event\n\n// --- Tech stack ---\nconst techStr = Array.isArray(e.tech_stack) && e.tech_stack.length\n  ? e.tech_stack.slice(0, 8).join(' · ')\n  : null;\n\n// --- Location ---\nconst locParts = [e.location, e.work_mode ? e.work_mode.replace('_', ' ') : null].filter(Boolean);\nconst locStr = locParts.length ? locParts.join(' | ') : null;\n\n// --- Salary ---\nlet salaryStr = null;\nif (e.salary_min) {\n  const period = e.salary_period === 'hourly'  ? 'pro Stunde'\n               : e.salary_period === 'daily'   ? 'pro Tag'\n               : e.salary_period === 'monthly' ? 'pro Monat'\n               : e.salary_period === 'project' ? 'Projektbudget'\n               : '';\n  const cur = e.salary_currency || 'EUR';\n  salaryStr = `${e.salary_min}${e.salary_max ? '–' + e.salary_max : ''} ${cur} ${period}`.trim();\n}\n\n// --- Key requirements ---\nconst reqStr = Array.isArray(e.key_requirements) && e.key_requirements.length\n  ? e.key_requirements.slice(0, 4).join(' · ')\n  : null;\n\n// --- Deadline label ---\nconst deadlineLabel = e.application_deadline\n  ? e.application_deadline.substring(0, 10)\n  : e.response_deadline\n  ? e.response_deadline.substring(0, 10)\n  : '—';\n\n// --- Source URL ---\nconst sourceUrl = (ni.raw_meta && ni.raw_meta.url) || '';\nconst platform  = (ni.raw_meta && ni.raw_meta.platform) || ni.raw_meta && ni.raw_meta.label || '?';\n\n// --- Today label ---\nconst today = new Date().toLocaleDateString('de-DE', {\n  day: '2-digit', month: '2-digit', year: 'numeric'\n});\n\n// --- Stage label ---\nconst stageLabel = (db.stage || 'discovered').toUpperCase();\n\n// --- Relevance bar (10 blocks) ---\nconst filledBlocks = Math.round(relevance / 10);\nconst bar = '\\u2588'.repeat(filledBlocks) + '\\u2591'.repeat(10 - filledBlocks);\n\n// --- Build description ---\nconst lines = [\n  '\\u2550'.repeat(30),\n  '\\uD83C\\uDF10 KI AUTOMATION GEWERBE-RADAR',\n  '\\u2550'.repeat(30),\n  '',\n  '\\uD83C\\uDFE2 Auftraggeber:  ' + (e.company_name || '?'),\n];\nif (techStr)    lines.push('\\uD83D\\uDD27 Stack:         ' + techStr);\nif (reqStr)     lines.push('\\uD83D\\uDCCB Anforderungen: ' + reqStr);\nif (locStr)     lines.push('\\uD83D\\uDCCD Ort:           ' + locStr);\nif (salaryStr)  lines.push('\\uD83D\\uDCB0 Verg\\u00FCtung:    ' + salaryStr);\nlines.push('');\nlines.push('\\uD83D\\uDCC8 Relevanz: [' + bar + '] ' + relevance + '/100');\nlines.push('');\nif (e.summary) {\n  lines.push('\\uD83D\\uDCAC ZUSAMMENFASSUNG');\n  lines.push(e.summary);\n  lines.push('');\n}\nlines.push('\\u2500'.repeat(30));\nif (sourceUrl)      lines.push('\\uD83D\\uDD17 Quelle:        ' + sourceUrl);\nlines.push('\\uD83C\\uDFF7\\uFE0F Plattform:     ' + platform);\nlines.push('\\uD83D\\uDCC5 Erfasst:       ' + today);\nlines.push('\\u23F0 Deadline:      ' + deadlineLabel);\nlines.push('\\uD83D\\uDEA6 Status:        ' + stageLabel);\nlines.push('');\nlines.push('\\u2500'.repeat(30));\nlines.push('JobRadar Gewerbe — KI Automation Intelligence Hub');\n\nconst calDescription = lines.join('\\n');\n\nreturn [{\n  json: {\n    // pass through DB fields for IF: priority node\n    job_id:      db.job_id,\n    stage:       db.stage,\n    priority:    db.priority,\n    summary:     db.summary,\n    // calendar params\n    calSummary,\n    calStart,\n    calEnd,\n    calColorId:  colorId,\n    calDescription\n  }\n}];\n"
+      },
+      "id": "n_cal_prep",
+      "name": "Prepare Calendar Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3500, 300],
+      "notes": "Builds structured Gewerbe project card for Google Calendar.\nColors: green=hot(≥80) / yellow=mid(50-79) / graphite=low(<50)\nTitle includes job title, company and rate/budget if available.\nDescription = full KI Automation project card with relevance bar."
+    },
+    {
+      "parameters": {
+        "resource": "event",
+        "operation": "create",
+        "calendar": {
+          "__rl": true,
+          "value": "cdb3fac04c0616e603e1ced86dfe3022950d443273a66812e83b847306508d49@group.calendar.google.com",
+          "mode": "id"
+        },
+        "start": "={{ $json.calStart }}",
+        "end": "={{ $json.calEnd }}",
+        "additionalFields": {
+          "summary":     "={{ $json.calSummary }}",
+          "description": "={{ $json.calDescription }}",
+          "colorId":     "={{ $json.calColorId }}",
+          "allday": true
+        }
+      },
+      "id": "n_calendar",
+      "name": "Calendar: Gewerbe Event",
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.2,
+      "position": [3720, 300],
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "GCAL_CRED_ID",
+          "name": "JobRadar Google Calendar"
+        }
+      },
+      "notes": "⚙️ После импорта: привязать credential 'Google Calendar OAuth2 API' в n8n UI.\nCalendar ID (JobRadar Gewerbe) уже вставлен.\nДинамический colorId из Prepare Calendar Data (2/5/8)."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "id": "cond_priority",
+              "leftValue": "={{ $json.priority }}",
+              "rightValue": "high",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "n_if_priority",
+      "name": "IF: priority = high",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [3720, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendMessage",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ chat_id: $env.TELEGRAM_GEWERBE_CHAT_ID, parse_mode: 'HTML', text: ['\\u{1F4BC} <b>Gewerbe-Radar: ' + ($('Parse LLM Response').item.json.job_event.company_name || 'Unknown') + '</b>', ($('Parse LLM Response').item.json.job_event.job_title || '\\u2014'), '', 'Stage: <code>' + ($json.stage || '') + '</code>  Priority: <b>' + ($json.priority || '') + '</b>', '', ($json.summary || '')].join('\\n'), disable_web_page_preview: true }) }}",
+        "options": { "timeout": 10000 }
+      },
+      "id": "n_telegram_gewerbe",
+      "name": "Telegram: Gewerbe Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [3940, 160],
+      "notes": "⚙️ Needs TELEGRAM_GEWERBE_CHAT_ID in VPS .env\nCreate Telegram channel -> forward any message to @userinfobot to get chat_id.\nAdd bot as admin to the channel first."
+    }
+  ],
+  "connections": {
+    "Schedule: Daily 04:30": {
+      "main": [[{ "node": "Scrape Targets",           "type": "main", "index": 0 }]]
+    },
+    "Scrape Targets": {
+      "main": [[{ "node": "Jina AI: Scrape",           "type": "main", "index": 0 }]]
+    },
+    "Jina AI: Scrape": {
+      "main": [[{ "node": "Jina: Format as Firecrawl", "type": "main", "index": 0 }]]
+    },
+    "Jina: Format as Firecrawl": {
+      "main": [[{ "node": "IF: scrape success",        "type": "main", "index": 0 }]]
+    },
+    "IF: scrape success": {
+      "main": [
+        [{ "node": "Split: Project Listings",          "type": "main", "index": 0 }],
+        [{ "node": "Scrape Failed: Stop",              "type": "main", "index": 0 }]
+      ]
+    },
+    "Split: Project Listings": {
+      "main": [[{ "node": "Normalize Item",            "type": "main", "index": 0 }]]
+    },
+    "Normalize Item": {
+      "main": [[{ "node": "Dedup Check",               "type": "main", "index": 0 }]]
+    },
+    "Dedup Check": {
+      "main": [[{ "node": "IF: not already fresh",     "type": "main", "index": 0 }]]
+    },
+    "IF: not already fresh": {
+      "main": [
+        [{ "node": "Skip Security Checks",             "type": "main", "index": 0 }],
+        [{ "node": "Already Fresh: Skip",              "type": "main", "index": 0 }]
+      ]
+    },
+    "Skip Security Checks": {
+      "main": [[{ "node": "LLM Call (OpenRouter)",     "type": "main", "index": 0 }]]
+    },
+    "LLM Call (OpenRouter)": {
+      "main": [[{ "node": "Parse LLM Response",        "type": "main", "index": 0 }]]
+    },
+    "Parse LLM Response": {
+      "main": [[{ "node": "IF: is_job_related",        "type": "main", "index": 0 }]]
+    },
+    "IF: is_job_related": {
+      "main": [
+        [{ "node": "Prepare DB Params",                "type": "main", "index": 0 }],
+        [{ "node": "Not Job Related: Stop",            "type": "main", "index": 0 }]
+      ]
+    },
+    "Prepare DB Params": {
+      "main": [[{ "node": "DB: Write All",             "type": "main", "index": 0 }]]
+    },
+    "DB: Write All": {
+      "main": [[{ "node": "Prepare Calendar Data",     "type": "main", "index": 0 }]]
+    },
+    "Prepare Calendar Data": {
+      "main": [[{ "node": "Calendar: Gewerbe Event",   "type": "main", "index": 0 }]]
+    },
+    "Calendar: Gewerbe Event": {
+      "main": [[{ "node": "IF: priority = high",       "type": "main", "index": 0 }]]
+    },
+    "IF: priority = high": {
+      "main": [
+        [{ "node": "Telegram: Gewerbe Alert",          "type": "main", "index": 0 }],
+        []
+      ]
+    }
+  },
+  "settings": { "executionOrder": "v1" }
+}
