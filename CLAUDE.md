@@ -112,7 +112,7 @@ grep -rn --include="*.json" --include="*.md" --include="*.yaml" --include="*.txt
 - **Credentials нельзя задать через API** — подключать только в UI после импорта.
 
 ### VPS access
-- **SSH порт 22 заблокирован с Windows** — вся работа с шеллом через Hetzner Console (браузер). `ssh`/`scp` с Windows не предлагать.
+- **SSH работает с Windows через ключ:** `ssh -i "$env:USERPROFILE\.ssh\id_ed25519" kirill@157.180.112.46 "команда"` — Hetzner Console не нужна. Из Bash-инструмента: `ssh -i "$USERPROFILE/.ssh/id_ed25519" kirill@157.180.112.46`
 - **HTTP-вызовы к n8n API — только Windows PowerShell** (`Invoke-RestMethod`). curl из Linux sandbox возвращает 403.
 
 ### .env

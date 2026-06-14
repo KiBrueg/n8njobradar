@@ -14,7 +14,7 @@
       "webhookId": "jobradar-tg-digest",
       "credentials": {
         "telegramApi": {
-          "id": "TELEGRAM_CRED_ID",
+          "id": "GbCUJcypvKpeqReQ",
           "name": "JobRadar Telegram Bot"
         }
       },
@@ -66,8 +66,8 @@
       "position": [640, 300],
       "credentials": {
         "postgres": {
-          "id": "ZjjVGIqiRAUVlCk6",
-          "name": "JobRadar Postgres"
+          "id": "Tvuhat51UDCzKwnE",
+          "name": "Postgres account"
         }
       },
       "notes": "Top 20 employment jobs by relevance (no senior filter).\njob_type = 'employment' excludes Gewerbe/freelance entries."

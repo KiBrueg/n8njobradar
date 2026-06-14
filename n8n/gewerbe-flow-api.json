@@ -317,8 +317,8 @@
       "position": [3720, 300],
       "credentials": {
         "googleCalendarOAuth2Api": {
-          "id": "GCAL_CRED_ID",
-          "name": "JobRadar Google Calendar"
+          "id": "eLQTxfMJ6kryO1Iy",
+          "name": "Google Calendar account"
         }
       },
       "notes": "⚙️ После импорта: привязать credential 'Google Calendar OAuth2 API' в n8n UI.\nCalendar ID (JobRadar Gewerbe) уже вставлен.\nДинамический colorId из Prepare Calendar Data (2/5/8)."
