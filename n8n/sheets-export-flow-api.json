@@ -12,7 +12,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT c.name as company, j.job_title, j.location, j.work_mode::text, j.current_stage::text, j.source_url, j.summary, j.created_at::text, COALESCE((ev.parsed_json->>'relevance_score')::int, 0) AS relevance_score, COALESCE(ev.parsed_json->>'employer_name', '') AS employer_name FROM jobs j JOIN companies c ON c.company_id = j.company_id JOIN LATERAL (SELECT parsed_json FROM job_events WHERE job_id = j.id ORDER BY created_at DESC LIMIT 1) ev ON TRUE ORDER BY j.created_at DESC;",
+        "query": "SELECT\n  c.name                                                     AS company,\n  j.job_title,\n  j.seniority::text,\n  j.location,\n  j.work_mode::text,\n  j.current_stage::text,\n  j.source_url,\n  j.summary,\n  j.created_at::text,\n  COALESCE((ev.parsed_json->>'relevance_score')::int, 0)     AS relevance_score,\n  COALESCE(ev.parsed_json->>'employer_name', '')             AS employer_name\nFROM jobs j\nJOIN companies c ON c.company_id = j.company_id\nJOIN LATERAL (\n  SELECT parsed_json\n  FROM job_events\n  WHERE job_id = j.id\n  ORDER BY created_at DESC\n  LIMIT 1\n) ev ON TRUE\nWHERE (j.seniority IS NULL OR j.seniority NOT IN ('senior', 'lead', 'principal', 'staff', 'head', 'executive'))\nORDER BY relevance_score DESC, j.created_at DESC;",
         "options": {}
       },
       "id": "n_db",
@@ -23,7 +23,7 @@
       "credentials": {
         "postgres": {
           "id": "ZjjVGIqiRAUVlCk6",
-          "name": "JobRadar Postgres"
+          "name": "radar"
         }
       }
     },
