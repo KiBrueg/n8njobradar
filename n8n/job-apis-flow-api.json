@@ -181,7 +181,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Normalize job data from any API source into JobRadar's normalized_input shape.\n// source_label is 'arbeitnow' | 'remotive' | 'remoteok' — set by Flatten nodes.\n\nconst job = $input.item.json;\nconst source = job.source_label;\n\nfunction stripHtml(html) {\n  return (html || '').replace(/<[^>]*>/g, ' ').replace(/\\s+/g, ' ').trim();\n}\n\nlet title, companyName, location, jobTypes, tags, description, jobUrl, publishedAt;\n\nif (source === 'arbeitnow') {\n  title = job.title;\n  companyName = job.company_name;\n  location = job.location;\n  jobTypes = job.job_types || [];\n  tags = job.tags || [];\n  description = stripHtml(job.description);\n  jobUrl = job.url || ('https://www.arbeitnow.com/jobs/' + job.slug);\n  publishedAt = job.created_at ? new Date(job.created_at * 1000).toISOString() : null;\n} else if (source === 'remotive') {\n  title = job.title;\n  companyName = job.company_name;\n  location = job.candidate_required_location;\n  jobTypes = job.job_type ? [job.job_type] : [];\n  tags = job.tags || [];\n  description = stripHtml(job.description);\n  jobUrl = job.url;\n  publishedAt = job.publication_date || null;\n} else if (source === 'remoteok') {\n  title = job.title;\n  companyName = job.company;\n  location = job.location || 'Worldwide';\n  jobTypes = [];\n  tags = Array.isArray(job.tags) ? job.tags : [];\n  description = stripHtml(job.description || '');\n  jobUrl = job.url || job.apply_url;\n  publishedAt = job.date || null;\n} else if (source === 'jobicy_api') {\n  title = job.jobTitle;\n  companyName = job.companyName;\n  location = job.jobGeo || 'Remote';\n  jobTypes = job.jobType ? [job.jobType] : [];\n  tags = typeof job.jobIndustry === 'string' ? job.jobIndustry.split(',').map(s => s.trim()).filter(Boolean) : [];\n  description = stripHtml(job.jobDescription || '');\n  jobUrl = job.url;\n  publishedAt = job.pubDate || null;\n} else if (source === 'himalayas_api') {\n  title = job.title;\n  companyName = (job.company && (job.company.name || job.company)) || '';\n  location = Array.isArray(job.locationRestrictions) ? job.locationRestrictions.join(', ') : 'Remote';\n  jobTypes = job.jobType ? [job.jobType] : [];\n  tags = Array.isArray(job.skills) ? job.skills : (Array.isArray(job.tags) ? job.tags : []);\n  description = stripHtml(job.description || job.descriptionHtml || '');\n  jobUrl = job.applicationLink || job.url || job.applyLink || '';\n  publishedAt = job.createdAt || job.publishedAt || null;\n} else {\n  throw new Error('Unknown source_label: ' + source);\n}\n\nconst now = new Date().toISOString();\nconst rawText = [\n  'Title: ' + (title || ''),\n  'Company: ' + (companyName || ''),\n  'Location: ' + (location || 'Not specified'),\n  'Remote: Yes',\n  'Job Types: ' + (jobTypes || []).join(', '),\n  'Tags: ' + (tags || []).join(', '),\n  '',\n  'Job Description:',\n  (description || '').substring(0, 7000)\n].join('\\n');\n\nreturn [{\n  json: {\n    source_label: source,\n    normalized_input: {\n      input_source: 'scraped',\n      source_detail: source + '_api',\n      email_account_id: null,\n      email_address: null,\n      email_provider: null,\n      subject: title || null,\n      date: publishedAt || now,\n      raw_text: rawText,\n      raw_meta: {\n        url: jobUrl,\n        label: source + '-api'\n      }\n    }\n  }\n}];"
+        "jsCode": "// UTF-8 sanitizer: replace malformed chars before processing\nfunction sanitizeText(s) {\n  if (!s) return s;\n  return String(s)\n    .replace(/\\uFFFD/g, '')   // replacement char\n    .replace(/\\u0000/g, '')   // null bytes\n    .trim();\n}\n\n// Normalize job data from any API source into JobRadar's normalized_input shape.\n// source_label is 'arbeitnow' | 'remotive' | 'remoteok' — set by Flatten nodes.\n\nconst job = $input.item.json;\nconst source = job.source_label;\n\nfunction stripHtml(html) {\n  return (html || '').replace(/<[^>]*>/g, ' ').replace(/\\s+/g, ' ').trim();\n}\n\nlet title, companyName, location, jobTypes, tags, description, jobUrl, publishedAt;\n\nif (source === 'arbeitnow') {\n  title = job.title;\n  companyName = job.company_name;\n  location = job.location;\n  jobTypes = job.job_types || [];\n  tags = job.tags || [];\n  description = stripHtml(job.description);\n  jobUrl = job.url || ('https://www.arbeitnow.com/jobs/' + job.slug);\n  publishedAt = job.created_at ? new Date(job.created_at * 1000).toISOString() : null;\n} else if (source === 'remotive') {\n  title = job.title;\n  companyName = job.company_name;\n  location = job.candidate_required_location;\n  jobTypes = job.job_type ? [job.job_type] : [];\n  tags = job.tags || [];\n  description = stripHtml(job.description);\n  jobUrl = job.url;\n  publishedAt = job.publication_date || null;\n} else if (source === 'remoteok') {\n  title = job.title;\n  companyName = job.company;\n  location = job.location || 'Worldwide';\n  jobTypes = [];\n  tags = Array.isArray(job.tags) ? job.tags : [];\n  description = stripHtml(job.description || '');\n  jobUrl = job.url || job.apply_url;\n  publishedAt = job.date || null;\n} else if (source === 'jobicy_api') {\n  title = job.jobTitle;\n  companyName = job.companyName;\n  location = job.jobGeo || 'Remote';\n  jobTypes = job.jobType ? [job.jobType] : [];\n  tags = typeof job.jobIndustry === 'string' ? job.jobIndustry.split(',').map(s => s.trim()).filter(Boolean) : [];\n  description = stripHtml(job.jobDescription || '');\n  jobUrl = job.url;\n  publishedAt = job.pubDate || null;\n} else if (source === 'himalayas_api') {\n  title = job.title;\n  companyName = (job.company && (job.company.name || job.company)) || '';\n  location = Array.isArray(job.locationRestrictions) ? job.locationRestrictions.join(', ') : 'Remote';\n  jobTypes = job.jobType ? [job.jobType] : [];\n  tags = Array.isArray(job.skills) ? job.skills : (Array.isArray(job.tags) ? job.tags : []);\n  description = stripHtml(job.description || job.descriptionHtml || '');\n  jobUrl = job.applicationLink || job.url || job.applyLink || '';\n  publishedAt = job.createdAt || job.publishedAt || null;\n} else {\n  throw new Error('Unknown source_label: ' + source);\n}\n\nconst now = new Date().toISOString();\nconst rawText = [\n  'Title: ' + (title || ''),\n  'Company: ' + (companyName || ''),\n  'Location: ' + (location || 'Not specified'),\n  'Remote: Yes',\n  'Job Types: ' + (jobTypes || []).join(', '),\n  'Tags: ' + (tags || []).join(', '),\n  '',\n  'Job Description:',\n  (description || '').substring(0, 7000)\n].join('\\n');\n\nreturn [{\n  json: {\n    source_label: source,\n    normalized_input: {\n      input_source: 'scraped',\n      source_detail: source + '_api',\n      email_account_id: null,\n      email_address: null,\n      email_provider: null,\n      subject: title || null,\n      date: publishedAt || now,\n      raw_text: rawText,\n      raw_meta: {\n        url: jobUrl,\n        label: source + '-api'\n      }\n    }\n  }\n}];"
       },
       "id": "n_normalize",
       "name": "Normalize: API Job",
@@ -492,6 +492,19 @@
       "parameters": {
         "jsCode": "// Himalayas response: { jobs: [...] }\nconst data = $input.item.json.jobs || [];\nif (data.length === 0) return [];\nreturn data.map(job => ({ json: { ...job, source_label: \"himalayas_api\" } }));"
       }
+    },
+    {
+      "id": "n_filter_expired_HDJIQgfB",
+      "name": "Filter: Skip Expired",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2660,
+        300
+      ],
+      "parameters": {
+        "jsCode": "// Filter: Skip Expired\n// Drops jobs whose deadline has already passed.\n// No deadline → always pass through (we can't know → benefit of the doubt).\nconst e = $('Parse LLM Response').item.json.job_event;\nconst deadline = e.application_deadline || e.response_deadline || null;\n\nif (deadline) {\n  const deadlineDate = new Date(deadline);\n  // Guard: invalid date string → pass through\n  if (!isNaN(deadlineDate.getTime()) && deadlineDate < new Date()) {\n    // Expired — drop silently\n    return [];\n  }\n}\n\nreturn [$input.item];"
+      }
     }
   ],
   "connections": {
@@ -651,7 +664,7 @@
       "main": [
         [
           {
-            "node": "Prepare DB Params",
+            "node": "Filter: Skip Expired",
             "type": "main",
             "index": 0
           }
@@ -733,6 +746,17 @@
             "node": "Merge: All Sources",
             "type": "main",
             "index": 4
+          }
+        ]
+      ]
+    },
+    "Filter: Skip Expired": {
+      "main": [
+        [
+          {
+            "node": "Prepare DB Params",
+            "type": "main",
+            "index": 0
           }
         ]
       ]

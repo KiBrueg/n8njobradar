@@ -215,7 +215,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const scrape = $input.item.json;\nconst target = $('Scrape Targets').item.json;\n\nconst markdown = (scrape.data && scrape.data.markdown) || scrape.markdown || '';\nconst sourceUrl = (scrape.data && scrape.data.metadata && scrape.data.metadata.sourceURL)\n               || (scrape.metadata && scrape.metadata.sourceURL)\n               || target.url || null;\nconst pageTitle = (scrape.data && scrape.data.metadata && scrape.data.metadata.title)\n               || (scrape.metadata && scrape.metadata.title) || null;\n\nconst rawText = markdown.substring(0, 10000);\n\nreturn [{\n  json: {\n    normalized_input: {\n      input_source: 'scraped',\n      source_detail: 'scraped_json',\n      email_account_id: null,\n      email_address: null,\n      email_provider: null,\n      subject: pageTitle,\n      date: null,\n      raw_text: rawText,\n      raw_meta: {\n        url: sourceUrl,\n        label: target.label || null\n      }\n    }\n  }\n}];"
+        "jsCode": "// UTF-8 sanitizer: replace malformed chars before processing\nfunction sanitizeText(s) {\n  if (!s) return s;\n  return String(s)\n    .replace(/\\uFFFD/g, '')   // replacement char\n    .replace(/\\u0000/g, '')   // null bytes\n    .trim();\n}\n\nconst scrape = $input.item.json;\nconst target = $('Scrape Targets').item.json;\n\nconst markdown = (scrape.data && scrape.data.markdown) || scrape.markdown || '';\nconst sourceUrl = (scrape.data && scrape.data.metadata && scrape.data.metadata.sourceURL)\n               || (scrape.metadata && scrape.metadata.sourceURL)\n               || target.url || null;\nconst pageTitle = (scrape.data && scrape.data.metadata && scrape.data.metadata.title)\n               || (scrape.metadata && scrape.metadata.title) || null;\n\nconst rawText = markdown.substring(0, 10000);\n\nreturn [{\n  json: {\n    normalized_input: {\n      input_source: 'scraped',\n      source_detail: 'scraped_json',\n      email_account_id: null,\n      email_address: null,\n      email_provider: null,\n      subject: pageTitle,\n      date: null,\n      raw_text: rawText,\n      raw_meta: {\n        url: sourceUrl,\n        label: target.label || null\n      }\n    }\n  }\n}];"
       },
       "id": "n_normalize",
       "name": "Normalize Item",
@@ -392,6 +392,19 @@
         "rawContentType": "application/json",
         "body": "={{ JSON.stringify({  chat_id: $env.TELEGRAM_CHAT_ID,  parse_mode: 'HTML',  text: [    '\\u{1F514} <b>JobRadar: ' + ($('Parse LLM Response').item.json.job_event.company_name || 'Unknown') + '</b>',    ($('Parse LLM Response').item.json.job_event.job_title || '\\u2014'),    '',    'Stage: <code>' + ($json.stage || '') + '</code>  Priority: <b>' + ($json.priority || '') + '</b>',    '',    ($json.summary || '')  ].join('\\n')}) }}"
       }
+    },
+    {
+      "id": "n_filter_expired_8nSk6jvO",
+      "name": "Filter: Skip Expired",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3100,
+        300
+      ],
+      "parameters": {
+        "jsCode": "// Filter: Skip Expired\n// Drops jobs whose deadline has already passed.\n// No deadline → always pass through (we can't know → benefit of the doubt).\nconst e = $('Parse LLM Response').item.json.job_event;\nconst deadline = e.application_deadline || e.response_deadline || null;\n\nif (deadline) {\n  const deadlineDate = new Date(deadline);\n  // Guard: invalid date string → pass through\n  if (!isNaN(deadlineDate.getTime()) && deadlineDate < new Date()) {\n    // Expired — drop silently\n    return [];\n  }\n}\n\nreturn [$input.item];"
+      }
     }
   ],
   "connections": {
@@ -539,7 +552,7 @@
       "main": [
         [
           {
-            "node": "Prepare DB Params",
+            "node": "Filter: Skip Expired",
             "type": "main",
             "index": 0
           }
@@ -579,6 +592,17 @@
           }
         ],
         []
+      ]
+    },
+    "Filter: Skip Expired": {
+      "main": [
+        [
+          {
+            "node": "Prepare DB Params",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     }
   },

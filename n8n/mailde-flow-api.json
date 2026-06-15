@@ -53,7 +53,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const msg = $input.item.json;\n\n// Parse sender from 'from' field: \"Name <email>\" or bare \"email@domain\"\nconst fromRaw = msg.from || '';\nconst emailMatch = fromRaw.match(/<([^>]+)>/) || fromRaw.match(/([^\\s]+@[^\\s]+)/);\nconst senderEmail = emailMatch ? emailMatch[1].toLowerCase().trim() : null;\nconst senderDomain = senderEmail ? senderEmail.split('@')[1] : null;\n\n// Prefer plain text; fall back to stripping HTML\nlet rawText = msg.text || '';\nif (!rawText && msg.html) {\n  rawText = msg.html.replace(/<[^>]+>/g, ' ').replace(/\\s+/g, ' ').trim();\n}\nrawText = rawText.substring(0, 10000);\n\n// Build thread key from In-Reply-To or References header if available\nconst messageId = msg.messageId || msg.headers?.['message-id'] || null;\n\nreturn [{\n  json: {\n    normalized_input: {\n      input_source: 'email',\n      source_detail: 'email',\n      email_account_id: 'mailde_main',\n      email_address: $env.MAILDE_ADDRESS || null,\n      email_provider: 'imap',\n      subject: msg.subject || null,\n      date: msg.date || new Date().toISOString(),\n      raw_text: rawText,\n      raw_meta: {\n        message_id: messageId,\n        sender: fromRaw,\n        sender_email: senderEmail,\n        sender_domain: senderDomain\n      }\n    }\n  }\n}];"
+        "jsCode": "// UTF-8 sanitizer: replace malformed chars before processing\nfunction sanitizeText(s) {\n  if (!s) return s;\n  return String(s)\n    .replace(/\\uFFFD/g, '')   // replacement char\n    .replace(/\\u0000/g, '')   // null bytes\n    .trim();\n}\n\nconst msg = $input.item.json;\n\n// Parse sender from 'from' field: \"Name <email>\" or bare \"email@domain\"\nconst fromRaw = msg.from || '';\nconst emailMatch = fromRaw.match(/<([^>]+)>/) || fromRaw.match(/([^\\s]+@[^\\s]+)/);\nconst senderEmail = emailMatch ? emailMatch[1].toLowerCase().trim() : null;\nconst senderDomain = senderEmail ? senderEmail.split('@')[1] : null;\n\n// Prefer plain text; fall back to stripping HTML\nlet rawText = msg.text || '';\nif (!rawText && msg.html) {\n  rawText = msg.html.replace(/<[^>]+>/g, ' ').replace(/\\s+/g, ' ').trim();\n}\nrawText = rawText.substring(0, 10000);\n\n// Build thread key from In-Reply-To or References header if available\nconst messageId = msg.messageId || msg.headers?.['message-id'] || null;\n\nreturn [{\n  json: {\n    normalized_input: {\n      input_source: 'email',\n      source_detail: 'email',\n      email_account_id: 'mailde_main',\n      email_address: $env.MAILDE_ADDRESS || null,\n      email_provider: 'imap',\n      subject: msg.subject || null,\n      date: msg.date || new Date().toISOString(),\n      raw_text: rawText,\n      raw_meta: {\n        message_id: messageId,\n        sender: fromRaw,\n        sender_email: senderEmail,\n        sender_domain: senderDomain\n      }\n    }\n  }\n}];"
       },
       "id": "n_normalize",
       "name": "Normalize Email",
@@ -426,6 +426,19 @@
         520
       ],
       "onError": "continueRegularOutput"
+    },
+    {
+      "id": "n_filter_expired_crCYiC5L",
+      "name": "Filter: Skip Expired",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2440,
+        300
+      ],
+      "parameters": {
+        "jsCode": "// Filter: Skip Expired\n// Drops jobs whose deadline has already passed.\n// No deadline → always pass through (we can't know → benefit of the doubt).\nconst e = $('Parse LLM Response').item.json.job_event;\nconst deadline = e.application_deadline || e.response_deadline || null;\n\nif (deadline) {\n  const deadlineDate = new Date(deadline);\n  // Guard: invalid date string → pass through\n  if (!isNaN(deadlineDate.getTime()) && deadlineDate < new Date()) {\n    // Expired — drop silently\n    return [];\n  }\n}\n\nreturn [$input.item];"
+      }
     }
   ],
   "connections": {
@@ -546,7 +559,7 @@
       "main": [
         [
           {
-            "node": "Prepare DB Params",
+            "node": "Filter: Skip Expired",
             "type": "main",
             "index": 0
           }
@@ -621,6 +634,17 @@
         [
           {
             "node": "Telegram: Injection Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter: Skip Expired": {
+      "main": [
+        [
+          {
+            "node": "Prepare DB Params",
             "type": "main",
             "index": 0
           }
