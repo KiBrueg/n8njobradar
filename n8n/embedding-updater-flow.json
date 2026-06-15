@@ -12,7 +12,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT id, job_title, company_name, location, summary FROM jobs WHERE embedding IS NULL ORDER BY created_at DESC LIMIT 50",
+        "query": "SELECT j.id, j.job_title, c.name AS company_name, j.location, j.summary FROM jobs j LEFT JOIN companies c ON c.company_id = j.company_id AND c.tenant_id = j.tenant_id WHERE j.embedding IS NULL ORDER BY j.created_at DESC LIMIT 50",
         "options": {}
       },
       "id": "n_fetch",
