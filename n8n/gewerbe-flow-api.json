@@ -145,57 +145,6 @@
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT COUNT(*) AS cnt\nFROM jobs\nWHERE source_url = $1\n  AND updated_at > NOW() - INTERVAL '24 hours';",
-        "options": {
-          "queryReplacement": "={{ [$json.normalized_input.raw_meta.url] }}"
-        }
-      },
-      "id": "n_dedup",
-      "name": "Dedup Check",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        1740,
-        300
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "Tvuhat51UDCzKwnE",
-          "name": "Postgres account"
-        }
-      },
-      "notes": "Skip if this URL was already processed in the last 24h."
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "conditions": [
-            {
-              "id": "cond_fresh",
-              "leftValue": "={{ parseInt($json.cnt) }}",
-              "rightValue": 0,
-              "operator": {
-                "type": "number",
-                "operation": "equal"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "id": "n_if_fresh",
-      "name": "IF: not already fresh",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.2,
-      "position": [
-        1960,
-        300
-      ]
-    },
-    {
-      "parameters": {
         "jsCode": "const ni = $('Normalize Item').item.json.normalized_input;\nreturn [{ json: { normalized_input: ni, hard_injection_detected: 'no' } }];"
       },
       "id": "n_security",
@@ -498,34 +447,11 @@
       "main": [
         [
           {
-            "node": "Dedup Check",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Dedup Check": {
-      "main": [
-        [
-          {
-            "node": "IF: not already fresh",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "IF: not already fresh": {
-      "main": [
-        [
-          {
             "node": "Skip Security Checks",
             "type": "main",
             "index": 0
           }
-        ],
-        []
+        ]
       ]
     },
     "Skip Security Checks": {

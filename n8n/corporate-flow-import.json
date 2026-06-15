@@ -368,60 +368,6 @@
       }
     },
     {
-      "id": "n_dedup",
-      "name": "Dedup Check",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        1520,
-        300
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "ZjjVGIqiRAUVlCk6",
-          "name": "radar"
-        }
-      },
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT COUNT(*) AS cnt\nFROM jobs\nWHERE source_url = {{ $json.normalized_input.raw_meta.job_url\n  ? \"'\" + $json.normalized_input.raw_meta.job_url.replace(/'/g,\"''\").substring(0,200) + \"'\"\n  : \"'__no_url__'\" }}\n  AND updated_at > NOW() - INTERVAL '7 days';",
-        "options": {}
-      }
-    },
-    {
-      "id": "n_if_dedup",
-      "name": "IF: not already processed",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.2,
-      "position": [
-        1740,
-        300
-      ],
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict",
-            "version": 2
-          },
-          "conditions": [
-            {
-              "id": "cond_dedup",
-              "leftValue": "={{ $json.cnt }}",
-              "rightValue": "0",
-              "operator": {
-                "type": "string",
-                "operation": "equals"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      }
-    },
-    {
       "id": "n_llm",
       "name": "LLM Call (OpenRouter)",
       "type": "n8n-nodes-base.httpRequest",
@@ -1077,34 +1023,11 @@
       "main": [
         [
           {
-            "node": "Dedup Check",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Dedup Check": {
-      "main": [
-        [
-          {
-            "node": "IF: not already processed",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "IF: not already processed": {
-      "main": [
-        [
-          {
             "node": "LLM Call (OpenRouter)",
             "type": "main",
             "index": 0
           }
-        ],
-        []
+        ]
       ]
     },
     "LLM Call (OpenRouter)": {
