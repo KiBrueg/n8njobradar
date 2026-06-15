@@ -104,8 +104,8 @@
     },
     "Split In Batches": {
       "main": [
-        [{ "node": "Jina: Generate Embedding", "type": "main", "index": 0 }],
-        []
+        [],
+        [{ "node": "Jina: Generate Embedding", "type": "main", "index": 0 }]
       ]
     },
     "Jina: Generate Embedding": {
