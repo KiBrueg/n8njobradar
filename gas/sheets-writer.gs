@@ -1,176 +1,151 @@
 // ============================================================
-// JobRadar — Google Sheets Writer v2
-// POST endpoint: receives {jobs: [...]} from n8n Flow 6
-// Columns: Quelle | Score | Firma | Stelle | Level | Ort | Stage | Anschreiben | Ansprechpartner | Zusammenfassung | Link | Datum
+// JobRadar — Google Sheets Writer v3
+// POST endpoint: receives { jobs: [...] } from n8n Flow 6
+// Columns: Score | Quelle | Firma | Stelle | Modus | Stage | Zusammenfassung | Link | Datum
 // ============================================================
+
+var SHEET_ID = '1Cg8f-iJ49TB6pd_Qc-2crRoUrYvbfIZExoPrkhy4ZMk';
+
+var HEADERS = [
+  'Score', 'Quelle', 'Firma', 'Stelle', 'Modus', 'Stage', 'Zusammenfassung', 'Link', 'Datum'
+];
 
 function doPost(e) {
   try {
-    const data    = JSON.parse(e.postData.contents);
-    const jobs    = data.jobs || [];
-    const SHEET_ID = '1Cg8f-iJ49TB6pd_Qc-2crRoUrYvbfIZExoPrkhy4ZMk';
-    const ss      = SpreadsheetApp.openById(SHEET_ID);
-    const sheet   = ss.getSheetByName('Tabellenblatt1') || ss.getActiveSheet();
+    var data = JSON.parse(e.postData.contents);
+    var jobs  = data.jobs || [];
 
-    const HEADERS = [
-      'Quelle', 'Score', 'Firma', 'Stelle', 'Level',
-      'Ort / Modus', 'Stage', 'Anschreiben', 'Ansprechpartner',
-      'Zusammenfassung', 'Link', 'Datum'
-    ];
-    const NCOLS = HEADERS.length;
+    var ss    = SpreadsheetApp.openById(SHEET_ID);
+    var sheet = ss.getSheetByName('Tabellenblatt1') || ss.getSheets()[0];
+    var NCOLS = HEADERS.length;
 
-    // --- Clear old data (keep row 1) ---
-    const lastRow = sheet.getLastRow();
-    if (lastRow > 1) {
-      sheet.getRange(2, 1, lastRow - 1, NCOLS).clearContent().clearFormat();
-    }
+    // --- Полная очистка листа ---
+    sheet.clearContents();
+    sheet.clearFormats();
 
-    // --- Headers ---
-    const hdrRange = sheet.getRange(1, 1, 1, NCOLS);
-    hdrRange.setValues([HEADERS]);
-    hdrRange.setFontWeight('bold')
-            .setBackground('#2c3e50')
-            .setFontColor('#ffffff')
-            .setHorizontalAlignment('center');
-
-    // --- Freeze header row ---
+    // --- Заголовки ---
+    var hdr = sheet.getRange(1, 1, 1, NCOLS);
+    hdr.setValues([HEADERS]);
+    hdr.setFontWeight('bold')
+       .setBackground('#1a1a2e')
+       .setFontColor('#e0e0e0')
+       .setHorizontalAlignment('center')
+       .setFontSize(11);
     sheet.setFrozenRows(1);
 
     if (jobs.length === 0) {
+      sheet.getRange(2, 1).setValue('— keine Daten —');
       return ok(0);
     }
 
-    // ---- Helper functions ----
-
-    function sourceEmoji(site) {
-      const s = (site || '').toLowerCase();
-      if (s.includes('xing'))             return '🔷 XING';
-      if (s.includes('linkedin'))         return '💼 LinkedIn';
-      if (s.includes('freelancermap'))    return '🗺 FreelancerMap';
-      if (s.includes('gulp'))             return '🌊 GULP';
-      if (s.includes('malt'))             return '🍺 Malt';
-      if (s.includes('freelance.de'))     return '🔧 Freelance.de';
-      if (s.includes('berlinstartupjobs'))return '🚀 BerlinStartupJobs';
-      if (s.includes('indeed'))           return '🔍 Indeed';
-      if (s.includes('greenhouse'))       return '🌿 Greenhouse';
-      if (s.includes('lever'))            return '⚙️ Lever';
-      if (s.includes('arbeitnow'))        return '💡 Arbeitnow';
-      if (s.includes('remotive'))         return '🌐 Remotive';
-      if (s.includes('weworkremotely'))   return '💻 WeWorkRemotely';
-      if (s.includes('devjobs'))          return '🛠 DevJobs';
-      if (s.includes('stepstone'))        return '📋 StepStone';
-      if (s.includes('jobrapido'))        return '📡 Jobrapido';
-      if (s.includes('jooble'))           return '🔎 Jooble';
-      if (s === 'manual')                 return '✍️ Manual';
-      return '🌐 ' + (site || 'Unbekannt');
-    }
+    // ---- Вспомогательные функции ----
 
     function scoreBar(n) {
       n = Math.max(0, Math.min(100, parseInt(n) || 0));
-      const filled = Math.round(n / 10);
-      return '█'.repeat(filled) + '░'.repeat(10 - filled) + '  ' + n;
+      var filled = Math.round(n / 10);
+      return String(n) + ' ' + '█'.repeat(filled) + '░'.repeat(10 - filled);
+    }
+
+    function modeLabel(m) {
+      var map = { remote: '🌐 Remote', hybrid: '🔀 Hybrid', onsite: '🏢 Onsite' };
+      return map[(m || '').toLowerCase()] || (m || '—');
     }
 
     function stageLabel(s) {
-      return {
-        'discovered':  '🔍 Entdeckt',
-        'applied':     '📬 Beworben',
-        'screening':   '🔎 Sichtung',
-        'interview':   '🤝 Interview',
-        'test_task':   '📝 Testaufgabe',
-        'offer':       '🎉 Angebot',
-        'rejected':    '❌ Abgelehnt',
-        'withdrawn':   '🚫 Zurückgezogen'
-      }[s] || (s || '');
+      var map = {
+        discovered:  '🔍 Entdeckt',
+        applied:     '📬 Beworben',
+        screening:   '🔎 Sichtung',
+        interview:   '🤝 Interview',
+        test_task:   '📝 Testaufgabe',
+        offer:       '🎉 Angebot',
+        rejected:    '❌ Abgelehnt',
+        withdrawn:   '🚫 Zurückgez.'
+      };
+      return map[s] || (s || '—');
     }
 
-    function seniorityLabel(s) {
-      return {
-        'intern':  '⚪ Intern',
-        'junior':  '🟢 Junior',
-        'middle':  '🟡 Mid',
-        'senior':  '🔴 Senior',
-        'lead':    '🔴 Lead',
-        'principal':'🔴 Principal'
-      }[s] || (s || '');
-    }
-
-    function locStr(job) {
-      const parts = [job.location, job.work_mode ? job.work_mode.replace(/_/g,' ') : null].filter(Boolean);
-      return parts.join(' / ');
+    function sourceLabel(url) {
+      var u = (url || '').toLowerCase();
+      if (u.indexOf('xing.com') >= 0)           return 'XING';
+      if (u.indexOf('linkedin.com') >= 0)        return 'LinkedIn';
+      if (u.indexOf('freelancermap') >= 0)       return 'FreelancerMap';
+      if (u.indexOf('gulp.de') >= 0)             return 'GULP';
+      if (u.indexOf('malt.de') >= 0)             return 'Malt';
+      if (u.indexOf('freelance.de') >= 0)        return 'Freelance.de';
+      if (u.indexOf('berlinstartupjobs') >= 0)   return 'BSJ';
+      if (u.indexOf('indeed.') >= 0)             return 'Indeed';
+      if (u.indexOf('arbeitnow') >= 0)           return 'Arbeitnow';
+      if (u.indexOf('remotive') >= 0)            return 'Remotive';
+      if (u.indexOf('greenhouse.io') >= 0)       return 'Greenhouse';
+      if (u.indexOf('lever.co') >= 0)            return 'Lever';
+      if (u.indexOf('gewerbe-daily') >= 0)       return 'Gewerbe';
+      return 'Web';
     }
 
     function dateStr(d) {
       return d ? String(d).substring(0, 10) : '';
     }
 
-    // ---- Build rows ----
-    const values   = [];
-    const formulas = [];   // for Link column only (col 11)
+    // ---- Строки данных ----
+    var values   = [];
+    var formulas = [];
 
     jobs.forEach(function(job) {
-      const score = parseInt(job.relevance_score) || 0;
-      const url   = (job.source_url || '').replace(/"/g, '');
+      var score = parseInt(job.relevance_score) || 0;
+      var url   = (job.source_url || '').replace(/"/g, '');
 
       values.push([
-        sourceEmoji(job.source_site),          // 1 Quelle
-        scoreBar(score),                        // 2 Score
-        job.company        || '',               // 3 Firma
-        job.job_title      || '',               // 4 Stelle
-        seniorityLabel(job.seniority),          // 5 Level
-        locStr(job),                            // 6 Ort / Modus
-        stageLabel(job.current_stage),          // 7 Stage
-        '',                                     // 8 Anschreiben (manual)
-        job.employer_name  || '',               // 9 Ansprechpartner
-        job.summary        || '',               // 10 Zusammenfassung
-        '',                                     // 11 Link (set as formula below)
-        dateStr(job.created_at)                 // 12 Datum
+        scoreBar(score),                  // 1 Score
+        sourceLabel(job.source_url),      // 2 Quelle
+        job.company     || '—',           // 3 Firma
+        job.job_title   || '—',           // 4 Stelle
+        modeLabel(job.work_mode),         // 5 Modus
+        stageLabel(job.current_stage),    // 6 Stage
+        job.summary     || '',            // 7 Zusammenfassung
+        '',                               // 8 Link (формула ниже)
+        dateStr(job.created_at)           // 9 Datum
       ]);
 
-      formulas.push(url
-        ? '=HYPERLINK("' + url + '","🔗 Öffnen")'
-        : '');
+      formulas.push(url ? '=HYPERLINK("' + url + '","Link")' : '');
     });
 
-    // --- Write values ---
-    const dataRange = sheet.getRange(2, 1, values.length, NCOLS);
+    // --- Записываем данные ---
+    var dataRange = sheet.getRange(2, 1, values.length, NCOLS);
     dataRange.setValues(values);
 
-    // --- Write link formulas (col 11) ---
-    const linkRange = sheet.getRange(2, 11, formulas.length, 1);
+    // --- Формулы ссылок (col 8) ---
+    var linkRange = sheet.getRange(2, 8, formulas.length, 1);
     linkRange.setFormulas(formulas.map(function(f){ return [f]; }));
     linkRange.setHorizontalAlignment('center');
 
-    // --- Row color by score ---
+    // --- Цвет строк по скору ---
     jobs.forEach(function(job, i) {
-      const score = parseInt(job.relevance_score) || 0;
-      const row   = sheet.getRange(i + 2, 1, 1, NCOLS);
-      if (score >= 80)      row.setBackground('#d4edda');  // green
-      else if (score >= 50) row.setBackground('#fff3cd');  // yellow
-      else                  row.setBackground('#f8f9fa');  // light grey
+      var score = parseInt(job.relevance_score) || 0;
+      var row   = sheet.getRange(i + 2, 1, 1, NCOLS);
+      if (score >= 80)      row.setBackground('#d4edda');  // зелёный
+      else if (score >= 50) row.setBackground('#fff3cd');  // жёлтый
+      else                  row.setBackground('#f8f9fa');  // серый
     });
 
-    // --- Score bar: bold + center ---
-    sheet.getRange(2, 2, values.length, 1)
+    // --- Score: моноширинный ---
+    sheet.getRange(2, 1, values.length, 1)
          .setFontFamily('Courier New')
-         .setHorizontalAlignment('left');
+         .setFontSize(10);
 
-    // --- Zusammenfassung: wrap text ---
-    sheet.getRange(2, 10, values.length, 1).setWrap(true);
+    // --- Zusammenfassung: перенос текста ---
+    sheet.getRange(2, 7, values.length, 1).setWrap(true);
 
-    // --- Column widths ---
-    sheet.setColumnWidth(1,  160);  // Quelle
-    sheet.setColumnWidth(2,  160);  // Score
-    sheet.setColumnWidth(3,  160);  // Firma
-    sheet.setColumnWidth(4,  220);  // Stelle
-    sheet.setColumnWidth(5,  100);  // Level
-    sheet.setColumnWidth(6,  160);  // Ort
-    sheet.setColumnWidth(7,  130);  // Stage
-    sheet.setColumnWidth(8,  120);  // Anschreiben
-    sheet.setColumnWidth(9,  140);  // Ansprechpartner
-    sheet.setColumnWidth(10, 380);  // Zusammenfassung
-    sheet.setColumnWidth(11,  90);  // Link
-    sheet.setColumnWidth(12, 100);  // Datum
+    // --- Ширина колонок ---
+    sheet.setColumnWidth(1, 140);  // Score
+    sheet.setColumnWidth(2, 130);  // Quelle
+    sheet.setColumnWidth(3, 160);  // Firma
+    sheet.setColumnWidth(4, 230);  // Stelle
+    sheet.setColumnWidth(5, 110);  // Modus
+    sheet.setColumnWidth(6, 120);  // Stage
+    sheet.setColumnWidth(7, 420);  // Zusammenfassung
+    sheet.setColumnWidth(8,  70);  // Link
+    sheet.setColumnWidth(9, 100);  // Datum
 
     return ok(values.length);
 
@@ -187,37 +162,41 @@ function ok(n) {
     .setMimeType(ContentService.MimeType.JSON);
 }
 
-// ---- Manual test (run from Apps Script editor) ----
+// ---- Тест из редактора Apps Script: Run → testWrite ----
 function testWrite() {
   doPost({
     postData: {
       contents: JSON.stringify({
         jobs: [
           {
-            relevance_score: 92,
-            source_site: 'XING',
+            relevance_score: 87,
+            source_url: 'https://www.xing.com/jobs/test-1',
             company: 'Nebula AI GmbH',
             job_title: 'AI Workflow Engineer',
-            seniority: 'middle',
-            location: 'Berlin, Germany',
             work_mode: 'remote',
             current_stage: 'discovered',
-            summary: 'Тестовая запись. Позиция AI Workflow Engineer, полностью удалённо, 60–70k EUR.',
-            source_url: 'https://www.xing.com/jobs/test',
-            created_at: '2026-06-14T10:00:00Z'
+            summary: 'Vollständig remote. Python, n8n, LLM-Integration. Score 87.',
+            created_at: '2026-06-15'
           },
           {
-            relevance_score: 65,
-            source_site: 'freelancermap',
+            relevance_score: 62,
+            source_url: 'https://www.freelancermap.de/projekt/test-2',
             company: 'TechSolutions UG',
             job_title: 'Python Automation Developer',
-            seniority: 'middle',
-            location: 'Remote',
-            work_mode: 'remote',
+            work_mode: 'hybrid',
             current_stage: 'applied',
-            summary: 'Фриланс-проект по автоматизации на Python и n8n.',
-            source_url: 'https://www.freelancermap.de/projekt/test',
-            created_at: '2026-06-14T09:00:00Z'
+            summary: 'Hybrid, München. Python, REST APIs. Score 62.',
+            created_at: '2026-06-15'
+          },
+          {
+            relevance_score: 20,
+            source_url: 'https://www.freelancermap.de/projekt/payroll',
+            company: 'PAR GmbH',
+            job_title: 'Payroll Specialist',
+            work_mode: 'onsite',
+            current_stage: 'discovered',
+            summary: 'Vor Ort, Frankfurt. SAP HCM. Score 20.',
+            created_at: '2026-06-15'
           }
         ]
       })
