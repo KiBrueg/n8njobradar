@@ -413,6 +413,17 @@
         160
       ],
       "notes": "⚙️ Needs TELEGRAM_GEWERBE_CHAT_ID in VPS .env\nCreate Telegram channel -> forward any message to @userinfobot to get chat_id.\nAdd bot as admin to the channel first."
+    },
+    {
+      "id": "n_manual_trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        200,
+        160
+      ],
+      "parameters": {}
     }
   ],
   "connections": {
@@ -616,6 +627,17 @@
           }
         ],
         []
+      ]
+    },
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Scrape Targets",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     }
   },
