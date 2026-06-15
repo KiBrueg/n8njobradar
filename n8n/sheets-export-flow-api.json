@@ -49,7 +49,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://script.google.com/macros/s/AKfycbx4_d2DdInLPZMU3-ie3HySrSlkBjlL9dS-_WGclRc8blUC5f1c19aa2nss5eyQzJuiKg/exec",
+        "url": "https://script.google.com/macros/s/AKfycbyqycHOOTFeX_ooaYCy-NeB5lIDQfpMEgFbmXms7NfcGuyPsXw61UXjxrAyMKV_w4c_fg/exec",
         "sendBody": true,
         "contentType": "raw",
         "rawContentType": "application/json",
