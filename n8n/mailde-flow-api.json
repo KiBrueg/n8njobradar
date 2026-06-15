@@ -105,18 +105,6 @@
       ]
     },
     {
-      "parameters": {},
-      "id": "n_quarantine",
-      "name": "Quarantined: Stop",
-      "type": "n8n-nodes-base.noOp",
-      "typeVersion": 1,
-      "position": [
-        1320,
-        520
-      ],
-      "notes": "High-risk sender — email not processed.\nIMAPnode marks as read implicitly on next poll if desired."
-    },
-    {
       "parameters": {
         "jsCode": "const ni = $input.item.json.normalized_input;\n\nconst MAX_RAW = 10000;\nif (ni.raw_text && ni.raw_text.length > MAX_RAW) {\n  ni.raw_text = ni.raw_text.substring(0, MAX_RAW);\n}\n\nconst text = [(ni.raw_text || ''), (ni.subject || '')].join(' ').toLowerCase();\n\nconst INJECTION_PATTERNS = [\n  /ignore\\s+(all\\s+)?(previous|prior|above|earlier)\\s+instructions?/i,\n  /forget\\s+(your\\s+)?(rules?|instructions?|guidelines?|prompt|system)/i,\n  /you\\s+are\\s+now\\s+(a\\s+)?(?:an?\\s+)?(?:new|different|another|unrestricted)/i,\n  /act\\s+as\\s+(?:if\\s+you\\s+are\\s+)?(?:a\\s+)?(?:different|another|unrestricted|jailbreak)/i,\n  /\\[\\s*(?:INST|SYS|SYSTEM|ADMIN|ROOT|OVERRIDE)\\s*\\]/i,\n  /<\\|\\s*(?:system|assistant|user|im_start|im_end)\\s*\\|>/i,\n  /(?:^|\\s)SYSTEM\\s*:/im,\n  /(?:^|\\s)ADMIN\\s*:/im,\n  /from\\s*:\\s*anthropic/i,\n  /new\\s+role\\s*:/i,\n  /your\\s+new\\s+(instructions?|rules?|persona|role)\\s+(are|is)/i,\n  /disregard\\s+(all\\s+)?(previous|prior|your)\\s+(instructions?|rules?)/i,\n  /override\\s+(safety|content|all)\\s*(filter|policy|rules?|restrictions?|guidelines?)/i,\n  /pretend\\s+(you\\s+)?(have\\s+no|there\\s+are\\s+no|to\\s+be\\s+(?:a\\s+)?(?:different|another))/i,\n  /do\\s+not\\s+follow\\s+(your\\s+)?(rules?|guidelines?|instructions?|training)/i,\n  /reveal\\s+(your\\s+)?(system\\s+prompt|instructions?|secrets?|api\\s+key)/i,\n  /print\\s+(your\\s+)?(system\\s+prompt|instructions?|configuration)/i,\n  /token\\s+manipulation|context\\s+injection|prompt\\s+leak/i\n];\n\nconst detected = INJECTION_PATTERNS.some(p => p.test(text));\n\nreturn [{ json: {\n  normalized_input: ni,\n  hard_injection_detected: detected ? 'yes' : 'no'\n} }];"
       },
@@ -154,17 +142,6 @@
       "position": [
         1540,
         300
-      ]
-    },
-    {
-      "parameters": {},
-      "id": "n_injection_stop",
-      "name": "Injection Detected: Stop",
-      "type": "n8n-nodes-base.noOp",
-      "typeVersion": 1,
-      "position": [
-        1760,
-        520
       ]
     },
     {
@@ -239,17 +216,6 @@
       "position": [
         2200,
         300
-      ]
-    },
-    {
-      "parameters": {},
-      "id": "n_not_related",
-      "name": "Not Job Related: Stop",
-      "type": "n8n-nodes-base.noOp",
-      "typeVersion": 1,
-      "position": [
-        2420,
-        520
       ]
     },
     {
@@ -390,6 +356,76 @@
           "timeout": 10000
         }
       }
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.item.json;\nconst ni = item.normalized_input || {};\nconst riskLevel = item.sender_risk_level || 'unknown';\nconst riskSignals = item.sender_risk_signals || [];\n\nreturn [{ json: {\n  sender: (ni.raw_meta && ni.raw_meta.sender) || 'unknown',\n  subject: ni.subject || '(no subject)',\n  date: ni.date || null,\n  email_account: ni.email_account_id || 'unknown',\n  risk_level: riskLevel,\n  risk_signals: riskSignals.join(', ') || 'none',\n  preview: (ni.raw_text || '').substring(0, 300)\n} }];"
+      },
+      "id": "mailde_q_log",
+      "name": "Log: Quarantine",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        520
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendMessage",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ chat_id: $env.TELEGRAM_CHAT_ID, parse_mode: 'HTML', text: [ '\\u{1F6AB} <b>Quarantine [mail.de]</b>', '', '\\u{1F4E7} ' + ($json.sender || '\\u2014'), '\\u{1F4CB} ' + ($json.subject || '\\u2014'), ($json.date ? '\\u{1F4C5} ' + String($json.date).substring(0,10) : null), '\\u26A0\\uFE0F \\u0420\\u0438\\u0441\\u043a: <code>' + ($json.risk_level || '?') + '</code>', '\\u{1F50D} \\u0421\\u0438\\u0433\\u043d\\u0430\\u043b\\u044b: <code>' + ($json.risk_signals || 'none') + '</code>', '', '<i>' + String($json.preview || '').substring(0,200) + '</i>' ].filter(Boolean).join('\\n')}) }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "mailde_q_tg",
+      "name": "Telegram: Quarantine Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1800,
+        520
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.item.json;\nconst ni = item.normalized_input || {};\n\nreturn [{ json: {\n  sender: (ni.raw_meta && ni.raw_meta.sender) || 'unknown',\n  subject: ni.subject || '(no subject)',\n  date: ni.date || null,\n  preview: (ni.raw_text || '').substring(0, 300)\n} }];"
+      },
+      "id": "mailde_inj_inj_log",
+      "name": "Log: Injection Detected",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1760,
+        520
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendMessage",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ chat_id: $env.TELEGRAM_CHAT_ID, parse_mode: 'HTML', text: [ '\\u{1F6E1}\\uFE0F <b>Injection Detected [mail.de]</b>', '', '\\u{1F4E7} ' + ($json.sender || '\\u2014'), '\\u{1F4CB} ' + ($json.subject || '\\u2014'), ($json.date ? '\\u{1F4C5} ' + String($json.date).substring(0,10) : null), '', '<i>' + String($json.preview || '').substring(0,200) + '</i>' ].filter(Boolean).join('\\n')}) }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "mailde_inj_inj_tg",
+      "name": "Telegram: Injection Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2240,
+        520
+      ],
+      "onError": "continueRegularOutput"
     }
   ],
   "connections": {
@@ -448,7 +484,7 @@
         ],
         [
           {
-            "node": "Quarantined: Stop",
+            "node": "Log: Quarantine",
             "type": "main",
             "index": 0
           }
@@ -477,7 +513,7 @@
         ],
         [
           {
-            "node": "Injection Detected: Stop",
+            "node": "Log: Injection Detected",
             "type": "main",
             "index": 0
           }
@@ -515,13 +551,7 @@
             "index": 0
           }
         ],
-        [
-          {
-            "node": "Not Job Related: Stop",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        []
       ]
     },
     "Prepare DB Params": {
@@ -573,6 +603,28 @@
           }
         ],
         []
+      ]
+    },
+    "Log: Quarantine": {
+      "main": [
+        [
+          {
+            "node": "Telegram: Quarantine Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log: Injection Detected": {
+      "main": [
+        [
+          {
+            "node": "Telegram: Injection Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     }
   },

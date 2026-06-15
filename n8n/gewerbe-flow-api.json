@@ -18,7 +18,10 @@
       "name": "Schedule: Daily 04:30",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.1,
-      "position": [200, 300],
+      "position": [
+        200,
+        300
+      ],
       "notes": "30 min after Flow 2 (Firecrawl, 04:00). Avoids DB contention.\nScrapes freelance/project platforms for Gewerbe opportunities."
     },
     {
@@ -29,7 +32,10 @@
       "name": "Scrape Targets",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [420, 300],
+      "position": [
+        420,
+        300
+      ],
       "notes": "Freelance project platforms. Edit URLs / add targets here.\nAll scraped via Jina AI (GET r.jina.ai/{url}) — free, no API key."
     },
     {
@@ -39,13 +45,21 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "Accept",          "value": "text/plain" },
-            { "name": "X-Return-Format", "value": "markdown"  }
+            {
+              "name": "Accept",
+              "value": "text/plain"
+            },
+            {
+              "name": "X-Return-Format",
+              "value": "markdown"
+            }
           ]
         },
         "options": {
           "response": {
-            "response": { "responseFormat": "text" }
+            "response": {
+              "responseFormat": "text"
+            }
           },
           "timeout": 30000
         }
@@ -54,7 +68,10 @@
       "name": "Jina AI: Scrape",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [640, 300],
+      "position": [
+        640,
+        300
+      ],
       "notes": "FREE — no API key required, no credit limit.\nr.jina.ai renders JS and returns clean markdown."
     },
     {
@@ -65,7 +82,10 @@
       "name": "Jina: Format as Firecrawl",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [860, 300],
+      "position": [
+        860,
+        300
+      ],
       "notes": "Normalises Jina response to {success, data.markdown, data.metadata}.\nDownstream nodes treat Jina and Firecrawl output identically."
     },
     {
@@ -90,16 +110,10 @@
       "name": "IF: scrape success",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [1080, 300]
-    },
-    {
-      "parameters": {},
-      "id": "n_scrape_fail",
-      "name": "Scrape Failed: Stop",
-      "type": "n8n-nodes-base.noOp",
-      "typeVersion": 1,
-      "position": [1300, 520],
-      "notes": "Jina returned success=false. Check target URL or rate limit."
+      "position": [
+        1080,
+        300
+      ]
     },
     {
       "parameters": {
@@ -109,7 +123,10 @@
       "name": "Split: Project Listings",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1300, 300],
+      "position": [
+        1300,
+        300
+      ],
       "notes": "Splits listing pages into individual project items per platform.\nIf no individual links found — passes full page to LLM.\nFallback: LLM extracts top project from the markdown."
     },
     {
@@ -120,7 +137,10 @@
       "name": "Normalize Item",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1520, 300],
+      "position": [
+        1520,
+        300
+      ],
       "notes": "job_type = 'freelance' — stored in DB, filters Gewerbe from employment.\nsource_detail = 'gewerbe_scraped' for audit trail."
     },
     {
@@ -135,7 +155,10 @@
       "name": "Dedup Check",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [1740, 300],
+      "position": [
+        1740,
+        300
+      ],
       "credentials": {
         "postgres": {
           "id": "ZjjVGIqiRAUVlCk6",
@@ -166,15 +189,10 @@
       "name": "IF: not already fresh",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [1960, 300]
-    },
-    {
-      "parameters": {},
-      "id": "n_skip",
-      "name": "Already Fresh: Skip",
-      "type": "n8n-nodes-base.noOp",
-      "typeVersion": 1,
-      "position": [2180, 520]
+      "position": [
+        1960,
+        300
+      ]
     },
     {
       "parameters": {
@@ -184,7 +202,10 @@
       "name": "Skip Security Checks",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2180, 300],
+      "position": [
+        2180,
+        300
+      ],
       "notes": "Trusted URLs from our config. No sender domain to verify.\nInjection check runs inside LLM via system prompt."
     },
     {
@@ -194,21 +215,32 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "Authorization", "value": "=Bearer {{ $env.OPENROUTER_API_KEY }}" },
-            { "name": "content-type",  "value": "application/json" }
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.OPENROUTER_API_KEY }}"
+            },
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
           ]
         },
         "sendBody": true,
         "contentType": "raw",
         "rawContentType": "application/json",
         "body": "={{ JSON.stringify({ model: 'qwen/qwen3-30b-a3b-instruct-2507', max_tokens: 2048, messages: [{ role: 'system', content: $env.JOBRADAR_SYSTEM_PROMPT }, { role: 'user', content: JSON.stringify($json.normalized_input) }] }) }}",
-        "options": { "timeout": 60000 }
+        "options": {
+          "timeout": 60000
+        }
       },
       "id": "n_llm",
       "name": "LLM Call (OpenRouter)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [2400, 300]
+      "position": [
+        2400,
+        300
+      ]
     },
     {
       "parameters": {
@@ -218,7 +250,10 @@
       "name": "Parse LLM Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2620, 300]
+      "position": [
+        2620,
+        300
+      ]
     },
     {
       "parameters": {
@@ -242,15 +277,10 @@
       "name": "IF: is_job_related",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [2840, 300]
-    },
-    {
-      "parameters": {},
-      "id": "n_not_related",
-      "name": "Not Job Related: Stop",
-      "type": "n8n-nodes-base.noOp",
-      "typeVersion": 1,
-      "position": [3060, 520]
+      "position": [
+        2840,
+        300
+      ]
     },
     {
       "parameters": {
@@ -260,7 +290,10 @@
       "name": "Prepare DB Params",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [3060, 300]
+      "position": [
+        3060,
+        300
+      ]
     },
     {
       "parameters": {
@@ -272,7 +305,10 @@
       "name": "DB: Write All",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [3280, 300],
+      "position": [
+        3280,
+        300
+      ],
       "credentials": {
         "postgres": {
           "id": "ZjjVGIqiRAUVlCk6",
@@ -289,7 +325,10 @@
       "name": "Prepare Calendar Data",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [3500, 300],
+      "position": [
+        3500,
+        300
+      ],
       "notes": "Builds structured Gewerbe project card for Google Calendar.\nColors: green=hot(≥80) / yellow=mid(50-79) / graphite=low(<50)\nTitle includes job title, company and rate/budget if available.\nDescription = full KI Automation project card with relevance bar."
     },
     {
@@ -304,9 +343,9 @@
         "start": "={{ $json.calStart }}",
         "end": "={{ $json.calEnd }}",
         "additionalFields": {
-          "summary":     "={{ $json.calSummary }}",
+          "summary": "={{ $json.calSummary }}",
           "description": "={{ $json.calDescription }}",
-          "colorId":     "={{ $json.calColorId }}",
+          "colorId": "={{ $json.calColorId }}",
           "allday": true
         }
       },
@@ -314,7 +353,10 @@
       "name": "Calendar: Gewerbe Event",
       "type": "n8n-nodes-base.googleCalendar",
       "typeVersion": 1.2,
-      "position": [3720, 300],
+      "position": [
+        3720,
+        300
+      ],
       "credentials": {
         "googleCalendarOAuth2Api": {
           "id": "eLQTxfMJ6kryO1Iy",
@@ -345,7 +387,10 @@
       "name": "IF: priority = high",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [3720, 300]
+      "position": [
+        3720,
+        300
+      ]
     },
     {
       "parameters": {
@@ -355,83 +400,226 @@
         "contentType": "raw",
         "rawContentType": "application/json",
         "body": "={{ JSON.stringify({ chat_id: $env.TELEGRAM_GEWERBE_CHAT_ID, parse_mode: 'HTML', text: ['\\u{1F4BC} <b>Gewerbe-Radar: ' + ($('Parse LLM Response').item.json.job_event.company_name || 'Unknown') + '</b>', ($('Parse LLM Response').item.json.job_event.job_title || '\\u2014'), '', 'Stage: <code>' + ($json.stage || '') + '</code>  Priority: <b>' + ($json.priority || '') + '</b>', '', ($json.summary || '')].join('\\n'), disable_web_page_preview: true }) }}",
-        "options": { "timeout": 10000 }
+        "options": {
+          "timeout": 10000
+        }
       },
       "id": "n_telegram_gewerbe",
       "name": "Telegram: Gewerbe Alert",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [3940, 160],
+      "position": [
+        3940,
+        160
+      ],
       "notes": "⚙️ Needs TELEGRAM_GEWERBE_CHAT_ID in VPS .env\nCreate Telegram channel -> forward any message to @userinfobot to get chat_id.\nAdd bot as admin to the channel first."
     }
   ],
   "connections": {
     "Schedule: Daily 04:30": {
-      "main": [[{ "node": "Scrape Targets",           "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Scrape Targets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Scrape Targets": {
-      "main": [[{ "node": "Jina AI: Scrape",           "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Jina AI: Scrape",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Jina AI: Scrape": {
-      "main": [[{ "node": "Jina: Format as Firecrawl", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Jina: Format as Firecrawl",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Jina: Format as Firecrawl": {
-      "main": [[{ "node": "IF: scrape success",        "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "IF: scrape success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "IF: scrape success": {
       "main": [
-        [{ "node": "Split: Project Listings",          "type": "main", "index": 0 }],
-        [{ "node": "Scrape Failed: Stop",              "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Split: Project Listings",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
       ]
     },
     "Split: Project Listings": {
-      "main": [[{ "node": "Normalize Item",            "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Normalize Item",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Normalize Item": {
-      "main": [[{ "node": "Dedup Check",               "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Dedup Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Dedup Check": {
-      "main": [[{ "node": "IF: not already fresh",     "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "IF: not already fresh",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "IF: not already fresh": {
       "main": [
-        [{ "node": "Skip Security Checks",             "type": "main", "index": 0 }],
-        [{ "node": "Already Fresh: Skip",              "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Skip Security Checks",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
       ]
     },
     "Skip Security Checks": {
-      "main": [[{ "node": "LLM Call (OpenRouter)",     "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "LLM Call (OpenRouter)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "LLM Call (OpenRouter)": {
-      "main": [[{ "node": "Parse LLM Response",        "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Parse LLM Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Parse LLM Response": {
-      "main": [[{ "node": "IF: is_job_related",        "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "IF: is_job_related",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "IF: is_job_related": {
       "main": [
-        [{ "node": "Prepare DB Params",                "type": "main", "index": 0 }],
-        [{ "node": "Not Job Related: Stop",            "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Prepare DB Params",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
       ]
     },
     "Prepare DB Params": {
-      "main": [[{ "node": "DB: Write All",             "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "DB: Write All",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "DB: Write All": {
-      "main": [[{ "node": "Prepare Calendar Data",     "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Prepare Calendar Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Prepare Calendar Data": {
-      "main": [[{ "node": "Calendar: Gewerbe Event",   "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Calendar: Gewerbe Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Calendar: Gewerbe Event": {
-      "main": [[{ "node": "IF: priority = high",       "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "IF: priority = high",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "IF: priority = high": {
       "main": [
-        [{ "node": "Telegram: Gewerbe Alert",          "type": "main", "index": 0 }],
+        [
+          {
+            "node": "Telegram: Gewerbe Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
         []
       ]
     }
   },
-  "settings": { "executionOrder": "v1" }
+  "settings": {
+    "executionOrder": "v1"
+  }
 }

@@ -502,16 +502,6 @@
       }
     },
     {
-      "id": "n_stop_not_related",
-      "name": "Not Job Related: Stop",
-      "type": "n8n-nodes-base.noOp",
-      "typeVersion": 1,
-      "position": [
-        2620,
-        500
-      ]
-    },
-    {
       "id": "n_prepare",
       "name": "Prepare DB Params",
       "type": "n8n-nodes-base.code",
@@ -607,16 +597,6 @@
           "description": "={{ ($('Prepare DB Params').first().json.job_event.summary || '') + '\\n\\n' + ($('Prepare DB Params').first().json.resolved.source_url || '') }}"
         }
       }
-    },
-    {
-      "id": "n_stop_no_interview",
-      "name": "No Interview Date: Stop",
-      "type": "n8n-nodes-base.noOp",
-      "typeVersion": 1,
-      "position": [
-        3280,
-        -100
-      ]
     },
     {
       "id": "n_enrich",
@@ -1158,13 +1138,7 @@
             "index": 0
           }
         ],
-        [
-          {
-            "node": "Not Job Related: Stop",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        []
       ]
     },
     "Prepare DB Params": {
@@ -1203,13 +1177,7 @@
             "index": 0
           }
         ],
-        [
-          {
-            "node": "No Interview Date: Stop",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        []
       ]
     },
     "Enrich: Add Resolved Fields": {

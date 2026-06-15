@@ -18,7 +18,10 @@
       "name": "Schedule: Daily 04:00",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.1,
-      "position": [200, 300]
+      "position": [
+        200,
+        300
+      ]
     },
     {
       "parameters": {
@@ -28,7 +31,10 @@
       "name": "Scrape Targets",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [440, 300],
+      "position": [
+        440,
+        300
+      ],
       "notes": "Add your scrape targets here.\nXING (label: xing-automation) is routed to Jina AI (free).\nOthers go to Firecrawl."
     },
     {
@@ -53,7 +59,10 @@
       "name": "IF: is XING target",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [660, 300],
+      "position": [
+        660,
+        300
+      ],
       "notes": "TRUE (label contains 'xing') -> Jina AI (free, no credit limit)\nFALSE -> Firecrawl (paid, 500 credits/month)"
     },
     {
@@ -81,7 +90,10 @@
       "name": "Firecrawl: Scrape",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [880, 160],
+      "position": [
+        880,
+        160
+      ],
       "notes": "Non-XING targets only. Saves Firecrawl credits.\nXING is handled by Jina AI node."
     },
     {
@@ -114,7 +126,10 @@
       "name": "Jina AI: Scrape",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [880, 440],
+      "position": [
+        880,
+        440
+      ],
       "notes": "FREE — no API key required, no credit limit.\nr.jina.ai/URL -> JS-rendered markdown of target page.\nReturns plain text (wrapped in $json.data by n8n)."
     },
     {
@@ -125,7 +140,10 @@
       "name": "Jina: Format as Firecrawl",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1100, 440],
+      "position": [
+        1100,
+        440
+      ],
       "notes": "Normalises Jina plain-text response to Firecrawl JSON shape {success, data.markdown, data.metadata}.\nAllows Firecrawl and Jina paths to share one downstream pipeline."
     },
     {
@@ -135,7 +153,10 @@
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "disabled": true,
-      "position": [1100, 620],
+      "position": [
+        1100,
+        620
+      ],
       "notes": "ПЛАТНЫЙ ЗАПАСНОЙ: ScrapingBee ($49/mo)\nReal browser + residential proxies.\nАктивировать если Jina блокируется XING.\n\nПодключить: Jina AI: Scrape -> ScrapingBee -> Jina: Format as Firecrawl\nAPI ключ: SCRAPINGBEE_API_KEY в .env VPS\nURL: https://app.scrapingbee.com/api/v1/?api_key=$env.SCRAPINGBEE_API_KEY&url={{ urlencode($json.url) }}&render_js=true"
     },
     {
@@ -145,7 +166,10 @@
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "disabled": true,
-      "position": [1100, 780],
+      "position": [
+        1100,
+        780
+      ],
       "notes": "ПЛАТНЫЙ ЗАПАСНОЙ: Apify (pay-per-use)\nHeadless Chrome + proxy rotation.\nАктивировать если и Jina и ScrapingBee заблокированы.\n\nActor: apify/web-scraper (universal) или xing-specific на apify.com/store\nAPI ключ: APIFY_API_TOKEN в .env VPS\nСм. также: n8n/flows.md -> Flow 4b"
     },
     {
@@ -170,16 +194,10 @@
       "name": "IF: scrape success",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [1320, 300]
-    },
-    {
-      "parameters": {},
-      "id": "n_scrape_fail",
-      "name": "Scrape Failed: Stop",
-      "type": "n8n-nodes-base.noOp",
-      "typeVersion": 1,
-      "position": [1540, 520],
-      "notes": "Firecrawl/Jina returned success=false.\nAdd error logging or Telegram alert here."
+      "position": [
+        1320,
+        300
+      ]
     },
     {
       "parameters": {
@@ -189,7 +207,10 @@
       "name": "Split: XING Listings",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1430, 300],
+      "position": [
+        1430,
+        300
+      ],
       "notes": "For XING listing pages: splits markdown into individual job items.\nEach item gets its own xing.com URL for per-job dedup.\nNon-listing pages pass through unchanged as 1 item.\nWorks with both Firecrawl and Jina AI responses."
     },
     {
@@ -200,7 +221,10 @@
       "name": "Normalize Item",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1540, 300]
+      "position": [
+        1540,
+        300
+      ]
     },
     {
       "parameters": {
@@ -214,7 +238,10 @@
       "name": "Dedup Check",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [1760, 300],
+      "position": [
+        1760,
+        300
+      ],
       "credentials": {
         "postgres": {
           "id": "ZjjVGIqiRAUVlCk6",
@@ -245,16 +272,10 @@
       "name": "IF: not already fresh",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [1980, 300]
-    },
-    {
-      "parameters": {},
-      "id": "n_skip",
-      "name": "Already Fresh: Skip",
-      "type": "n8n-nodes-base.noOp",
-      "typeVersion": 1,
-      "position": [2200, 520],
-      "notes": "Job from this URL is already in DB and was updated within 24h -- skip."
+      "position": [
+        1980,
+        300
+      ]
     },
     {
       "parameters": {
@@ -264,7 +285,10 @@
       "name": "Skip Security Checks",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2200, 300],
+      "position": [
+        2200,
+        300
+      ],
       "notes": "Scraped content is from trusted URLs we configured.\nNo sender domain to check. Injection check still runs inside LLM via system prompt."
     },
     {
@@ -296,7 +320,10 @@
       "name": "LLM Call (OpenRouter)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [2420, 300]
+      "position": [
+        2420,
+        300
+      ]
     },
     {
       "parameters": {
@@ -306,7 +333,10 @@
       "name": "Parse LLM Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2640, 300]
+      "position": [
+        2640,
+        300
+      ]
     },
     {
       "parameters": {
@@ -330,15 +360,10 @@
       "name": "IF: is_job_related",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [2860, 300]
-    },
-    {
-      "parameters": {},
-      "id": "n_not_related",
-      "name": "Not Job Related: Stop",
-      "type": "n8n-nodes-base.noOp",
-      "typeVersion": 1,
-      "position": [3080, 520]
+      "position": [
+        2860,
+        300
+      ]
     },
     {
       "parameters": {
@@ -348,7 +373,10 @@
       "name": "Prepare DB Params",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [3080, 300]
+      "position": [
+        3080,
+        300
+      ]
     },
     {
       "parameters": {
@@ -360,7 +388,10 @@
       "name": "DB: Write All",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [3300, 300],
+      "position": [
+        3300,
+        300
+      ],
       "credentials": {
         "postgres": {
           "id": "ZjjVGIqiRAUVlCk6",
@@ -390,14 +421,20 @@
       "name": "IF: priority = high",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [3520, 300]
+      "position": [
+        3520,
+        300
+      ]
     },
     {
       "id": "n_telegram_alert_firecrawl",
       "name": "Telegram: Job Alert",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [3740, 160],
+      "position": [
+        3740,
+        160
+      ],
       "parameters": {
         "method": "POST",
         "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendMessage",
@@ -491,13 +528,7 @@
             "index": 0
           }
         ],
-        [
-          {
-            "node": "Scrape Failed: Stop",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        []
       ]
     },
     "Split: XING Listings": {
@@ -542,13 +573,7 @@
             "index": 0
           }
         ],
-        [
-          {
-            "node": "Already Fresh: Skip",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        []
       ]
     },
     "Skip Security Checks": {
@@ -593,13 +618,7 @@
             "index": 0
           }
         ],
-        [
-          {
-            "node": "Not Job Related: Stop",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        []
       ]
     },
     "Prepare DB Params": {

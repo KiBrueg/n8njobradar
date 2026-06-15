@@ -1,4 +1,4 @@
-﻿{
+{
   "name": "JobRadar — Flow 4: Job APIs (Combined)",
   "nodes": [
     {
@@ -244,18 +244,6 @@
       ]
     },
     {
-      "parameters": {},
-      "id": "n_skip",
-      "name": "Already Processed: Skip",
-      "type": "n8n-nodes-base.noOp",
-      "typeVersion": 1,
-      "position": [
-        1760,
-        520
-      ],
-      "notes": "Job was seen within 24h — skip LLM call to save tokens."
-    },
-    {
       "parameters": {
         "jsCode": "// All 3 API sources are configured trusted endpoints — no sender risk check needed.\n// Injection check still runs inside the system prompt.\nconst ni = $('Normalize: API Job').item.json.normalized_input;\nreturn [{ json: { normalized_input: ni, hard_injection_detected: 'no' } }];"
       },
@@ -340,17 +328,6 @@
       "position": [
         2420,
         300
-      ]
-    },
-    {
-      "parameters": {},
-      "id": "n_not_related",
-      "name": "Not Job Related: Stop",
-      "type": "n8n-nodes-base.noOp",
-      "typeVersion": 1,
-      "position": [
-        2640,
-        520
       ]
     },
     {
@@ -708,13 +685,7 @@
             "index": 0
           }
         ],
-        [
-          {
-            "node": "Already Processed: Skip",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        []
       ]
     },
     "Skip Security Checks": {
@@ -759,13 +730,7 @@
             "index": 0
           }
         ],
-        [
-          {
-            "node": "Not Job Related: Stop",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        []
       ]
     },
     "Prepare DB Params": {
