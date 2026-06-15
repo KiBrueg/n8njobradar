@@ -7,7 +7,7 @@
 var SHEET_ID = '1Cg8f-iJ49TB6pd_Qc-2crRoUrYvbfIZExoPrkhy4ZMk';
 
 var HEADERS = [
-  'Score', 'Quelle', 'Firma', 'Stelle', 'Modus', 'Stage', 'Zusammenfassung', 'Link', 'Datum'
+  'Score', 'Quelle', 'Firma', 'Stelle', 'Modus', 'Stage', 'Zusammenfassung', 'Link', 'Stars'
 ];
 
 function doPost(e) {
