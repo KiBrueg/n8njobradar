@@ -389,7 +389,7 @@ Accepted phrases: "following our call", "after your interview", "great speaking 
 NOT accepted: offers imply prior interviews, but do not make this inference. If the text only says "we're pleased to offer", has_had_call = false.
 
 ### summary
-2–4 sentences in German. Company, role, stage, key date if any, key terms (salary, work mode, relevance_score for scraped) if known. Factual only.
+2–4 sentences. **Always write in German (Deutsch), regardless of the language of the input email or job posting.** Company, role, stage, key date if any, key terms (salary, work mode, relevance_score for scraped) if known. Factual only. Never use Russian.
 
 ---
 

@@ -161,8 +161,8 @@
       ],
       "credentials": {
         "postgres": {
-          "id": "ZjjVGIqiRAUVlCk6",
-          "name": "JobRadar Postgres"
+          "id": "Tvuhat51UDCzKwnE",
+          "name": "Postgres account"
         }
       },
       "notes": "Skip if this URL was already processed in the last 24h."
@@ -311,8 +311,8 @@
       ],
       "credentials": {
         "postgres": {
-          "id": "ZjjVGIqiRAUVlCk6",
-          "name": "JobRadar Postgres"
+          "id": "Tvuhat51UDCzKwnE",
+          "name": "Postgres account"
         }
       },
       "notes": "Idempotent upsert. job_type='freelance' stored permanently.\nsource_detail='gewerbe_scraped' in job_events for audit."
