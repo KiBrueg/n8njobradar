@@ -1,5 +1,5 @@
 {
-  "name": "JobRadar -- Flow 2: Firecrawl Scraper",
+  "name": "JobRadar -- Flow 2: Web Scraper (Crawl4AI + Jina)",
   "nodes": [
     {
       "parameters": {
@@ -68,33 +68,38 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://api.firecrawl.dev/v1/scrape",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Authorization",
-              "value": "=Bearer {{ $env.FIRECRAWL_API_KEY }}"
-            }
-          ]
-        },
+        "url": "http://crawl4ai:11235/md",
         "sendBody": true,
         "contentType": "raw",
         "rawContentType": "application/json",
-        "body": "={{ JSON.stringify({ url: $json.url, formats: ['markdown'], onlyMainContent: true, waitFor: 2000 }) }}",
+        "body": "={{ JSON.stringify({ url: $json.url }) }}",
         "options": {
-          "timeout": 30000
+          "timeout": 60000
         }
       },
       "id": "n_scrape",
-      "name": "Firecrawl: Scrape",
+      "name": "Crawl4AI: Scrape",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
         880,
         160
       ],
-      "notes": "Non-XING targets only. Saves Firecrawl credits.\nXING is handled by Jina AI node."
+      "notes": "Self-hosted Crawl4AI (free, no limits).\nPOST /md -> {url, markdown}.\nRuns in Docker on same hub network as n8n."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Wrap Crawl4AI response into Firecrawl-compatible format\n// so the downstream pipeline works unchanged.\n// Crawl4AI POST /md returns: { url, filter, markdown, ... }\n\nconst raw = $input.item.json;\nconst target = $('Scrape Targets').item.json;\n\nconst markdown = (typeof raw.markdown === 'string' && raw.markdown.length > 0)\n  ? raw.markdown\n  : '';\n\nreturn [{\n  json: {\n    success: markdown.length > 0,\n    data: {\n      markdown: markdown,\n      metadata: {\n        sourceURL: raw.url || target.url,\n        title: target.label || 'Crawl4AI',\n        scraper: 'crawl4ai'\n      }\n    }\n  }\n}];\n"
+      },
+      "id": "n_crawl4ai_format",
+      "name": "Crawl4AI: Format",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        160
+      ],
+      "notes": "Normalises Crawl4AI response to Firecrawl JSON shape {success, data.markdown, data.metadata}.\nAllows Crawl4AI and Jina paths to share one downstream pipeline."
     },
     {
       "parameters": {
@@ -441,7 +446,7 @@
         ],
         [
           {
-            "node": "Firecrawl: Scrape",
+            "node": "Crawl4AI: Scrape",
             "type": "main",
             "index": 0
           }
@@ -470,7 +475,18 @@
         ]
       ]
     },
-    "Firecrawl: Scrape": {
+    "Crawl4AI: Scrape": {
+      "main": [
+        [
+          {
+            "node": "Crawl4AI: Format",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Crawl4AI: Format": {
       "main": [
         [
           {
