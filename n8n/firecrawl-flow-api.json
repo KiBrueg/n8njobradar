@@ -25,7 +25,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Job board search pages -- max 5 per day (Firecrawl free tier limit).\n// Each URL is scraped once daily. Firecrawl returns markdown -> LLM extracts job data.\n// Arbeitnow is now covered by the API flow -- these targets are JS-rendered sites.\n// XING is routed to Jina AI (free, no credits) -- see IF: is XING target node.\n\nconst TARGETS = [\n  { url: 'https://berlinstartupjobs.com/engineering/', label: 'berlinstartupjobs-engineering' },\n  { url: 'https://de.indeed.com/jobs?q=ai+automation&l=Remote&fromage=1', label: 'indeed-ai-automation' },\n  { url: 'https://www.remotely.de/jobs/ai-automation', label: 'remotely-ai-automation' },\n  { url: 'https://en.devjobs.de/jobs?q=automation+engineer+remote', label: 'devjobs-automation' },\n  { url: 'https://weworkremotely.com/remote-jobs/search?term=automation+engineer', label: 'wwr-automation' },\n  { url: 'https://www.xing.com/jobs/search?keywords=automation+engineer+n8n+KI&location=Deutschland&sort=date', label: 'xing-automation' },\n];\n\nreturn TARGETS.map(t => ({ json: t }));\n"
+        "jsCode": "// Job board search pages — scraped once daily.\n// scraper='jina'    -> Jina AI (free, handles Cloudflare-protected sites)\n// scraper='crawl4ai' -> self-hosted Crawl4AI on VPS (free, no limits)\n//\n// Cloudflare-blocked sites confirmed: indeed.de, devjobs.de\n// XING requires Jina (JS-heavy + Cloudflare)\n\nconst TARGETS = [\n  { url: 'https://berlinstartupjobs.com/engineering/', label: 'berlinstartupjobs-engineering', scraper: 'crawl4ai' },\n  { url: 'https://de.indeed.com/jobs?q=ai+automation&l=Remote&fromage=1', label: 'indeed-ai-automation', scraper: 'jina' },\n  { url: 'https://www.remotely.de/jobs/ai-automation', label: 'remotely-ai-automation', scraper: 'crawl4ai' },\n  { url: 'https://en.devjobs.de/jobs?q=automation+engineer+remote', label: 'devjobs-automation', scraper: 'jina' },\n  { url: 'https://weworkremotely.com/remote-jobs/search?term=automation+engineer', label: 'wwr-automation', scraper: 'crawl4ai' },\n  { url: 'https://www.xing.com/jobs/search?keywords=automation+engineer+n8n+KI&location=Deutschland&sort=date', label: 'xing-automation', scraper: 'jina' },\n];\n\nreturn TARGETS.map(t => ({ json: t }));\n"
       },
       "id": "n_targets",
       "name": "Scrape Targets",
@@ -42,12 +42,12 @@
         "conditions": {
           "conditions": [
             {
-              "id": "cond_is_xing",
-              "leftValue": "={{ $json.label }}",
-              "rightValue": "xing",
+              "id": "cond_is_jina",
+              "leftValue": "={{ $json.scraper }}",
+              "rightValue": "jina",
               "operator": {
                 "type": "string",
-                "operation": "contains"
+                "operation": "equals"
               }
             }
           ],
@@ -56,14 +56,14 @@
         "options": {}
       },
       "id": "n_route_scraper",
-      "name": "IF: is XING target",
+      "name": "IF: use Jina",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
         660,
         300
       ],
-      "notes": "TRUE (label contains 'xing') -> Jina AI (free, no credit limit)\nFALSE -> Firecrawl (paid, 500 credits/month)"
+      "notes": "TRUE (scraper=jina) -> Jina AI: XING + Cloudflare-protected sites\nFALSE (scraper=crawl4ai) -> Crawl4AI self-hosted"
     },
     {
       "parameters": {
@@ -428,14 +428,14 @@
       "main": [
         [
           {
-            "node": "IF: is XING target",
+            "node": "IF: use Jina",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "IF: is XING target": {
+    "IF: use Jina": {
       "main": [
         [
           {
