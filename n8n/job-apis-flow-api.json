@@ -379,11 +379,11 @@
           "parameters": [
             {
               "name": "industry",
-              "value": "tech"
+              "value": "engineering"
             },
             {
               "name": "tag",
-              "value": "automation,ai,n8n,workflow"
+              "value": "automation"
             },
             {
               "name": "count",
