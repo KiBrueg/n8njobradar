@@ -71,9 +71,15 @@ An LLM acts as a structured parser: it classifies emails, extracts job metadata,
 |------|---------|---------|
 | Gmail | Realtime (polling) | Gmail inbox |
 | mail.de IMAP | Every 15 min | IMAP inbox |
-| Job APIs | Daily 04:00 | Arbeitnow + Remotive + RemoteOK |
-| Firecrawl | Daily 04:00 | 5 job board pages (JS-rendered) |
+| Job APIs | Daily 04:00 | Arbeitnow · Remotive · RemoteOK · Jobicy · Himalayas |
+| Web Scraper | Daily 04:00 | 5 job boards via Crawl4AI (self-hosted) + Jina AI |
+| Corporate Pages | Daily 06:00 | 8 companies via Greenhouse / Ashby ATS APIs |
+| Gewerbe / Freelance | Daily 04:30 | 5 freelance platforms via Jina AI |
+| RSS Job Feed | Every 6h | 7 RSS feeds |
 | Manual Input | Webhook / on demand | Any raw text |
+| Sheets Export | Manual trigger | Postgres → Google Sheets |
+| Embedding Updater | Manual trigger | Postgres → pgvector embeddings |
+| Telegram /digest | On command `/digest` | Postgres → Telegram reply |
 | Daily Digest | Daily 07:00 | Postgres → Telegram |
 
 ---
@@ -148,10 +154,11 @@ Output is validated against a formal JSON Schema (draft-07) before DB write.
 |-------|-------|
 | Orchestration | n8n (self-hosted, Docker) |
 | LLM | Qwen3-30B via OpenRouter |
-| Database | PostgreSQL 16 |
-| Web scraping | Firecrawl |
+| Database | PostgreSQL 16 + pgvector |
+| Web scraping | Crawl4AI (self-hosted) + Jina AI Reader |
 | Notifications | Telegram Bot API |
 | Calendar | Google Calendar API |
+| Spreadsheets | Google Sheets (via Apps Script) |
 | Infrastructure | VPS (Hetzner), Docker Compose |
 
 ---
@@ -160,33 +167,43 @@ Output is validated against a formal JSON Schema (draft-07) before DB write.
 
 ```
 spec/
-  prompt-system.txt       # LLM system prompt (22k chars)
-  prompt-context.md       # Briefing: JSON contract + principles
-  job-json-schema.json    # JSON Schema (draft-07) for output validation
-  known-domains.json      # Allowlist for sender risk classification
+  prompt-system.txt           # LLM system prompt (22k chars)
+  prompt-context.md           # Briefing: JSON contract + principles
+  job-json-schema.json        # JSON Schema (draft-07) for output validation
+  known-domains.json          # Allowlist for sender risk classification
 
 db/
-  schema.sql              # Postgres DDL with enums, indexes, RLS stubs
+  schema.sql                  # Postgres DDL with enums, indexes, RLS stubs
+  migrations/                 # Incremental migrations (001–003 applied)
 
 n8n/
-  gmail-flow-api.json     # Flow 1: Gmail
-  mailde-flow-api.json    # Flow 2: mail.de IMAP
-  job-apis-flow-api.json  # Flow 3: Arbeitnow + Remotive + RemoteOK
-  firecrawl-flow-api.json # Flow 4: Firecrawl scraper
-  manual-flow-api.json    # Flow 5: Manual input webhook
-  daily-digest-flow-api.json  # Flow 6: Daily Digest → Telegram
-  flows.md                # Logical workflow designs
+  gmail-flow-api.json         # Flow 1:  Gmail
+  mailde-flow-api.json        # Flow 1b: mail.de IMAP
+  firecrawl-flow-api.json     # Flow 2:  Web Scraper (Crawl4AI + Jina)
+  corporate-flow-import.json  # Flow 2b: Corporate Career Pages (Greenhouse/Ashby)
+  manual-flow-api.json        # Flow 3:  Manual input webhook
+  job-apis-flow-api.json      # Flow 4:  Job APIs (5 sources)
+  daily-digest-flow-api.json  # Flow 5:  Daily Digest → Telegram
+  sheets-export-flow-api.json # Flow 6:  Sheets Export → Google Sheets
+  gewerbe-flow-api.json       # Flow 7:  Gewerbe / Freelance Scraper
+  telegram-digest-flow-api.json # Flow 8: Telegram /digest command
+  embedding-updater-flow.json # Flow 9:  pgvector Embedding Updater
+  rss-flow-api.json           # Flow 10: RSS Job Feed
+  flows.md                    # Logical workflow designs
+
+gas/
+  sheets-writer-v2.gs         # Google Apps Script: Sheets writer + Anschreiben button
 
 docs/
-  deploy.md               # Step-by-step deployment guide
+  deploy.md                   # Step-by-step deployment guide
   job-radar-architecture.md   # Architecture overview
-  security.md             # Security checklist
-  backup.md               # Backup system reference
+  security.md                 # Security checklist
+  backup.md                   # Backup system reference
 
 scripts/
-  backup.sh               # Config backup script (cron-ready)
+  backup.sh                   # DB backup script (cron-ready, 3×/day)
 
-.env.example              # All required env vars with descriptions
+.env.example                  # All required env vars with descriptions
 ```
 
 ---
@@ -220,12 +237,18 @@ Built to **portfolio + small-business grade**:
 
 ## Status
 
-| Component | Status |
-|-----------|--------|
-| Gmail flow | ✅ Active |
-| mail.de IMAP flow | ⏸ Needs IMAP credential |
-| Job APIs flow | ✅ Active |
-| Firecrawl flow | ✅ Active |
-| Manual input flow | ✅ Active |
-| Daily Digest | ✅ Active |
+| Flow | Status |
+|------|--------|
+| Gmail | ✅ Active |
+| mail.de IMAP | ✅ Active |
+| Web Scraper (Crawl4AI + Jina) | ✅ Active |
+| Corporate Career Pages | ✅ Active |
+| Job APIs (5 sources) | ✅ Active |
+| Gewerbe / Freelance Scraper | ✅ Active |
+| RSS Job Feed | ✅ Active (every 6h) |
+| Manual Input | ✅ Active · E2E tested |
+| Daily Digest | ✅ Active · E2E tested |
+| Telegram /digest | ✅ Active |
+| Sheets Export | ✅ Deployed (manual trigger) |
+| Embedding Updater | ✅ Deployed (manual trigger) |
 | Backup system | ✅ 3×/day via cron |
