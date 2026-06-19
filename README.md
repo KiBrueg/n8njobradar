@@ -5,6 +5,29 @@
 
 ---
 
+## Workflow Screenshots
+
+### Story 1 — Multi-Source Job Aggregation (Flow 4: Job APIs)
+5 parallel API sources → Normalize → AI scoring → Postgres + Telegram alert
+
+![Flow 4 — Job APIs](docs/screenshots/flow4-job-apis.png)
+
+---
+
+### Story 2 — LLM Parser with Qwen3 `<think>` stripping (Flow 3: Manual Input)
+Qwen3 returns CoT `<think>` blocks before JSON — one regex line strips them before `JSON.parse()`
+
+![Flow 3 — Parse LLM Response](docs/screenshots/flow3-parse-llm.png)
+
+---
+
+### Story 3 — Silent Data Loss Fix: Dedup Check (Flow 2: Web Scraper)
+`SELECT id LIMIT 1` returned 0 rows for new jobs → IF node never ran → silent drop. Fixed with `SELECT COUNT(*) AS cnt`.
+
+![Flow 2 — Dedup Check](docs/screenshots/flow2-dedup.png)
+
+---
+
 ## What this is
 
 A fully automated job tracking system that replaces manual job board browsing.
