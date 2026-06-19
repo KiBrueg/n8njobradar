@@ -319,11 +319,11 @@
           "conditions": [
             {
               "id": "cond_priority",
-              "leftValue": "={{ $json.priority }}",
-              "rightValue": "high",
+              "leftValue": "={{ parseInt($json.relevance_score) }}",
+              "rightValue": 40,
               "operator": {
-                "type": "string",
-                "operation": "equals"
+                "type": "number",
+                "operation": "gte"
               }
             }
           ],
@@ -332,7 +332,7 @@
         "options": {}
       },
       "id": "n_if_priority",
-      "name": "IF: priority = high",
+      "name": "IF: priority = medium",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
@@ -687,14 +687,14 @@
       "main": [
         [
           {
-            "node": "IF: priority = high",
+            "node": "IF: priority = medium",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "IF: priority = high": {
+    "IF: priority = medium": {
       "main": [
         [
           {
