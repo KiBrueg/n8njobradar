@@ -307,8 +307,8 @@
       ],
       "credentials": {
         "postgres": {
-          "id": "ZjjVGIqiRAUVlCk6",
-          "name": "radar"
+          "id": "Tvuhat51UDCzKwnE",
+          "name": "Postgres account"
         }
       }
     },
