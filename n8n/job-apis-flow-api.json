@@ -258,11 +258,10 @@
           "conditions": [
             {
               "id": "cond_related",
-              "leftValue": "={{ $json.job_event.is_job_related_str }}",
-              "rightValue": "yes",
+              "leftValue": "={{ $json.job_event.is_job_related }}",
               "operator": {
-                "type": "string",
-                "operation": "equals"
+                "type": "boolean",
+                "operation": "true"
               }
             }
           ],
