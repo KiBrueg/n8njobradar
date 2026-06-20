@@ -985,7 +985,7 @@
         "updatedAt": "2026-06-07T14:54:56.948Z",
         "createdAt": "2026-06-07T14:45:48.606Z",
         "id": "mDEzxsJaB5BF7Ig0",
-        "name": "kirill brueggemann <ogi-ogi@mail.de>",
+        "name": "<YOUR_NAME> <<YOUR_MAILDE_ADDRESS>>",
         "type": "personal",
         "icon": null,
         "description": null,
@@ -1922,7 +1922,7 @@
       }
     },
     "nodeGroups": [],
-    "authors": "kirill brueggemann",
+    "authors": "JobRadar",
     "name": null,
     "description": null,
     "autosaved": false,
