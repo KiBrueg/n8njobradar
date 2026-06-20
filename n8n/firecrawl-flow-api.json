@@ -25,7 +25,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Job board search pages — scraped once daily.\n// scraper='jina'    -> Jina AI (free, handles Cloudflare-protected sites)\n// scraper='crawl4ai' -> self-hosted Crawl4AI on VPS (free, no limits)\n//\n// Cloudflare-blocked sites confirmed: indeed.de, devjobs.de\n// XING requires Jina (JS-heavy + Cloudflare)\n\nconst TARGETS = [\n  { url: 'https://berlinstartupjobs.com/engineering/', label: 'berlinstartupjobs-engineering', scraper: 'crawl4ai' },\n  { url: 'https://de.indeed.com/jobs?q=ai+automation&l=Remote&fromage=1', label: 'indeed-ai-automation', scraper: 'jina' },\n  { url: 'https://www.remotely.de/jobs/ai-automation', label: 'remotely-ai-automation', scraper: 'crawl4ai' },\n  { url: 'https://en.devjobs.de/jobs?q=automation+engineer+remote', label: 'devjobs-automation', scraper: 'jina' },\n  { url: 'https://weworkremotely.com/remote-jobs/search?term=automation+engineer', label: 'wwr-automation', scraper: 'crawl4ai' },\n  { url: 'https://www.xing.com/jobs/search?keywords=automation+engineer+n8n+KI&location=Deutschland&sort=date', label: 'xing-automation', scraper: 'jina' },\n];\n\nreturn TARGETS.map(t => ({ json: t }));\n"
+        "jsCode": "// Job board search pages — scraped once daily.\n// scraper='jina'    -> Jina AI (free, handles Cloudflare-protected sites)\n// scraper='crawl4ai' -> self-hosted Crawl4AI on VPS (free, no limits)\n//\n// Cloudflare-blocked sites confirmed: indeed.de, devjobs.de\n// XING requires Jina (JS-heavy + Cloudflare)\n\nconst TARGETS = [\n  { url: 'https://berlinstartupjobs.com/engineering/', label: 'berlinstartupjobs-engineering', scraper: 'crawl4ai' },\n  { url: 'https://www.remotely.de/jobs/ai-automation', label: 'remotely-ai-automation', scraper: 'crawl4ai' },\n  { url: 'https://en.devjobs.de/jobs?q=automation+engineer+remote', label: 'devjobs-automation', scraper: 'jina' },\n  { url: 'https://weworkremotely.com/remote-jobs/search?term=automation+engineer', label: 'wwr-automation', scraper: 'crawl4ai' },\n  { url: 'https://www.xing.com/jobs/search?keywords=automation+engineer+n8n+KI&location=Deutschland&sort=date', label: 'xing-automation', scraper: 'jina' },\n];\n\nreturn TARGETS.map(t => ({ json: t }));\n"
       },
       "id": "n_targets",
       "name": "Scrape Targets",
@@ -81,15 +81,16 @@
       "name": "Crawl4AI: Scrape",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
+      "continueOnFail": true,
       "position": [
         880,
         160
       ],
-      "notes": "Self-hosted Crawl4AI (free, no limits).\nPOST /md -> {url, markdown}.\nRuns in Docker on same hub network as n8n."
+      "notes": "Self-hosted Crawl4AI (free, no limits).\nPOST /md -> {url, markdown}.\nRuns in Docker on same hub network as n8n.\ncontinueOnFail=true: blocked sites are skipped, others continue."
     },
     {
       "parameters": {
-        "jsCode": "// Wrap Crawl4AI response into Firecrawl-compatible format\n// so the downstream pipeline works unchanged.\n// Crawl4AI POST /md returns: { url, filter, markdown, ... }\n\nconst raw = $input.item.json;\nconst target = $('Scrape Targets').item.json;\n\nconst markdown = (typeof raw.markdown === 'string' && raw.markdown.length > 0)\n  ? raw.markdown\n  : '';\n\nreturn [{\n  json: {\n    success: markdown.length > 0,\n    data: {\n      markdown: markdown,\n      metadata: {\n        sourceURL: raw.url || target.url,\n        title: target.label || 'Crawl4AI',\n        scraper: 'crawl4ai'\n      }\n    }\n  }\n}];\n"
+        "jsCode": "// Wrap Crawl4AI response into Firecrawl-compatible format.\n// Handles both success and continueOnFail error objects gracefully.\n\nconst raw = $input.item.json;\nconst target = $('Scrape Targets').item.json;\n\n// continueOnFail error: raw has { error, statusCode } — treat as failed scrape\nif (raw.error || raw.statusCode >= 400) {\n  return [{ json: { success: false, data: { markdown: '', metadata: { sourceURL: target.url, scraper: 'crawl4ai', error: raw.error || raw.statusCode } } } }];\n}\n\nconst markdown = (typeof raw.markdown === 'string' && raw.markdown.length > 50)\n  ? raw.markdown\n  : '';\n\nreturn [{\n  json: {\n    success: markdown.length > 0,\n    data: {\n      markdown: markdown,\n      metadata: {\n        sourceURL: raw.url || target.url,\n        title: target.label || 'Crawl4AI',\n        scraper: 'crawl4ai'\n      }\n    }\n  }\n}];\n"
       },
       "id": "n_crawl4ai_format",
       "name": "Crawl4AI: Format",
@@ -131,6 +132,7 @@
       "name": "Jina AI: Scrape",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
+      "continueOnFail": true,
       "position": [
         880,
         440
@@ -281,7 +283,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.item.json;\nlet jobEvent;\ntry {\n  let raw = (body.choices[0].message.content || '').trim();\n  raw = raw.replace(/<think>[\\s\\S]*?<\\/think>/gi, '').trim();\n  raw = raw.replace(/^```(?:json)?\\s*/i, '').replace(/\\s*```$/, '').trim();\n  jobEvent = JSON.parse(raw);\n} catch (err) {\n  throw new Error('LLM returned invalid JSON: ' + String(body?.choices?.[0]?.message?.content || '').substring(0, 300));\n}\n\nif (typeof jobEvent.is_job_related !== 'boolean') {\n  throw new Error('Parse error: is_job_related must be boolean, got: ' + typeof jobEvent.is_job_related);\n}\nif (typeof jobEvent.injection_suspected !== 'boolean') jobEvent.injection_suspected = false;\n\nconst ALLOWED_ACTIONS = ['create_job','update_stage','add_interview','add_deadline','log_only','flag_error','ignore'];\nif (!ALLOWED_ACTIONS.includes(jobEvent.action)) {\n  throw new Error('Parse error: invalid action value: ' + String(jobEvent.action));\n}\n\nif (jobEvent.company_id && !/^[a-z0-9][a-z0-9-]*[a-z0-9]$/.test(jobEvent.company_id)) {\n  jobEvent.company_id = jobEvent.company_id.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/--+/g, '-').replace(/^-|-$/g, '');\n}\n\nif (!Array.isArray(jobEvent.tech_stack)) jobEvent.tech_stack = [];\nif (!Array.isArray(jobEvent.key_requirements)) jobEvent.key_requirements = [];\n\nconst JOB_RELATED_CATEGORIES = ['job_posting','hr_invite','interview_invite','test_task','offer','rejection','follow_up','platform_notification','manual_note'];\nif (JOB_RELATED_CATEGORIES.includes(jobEvent.category)) jobEvent.is_job_related = true;\n\njobEvent.is_job_related_str = jobEvent.is_job_related ? 'yes' : 'no';\n\nreturn [{ json: { job_event: jobEvent } }];"
+        "jsCode": "const body = $input.item.json;\nlet jobEvent;\ntry {\n  let raw = (body.choices[0].message.content || '').trim();\n  raw = raw.replace(/<think>[\\s\\S]*?<\\/think>/gi, '').trim();\n  raw = raw.replace(/^```(?:json)?\\s*/i, '').replace(/\\s*```$/, '').trim();\n  // If LLM returned an array (multiple jobs from listing page), take first element\n  if (raw.startsWith('[')) {\n    const arr = JSON.parse(raw);\n    jobEvent = Array.isArray(arr) && arr.length > 0 ? arr[0] : { is_job_related: false, action: 'ignore' };\n  } else {\n    jobEvent = JSON.parse(raw);\n  }\n} catch (err) {\n  // LLM returned non-JSON (e.g. listing page confusion) — silently ignore\n  return [{ json: { job_event: {\n    is_job_related: false,\n    is_job_related_str: 'no',\n    action: 'ignore',\n    category: 'other',\n    injection_suspected: false,\n    tech_stack: [],\n    key_requirements: [],\n    _parse_error: String(err.message).substring(0, 200)\n  } } }];\n}\n\nif (typeof jobEvent.is_job_related !== 'boolean') jobEvent.is_job_related = false;\nif (typeof jobEvent.injection_suspected !== 'boolean') jobEvent.injection_suspected = false;\n\nconst ALLOWED_ACTIONS = ['create_job','update_stage','add_interview','add_deadline','log_only','flag_error','ignore'];\nif (!ALLOWED_ACTIONS.includes(jobEvent.action)) jobEvent.action = 'ignore';\n\nif (jobEvent.company_id && !/^[a-z0-9][a-z0-9-]*[a-z0-9]$/.test(jobEvent.company_id)) {\n  jobEvent.company_id = jobEvent.company_id.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/--+/g, '-').replace(/^-|-$/g, '');\n}\n\nif (!Array.isArray(jobEvent.tech_stack)) jobEvent.tech_stack = [];\nif (!Array.isArray(jobEvent.key_requirements)) jobEvent.key_requirements = [];\n\nconst JOB_RELATED_CATEGORIES = ['job_posting','hr_invite','interview_invite','test_task','offer','rejection','follow_up','platform_notification','manual_note'];\nif (JOB_RELATED_CATEGORIES.includes(jobEvent.category)) jobEvent.is_job_related = true;\n\njobEvent.is_job_related_str = jobEvent.is_job_related ? 'yes' : 'no';\n\nreturn [{ json: { job_event: jobEvent } }];"
       },
       "id": "n_parse",
       "name": "Parse LLM Response",
@@ -348,8 +350,8 @@
       ],
       "credentials": {
         "postgres": {
-          "id": "ZjjVGIqiRAUVlCk6",
-          "name": "radar"
+          "id": "Tvuhat51UDCzKwnE",
+          "name": "Postgres account"
         }
       }
     },
