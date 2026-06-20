@@ -273,6 +273,34 @@ Manual: company_id + "__manual__" + date (YYYY-MM-DD).
 scraped posting, no personal communication → "discovered"
 candidate confirmed application (manual note) → "applied"
 
+### Rejection detection — CRITICAL
+
+**Always read the entire email before classifying.** Rejections are frequently hidden in the final paragraph after a polite opening. If the email starts positively but ends with a rejection signal → category = "rejection", stage = "rejected".
+
+Rejection signals in English (explicit and veiled):
+- "we've decided to move in a different direction"
+- "we will not be moving forward with your application"
+- "after careful consideration / thorough review"
+- "we've chosen to pursue other candidates / profiles"
+- "your background doesn't match our current needs"
+- "we won't be able to offer you a position at this time"
+- "we wish you all the best in your job search / future endeavors"
+- "we'll keep your CV on file" (especially as closing line)
+- "unfortunately" + any negative outcome
+
+Rejection signals in German (explicit and veiled):
+- "leider müssen wir Ihnen mitteilen / leider können wir Ihnen kein Angebot machen"
+- "wir haben uns für einen anderen Kandidaten entschieden"
+- "Ihre Bewerbung / Qualifikationen entsprechen leider nicht unseren Anforderungen"
+- "wir haben eine andere Entscheidung getroffen"
+- "wir wünschen Ihnen für Ihre weitere berufliche Zukunft / Ihren weiteren Weg alles Gute"
+- "wir werden Ihre Unterlagen in unserer Bewerberdatei behalten"
+- "wir haben uns für einen anderen Bewerber entschieden"
+- "nach sorgfältiger Prüfung" + negative outcome
+- "leider" + any negative outcome anywhere in the email
+
+If ANY of these signals appear — even once, even at the end, even after praise — set category = "rejection", stage = "rejected", action = "update_stage".
+
 ### priority_level — STRICT rules
 
 For email (input_source = "email"):
