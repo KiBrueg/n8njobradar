@@ -1,0 +1,345 @@
+{
+  "name": "WF3 — Handwerk Angebot-Generator (KI + HERO + SharePoint)",
+  "flow": [
+    {
+      "id": 1,
+      "module": "gateway:CustomWebhook",
+      "version": 1,
+      "parameters": {
+        "hook": 0,
+        "maxResults": 1
+      },
+      "mapper": {},
+      "metadata": {
+        "designer": { "x": 0, "y": 0, "name": "🔗 Webhook: Angebot-Anfrage" },
+        "parameters": [
+          {
+            "name": "hook",
+            "type": "hook:CustomWebhook",
+            "label": "Webhook",
+            "required": true
+          }
+        ],
+        "restore": {
+          "hook": {
+            "label": "WF3 Angebot Webhook"
+          }
+        }
+      }
+    },
+    {
+      "id": 2,
+      "module": "http:ActionSendData",
+      "version": 3,
+      "parameters": { "handleErrors": true, "useNewZLibDeCompress": true },
+      "mapper": {
+        "url": "https://login.hero-software.de/api/external/v7/graphql",
+        "method": "post",
+        "headers": [
+          { "name": "Authorization", "value": "Bearer {{HERO_API_TOKEN}}" },
+          { "name": "Content-Type", "value": "application/json" }
+        ],
+        "bodyType": "raw",
+        "contentType": "application/json",
+        "body": "{\"query\":\"query GetContact($id: ID!) { contacts(filter: { id: { eq: $id } }) { id first_name last_name company_name email phone_home phone_mobile addresses { street zipcode city } } }\",\"variables\":{\"id\":\"{{1.hero_contact_id}}\"}}",
+        "parseResponse": true,
+        "gzip": true,
+        "rejectUnauthorized": true,
+        "followRedirect": true
+      },
+      "metadata": {
+        "designer": { "x": 300, "y": 0, "name": "🏗 HERO GraphQL: Kundendaten laden" }
+      }
+    },
+    {
+      "id": 3,
+      "module": "data-store:GetARecord",
+      "version": 1,
+      "parameters": {
+        "__IMTCONN__": 0,
+        "datastore": "ANGEBOT_COUNTER_DATASTORE_ID"
+      },
+      "mapper": {
+        "key": "angebot_counter"
+      },
+      "metadata": {
+        "designer": { "x": 600, "y": 0, "name": "🔢 Data Store: Zähler lesen" },
+        "parameters": [
+          { "name": "__IMTCONN__", "type": "account:data-store", "label": "Data Store", "required": true }
+        ]
+      }
+    },
+    {
+      "id": 4,
+      "module": "util:SetVariables",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "variables": [
+          {
+            "name": "naechste_nummer",
+            "value": "{{add(if(3.value; 3.value; 0); 1)}}"
+          },
+          {
+            "name": "angebotsnummer",
+            "value": "A-{{formatDate(now; 'YYYY')}}-{{padStart(add(if(3.value; 3.value; 0); 1); 4; '0')}}"
+          },
+          {
+            "name": "kunde_vorname",
+            "value": "{{2.body.data.contacts[0].first_name}}"
+          },
+          {
+            "name": "kunde_nachname",
+            "value": "{{2.body.data.contacts[0].last_name}}"
+          },
+          {
+            "name": "kunde_email",
+            "value": "{{2.body.data.contacts[0].email}}"
+          },
+          {
+            "name": "kunde_firma",
+            "value": "{{if(2.body.data.contacts[0].company_name; 2.body.data.contacts[0].company_name; '')}}"
+          },
+          {
+            "name": "kunde_adresse",
+            "value": "{{2.body.data.contacts[0].addresses[0].street}}, {{2.body.data.contacts[0].addresses[0].zipcode}} {{2.body.data.contacts[0].addresses[0].city}}"
+          },
+          {
+            "name": "gueltig_bis",
+            "value": "{{formatDate(addDays(now; 30); 'DD.MM.YYYY')}}"
+          },
+          {
+            "name": "heute",
+            "value": "{{formatDate(now; 'DD.MM.YYYY')}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": { "x": 900, "y": 0, "name": "📐 Variablen berechnen (Nummer, Daten)" }
+      }
+    },
+    {
+      "id": 5,
+      "module": "openai-gpt-3:CreateCompletion",
+      "version": 1,
+      "parameters": { "__IMTCONN__": 0 },
+      "mapper": {
+        "model": "gpt-4o",
+        "select": "chat",
+        "temperature": "0.3",
+        "max_tokens": "2000",
+        "response_format": "json_object",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Du bist ein erfahrener Kalkulator und Sachbearbeiter in einem deutschen Handwerksbetrieb.\n\nDeine Aufgabe ist es, auf Basis einer Kundenanfrage ein strukturiertes Angebot zu erstellen.\n\nWICHTIG — Kalkulations-Grundlage (NICHT verändern):\n- Arbeitsstunden Geselle: 55 €/Std. netto\n- Arbeitsstunden Meister: 80 €/Std. netto\n- Materialaufschlag: 20% auf Einkaufspreis\n- Anfahrt: 0,45 €/km (beide Richtungen)\n- MwSt: 19%\n- Gültigkeitsdauer: 30 Tage\n\nVALIDIERUNG (PFLICHT):\n- Mindestauftragswert: 200 € netto\n- Wenn Anfrage unter 200 € → setze 'unter_mindestauftrag': true und erkläre in 'hinweis'\n- Keine Positionen mit Einzelpreis 0 außer Pauschalen die explizit 0 sein sollen\n\nFormat der Antwort (strikt einhalten):\n{\n  'anschreiben': 'Formeller Brieftext auf Deutsch (Sie-Form, DIN 5008, max 3 Absätze, KEIN JSON-Escaping im Text)',\n  'positionen': [\n    {\n      'pos': 1,\n      'beschreibung': 'Ausführliche Beschreibung',\n      'menge': Zahl,\n      'einheit': 'Std|Stk|m|m2|m3|pauschal',\n      'einzelpreis_netto': Zahl,\n      'gesamtpreis_netto': Zahl\n    }\n  ],\n  'gesamt_netto': Zahl,\n  'mwst_betrag': Zahl,\n  'gesamt_brutto': Zahl,\n  'unter_mindestauftrag': false,\n  'hinweis': 'optionaler Hinweis für den Meister'\n}\n\nAntworte AUSSCHLIESSLICH als gültiges JSON."
+          },
+          {
+            "role": "user",
+            "content": "Angebotsnummer: {{4.angebotsnummer}}\nDatum: {{4.heute}}\nGültig bis: {{4.gueltig_bis}}\n\nKunde:\n- Name: {{4.kunde_vorname}} {{4.kunde_nachname}}\n- Firma: {{4.kunde_firma}}\n- Adresse: {{4.kunde_adresse}}\n\nProjektbeschreibung: {{1.projektbeschreibung}}\nGewerk: {{1.gewerk}}\nBesonderheiten: {{if(1.besonderheiten; 1.besonderheiten; 'keine')}}\nGeschätzte Fläche/Menge: {{if(1.menge; 1.menge; 'nicht angegeben')}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": { "x": 1200, "y": 0, "name": "✍️ GPT-4o: Angebot generieren" },
+        "parameters": [
+          { "name": "__IMTCONN__", "type": "account:openai-gpt-3", "label": "Connection", "required": true }
+        ]
+      }
+    },
+    {
+      "id": 6,
+      "module": "json:ParseJSON",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "json": "{{5.result}}"
+      },
+      "metadata": {
+        "designer": { "x": 1500, "y": 0, "name": "📋 Parse Angebot JSON" }
+      }
+    },
+    {
+      "id": 7,
+      "module": "builtin:BasicRouter",
+      "version": 1,
+      "mapper": null,
+      "metadata": {
+        "designer": { "x": 1800, "y": 0, "name": "🔀 Validierung: Unter Mindestauftrag?" }
+      },
+      "routes": [
+        {
+          "label": "FEHLER: Unter Mindestauftrag",
+          "filter": {
+            "name": "Unter Mindestauftrag",
+            "conditions": [
+              [{ "a": "{{6.unter_mindestauftrag}}", "b": "true", "o": "text:equal" }]
+            ]
+          },
+          "flow": [
+            {
+              "id": 71,
+              "module": "microsoft-teams:sendMessage",
+              "version": 1,
+              "parameters": { "__IMTCONN__": 0 },
+              "mapper": {
+                "teamId": "TEAM_ID_HIER_EINTRAGEN",
+                "channelId": "CHANNEL_ID_HIER_EINTRAGEN",
+                "content": "⚠️ Angebot unter Mindestauftragswert (200 € netto)\n\nKunde: {{4.kunde_vorname}} {{4.kunde_nachname}} ({{4.kunde_email}})\nGewerk: {{1.gewerk}}\nKI-Hinweis: {{6.hinweis}}\n\nBitte manuell entscheiden ob Angebot trotzdem erstellt wird."
+              },
+              "metadata": {
+                "designer": { "x": 2100, "y": -100, "name": "⚠️ Teams: Mindestauftrag Alert" },
+                "parameters": [
+                  { "name": "__IMTCONN__", "type": "account:microsoft-teams", "label": "Connection", "required": true }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "label": "OK: Normales Angebot",
+          "filter": {
+            "name": "Gültiges Angebot",
+            "conditions": [
+              [{ "a": "{{6.unter_mindestauftrag}}", "b": "true", "o": "text:notequal" }]
+            ]
+          },
+          "flow": [
+            {
+              "id": 80,
+              "module": "data-store:UpdateARecord",
+              "version": 1,
+              "parameters": {
+                "__IMTCONN__": 0,
+                "datastore": "ANGEBOT_COUNTER_DATASTORE_ID"
+              },
+              "mapper": {
+                "key": "angebot_counter",
+                "value": "{{4.naechste_nummer}}"
+              },
+              "metadata": {
+                "designer": { "x": 2100, "y": 50, "name": "🔢 Counter: Zähler hochsetzen" },
+                "parameters": [
+                  { "name": "__IMTCONN__", "type": "account:data-store", "label": "Data Store", "required": true }
+                ]
+              }
+            },
+            {
+              "id": 81,
+              "module": "sharepoint:uploadAFile",
+              "version": 1,
+              "parameters": { "__IMTCONN__": 0 },
+              "mapper": {
+                "siteId": "SHAREPOINT_SITE_ID",
+                "libraryId": "SHAREPOINT_LIBRARY_ID",
+                "folderPath": "/HandwerkDokumente/Angebote/{{formatDate(now; 'YYYY')}}",
+                "fileName": "{{4.angebotsnummer}}_{{replace(4.kunde_firma; ' '; '-')}}_ENTWURF.json",
+                "data": "{{5.result}}"
+              },
+              "metadata": {
+                "designer": { "x": 2400, "y": 50, "name": "📁 SharePoint: Angebot-JSON sichern" },
+                "parameters": [
+                  { "name": "__IMTCONN__", "type": "account:sharepoint", "label": "Connection", "required": true }
+                ]
+              }
+            },
+            {
+              "id": 82,
+              "module": "microsoft-365-email:createADraftMessage",
+              "version": 1,
+              "parameters": { "__IMTCONN__": 0 },
+              "mapper": {
+                "to": [{ "name": "{{4.kunde_vorname}} {{4.kunde_nachname}}", "address": "{{4.kunde_email}}" }],
+                "subject": "Angebot {{4.angebotsnummer}} — {{1.gewerk}}",
+                "content": "{{6.anschreiben}}\n\n---\nANGEBOT {{4.angebotsnummer}}\n---\n\n{{builtin:iterator-join(6.positionen; 'Pos. {{pos}}: {{beschreibung}}\n{{menge}} {{einheit}} × {{einzelpreis_netto}} € = {{gesamtpreis_netto}} €\n'; '\n')}}\n\n---\nNettobetrag:     {{6.gesamt_netto}} €\nMwSt 19%:        {{6.mwst_betrag}} €\nGESAMT BRUTTO:   {{6.gesamt_brutto}} €\n---\n\nAngebotsnummer: {{4.angebotsnummer}}\nGültig bis: {{4.gueltig_bis}}\n\n[UNTERSCHRIFT + FIRMENDATEN EINFÜGEN]\n\nHINWEIS FÜR MEISTER: {{if(6.hinweis; 6.hinweis; 'Keine Anmerkungen')}}\n⚠️ ENTWURF — Bitte vor dem Senden prüfen und ggf. Preise anpassen!",
+                "contentType": "Text"
+              },
+              "metadata": {
+                "designer": { "x": 2700, "y": 50, "name": "📝 Outlook Draft: Angebot erstellen" },
+                "parameters": [
+                  { "name": "__IMTCONN__", "type": "account:microsoft-365-email", "label": "Connection", "required": true }
+                ]
+              }
+            },
+            {
+              "id": 83,
+              "module": "http:ActionSendData",
+              "version": 3,
+              "parameters": { "handleErrors": true, "useNewZLibDeCompress": true },
+              "mapper": {
+                "url": "https://login.hero-software.de/api/v1/Projects/create",
+                "method": "post",
+                "headers": [
+                  { "name": "Authorization", "value": "Bearer {{HERO_API_TOKEN}}" },
+                  { "name": "Content-Type", "value": "application/json" }
+                ],
+                "bodyType": "raw",
+                "contentType": "application/json",
+                "body": "{\"project_match\":{\"id\":\"{{1.hero_project_id}}\",\"status_code\":601,\"comment\":\"Angebot {{4.angebotsnummer}} am {{4.heute}} erstellt. Betrag: {{6.gesamt_brutto}} EUR brutto. Entwurf in Outlook Drafts. Erstellt durch Make.com WF3.\"}}",
+                "parseResponse": true,
+                "gzip": true,
+                "rejectUnauthorized": true,
+                "followRedirect": true
+              },
+              "metadata": {
+                "designer": { "x": 3000, "y": 50, "name": "🏗 HERO: Status → 601 Angebotserstellung" }
+              }
+            },
+            {
+              "id": 84,
+              "module": "microsoft-teams:sendMessage",
+              "version": 1,
+              "parameters": { "__IMTCONN__": 0 },
+              "mapper": {
+                "teamId": "TEAM_ID_HIER_EINTRAGEN",
+                "channelId": "CHANNEL_ID_HIER_EINTRAGEN",
+                "content": "📄 **Neues Angebot erstellt (Entwurf)**\n\nNummer: {{4.angebotsnummer}}\nKunde: {{4.kunde_vorname}} {{4.kunde_nachname}} {{if(4.kunde_firma; '(' + 4.kunde_firma + ')'; '')}}\nGewerk: {{1.gewerk}}\nBetrag: **{{6.gesamt_brutto}} € brutto** ({{6.gesamt_netto}} € netto)\nGültig bis: {{4.gueltig_bis}}\n\n✅ Entwurf liegt in Outlook Drafts — bitte prüfen und freigeben!\n⚠️ Hinweis KI: {{if(6.hinweis; 6.hinweis; 'keine')}}"
+              },
+              "metadata": {
+                "designer": { "x": 3300, "y": 50, "name": "📢 Teams: Angebot bereit zur Freigabe" },
+                "parameters": [
+                  { "name": "__IMTCONN__", "type": "account:microsoft-teams", "label": "Connection", "required": true }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "instant": true,
+    "version": 1,
+    "scenario": {
+      "roundtrips": 1,
+      "maxErrors": 3,
+      "autoCommit": true,
+      "autoCommitTriggerLast": true,
+      "sequential": true,
+      "confidential": false,
+      "dataloss": false,
+      "dlq": false,
+      "freshVariables": false
+    },
+    "designer": { "orphans": [] },
+    "zone": "eu1.make.com",
+    "notes": [
+      {
+        "note": "SETUP: 1) Webhook URL kopieren + in HERO/Formular eintragen 2) HERO_API_TOKEN in Make.com Custom Variables setzen 3) Data Store 'Angebot Counter' anlegen mit Key 'angebot_counter' = 0 4) SharePoint IDs eintragen 5) Teams IDs eintragen 6) Erst testen mit: curl -X POST [WEBHOOK_URL] -H 'Content-Type: application/json' -d '{\"hero_contact_id\":\"123\",\"hero_project_id\":\"456\",\"projektbeschreibung\":\"Badezimmer Fliesen\",\"gewerk\":\"Fliesenleger\"}'",
+        "color": "#4444FF"
+      },
+      {
+        "note": "WEBHOOK PAYLOAD erwartet: { hero_contact_id: string, hero_project_id: string, projektbeschreibung: string, gewerk: string, besonderheiten?: string, menge?: string }",
+        "color": "#44AA44"
+      },
+      {
+        "note": "SICHERHEIT: KI-generierte Angebote sind IMMER Entwürfe. Niemals auto-senden. Meister muss Preise prüfen. Kalkulations-Stundensätze (55/80 EUR) in Prompt aktualisieren wenn Preise sich ändern. HERO_API_TOKEN NIEMALS im Mapper hardcoden — nur über Make.com Custom Variables.",
+        "color": "#FF4444"
+      },
+      {
+        "note": "PHASE 2 (später): Word-Template befüllen statt Text-E-Mail. Dafür: Microsoft Word Online Modul + OneDrive Template + PDF-Export. Anleitung in 06-make-templates-guide.md",
+        "color": "#FF8800"
+      }
+    ]
+  }
+}

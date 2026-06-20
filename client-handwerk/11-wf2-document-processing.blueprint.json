@@ -1,0 +1,413 @@
+{
+  "name": "WF2 — Handwerk Dokument-Ablage & Auto-Klassifikation",
+  "flow": [
+    {
+      "id": 1,
+      "module": "microsoft-365-email:watchEmails",
+      "version": 1,
+      "parameters": {
+        "__IMTCONN__": 0,
+        "folder": "Rechnungen_Eingang",
+        "criteria": "All Messages",
+        "markSeen": true,
+        "fetchAttachments": true,
+        "maxResults": 5
+      },
+      "mapper": {},
+      "metadata": {
+        "designer": { "x": 0, "y": 0, "name": "📧 Watch Ordner 'Rechnungen_Eingang'" },
+        "parameters": [
+          { "name": "__IMTCONN__", "type": "account:microsoft-365-email", "label": "Connection", "required": true }
+        ]
+      }
+    },
+    {
+      "id": 2,
+      "module": "builtin:BasicFeeder",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "array": "{{1.attachments}}"
+      },
+      "metadata": {
+        "designer": { "x": 300, "y": 0, "name": "🔄 Iterator: Anhänge durchlaufen" }
+      }
+    },
+    {
+      "id": 3,
+      "module": "openai-gpt-3:CreateCompletion",
+      "version": 1,
+      "parameters": { "__IMTCONN__": 0 },
+      "mapper": {
+        "model": "gpt-4o",
+        "select": "chat",
+        "temperature": "0",
+        "max_tokens": "500",
+        "response_format": "json_object",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Du bist ein intelligenter Dokumentenparser für einen deutschen Handwerksbetrieb.\n\nAnalysiere die folgenden Dokumentinformationen und extrahiere alle relevanten Informationen.\n\nKlassifiziere das Dokument in GENAU EINEN der folgenden Typen:\n- EINGANGSRECHNUNG: Rechnung die wir erhalten haben (von Lieferant/Subunternehmer)\n- AUSGANGSRECHNUNG: Rechnung die wir ausgestellt haben (an unseren Kunden)\n- ANGEBOT_EINGEHEND: Angebot das wir von einem Lieferanten erhalten haben\n- LIEFERSCHEIN: Lieferschein oder Packzettel\n- VERTRAG: Vertrag, Rahmenvertrag, Werkvertrag\n- AUFTRAGSBESTAETIGUNG: Bestätigung eines Auftrags\n- BAUPLAN: Bauplan, Zeichnung, technische Zeichnung, Aufmaß\n- SONSTIGES: Alles andere\n\nExtrahiere:\n- absender: Firmenname des Absenders (oder null)\n- empfaenger: Firmenname des Empfängers (oder null)\n- dokument_nummer: Rechnungs-/Angebots-/Lieferscheinnummer (oder null)\n- datum: Dokumentdatum im Format YYYY-MM-DD (oder null)\n- betrag_netto: Nettobetrag als Zahl ohne Währungssymbol (oder null)\n- betrag_brutto: Bruttobetrag als Zahl ohne Währungssymbol (oder null)\n- mwst_satz: MwSt-Satz als Zahl z.B. 19 (oder null)\n- projekt_referenz: Projektnummer oder Bauvorhaben (oder null)\n- faelligkeitsdatum: Zahlungsfrist im Format YYYY-MM-DD (oder null)\n- beschreibung: 1 Satz was dieses Dokument enthält\n- empfohlener_ordner: exakt einer von: Eingangsrechnungen / Ausgangsrechnungen / Angebote / Lieferscheine / Vertraege / Bauplaene / Eingang-Manuell-Pruefen\n- sicher_klassifiziert: true wenn Klassifikation eindeutig, false wenn unsicher\n\nAntworte AUSSCHLIESSLICH als gültiges JSON."
+          },
+          {
+            "role": "user",
+            "content": "Dateiname: {{2.name}}\nDateityp: {{2.mimeType}}\n\nE-Mail Betreff: {{1.subject}}\nE-Mail Absender: {{1.from.name}} <{{1.from.address}}>\nE-Mail Text: {{1.text}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": { "x": 600, "y": 0, "name": "🤖 GPT-4o: Dokument klassifizieren" },
+        "parameters": [
+          { "name": "__IMTCONN__", "type": "account:openai-gpt-3", "label": "Connection", "required": true }
+        ]
+      }
+    },
+    {
+      "id": 4,
+      "module": "json:ParseJSON",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "json": "{{3.result}}"
+      },
+      "metadata": {
+        "designer": { "x": 900, "y": 0, "name": "📋 Parse JSON Klassifikation" }
+      }
+    },
+    {
+      "id": 5,
+      "module": "util:SetVariables",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "variables": [
+          {
+            "name": "dateiname_bereinigt",
+            "value": "{{replace(4.absender; ' '; '-')}}"
+          },
+          {
+            "name": "dateiname_final",
+            "value": "{{formatDate(now; 'YYYY-MM-DD')}}_{{4.document_type}}_{{replace(4.absender; ' '; '-')}}_{{if(4.dokument_nummer; 4.dokument_nummer; 'unbekannt')}}.pdf"
+          },
+          {
+            "name": "ziel_ordner",
+            "value": "/HandwerkDokumente/{{4.empfohlener_ordner}}/{{formatDate(now; 'YYYY')}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": { "x": 1200, "y": 0, "name": "📐 Zielordner + Dateiname berechnen" }
+      }
+    },
+    {
+      "id": 10,
+      "module": "builtin:BasicRouter",
+      "version": 1,
+      "mapper": null,
+      "metadata": {
+        "designer": { "x": 1500, "y": 0, "name": "🔀 Router nach Dokumenttyp + Sicherheit" }
+      },
+      "routes": [
+        {
+          "label": "UNSICHER → Manuelle Prüfung",
+          "filter": {
+            "name": "Klassifikation unsicher",
+            "conditions": [
+              [{ "a": "{{4.sicher_klassifiziert}}", "b": "false", "o": "text:equal" }]
+            ]
+          },
+          "flow": [
+            {
+              "id": 11,
+              "module": "sharepoint:uploadAFile",
+              "version": 1,
+              "parameters": { "__IMTCONN__": 0 },
+              "mapper": {
+                "siteId": "SHAREPOINT_SITE_ID",
+                "libraryId": "SHAREPOINT_LIBRARY_ID",
+                "folderPath": "/HandwerkDokumente/Eingang-Manuell-Pruefen",
+                "fileName": "PRUEFEN_{{formatDate(now; 'YYYY-MM-DD_HH-mm')}}_{{2.name}}",
+                "data": "{{2.content}}"
+              },
+              "metadata": {
+                "designer": { "x": 1800, "y": -200, "name": "📁 SharePoint: Manuelle Prüfung" },
+                "parameters": [
+                  { "name": "__IMTCONN__", "type": "account:sharepoint", "label": "Connection", "required": true }
+                ]
+              }
+            },
+            {
+              "id": 12,
+              "module": "microsoft-teams:sendMessage",
+              "version": 1,
+              "parameters": { "__IMTCONN__": 0 },
+              "mapper": {
+                "teamId": "TEAM_ID_HIER_EINTRAGEN",
+                "channelId": "CHANNEL_ID_HIER_EINTRAGEN",
+                "content": "⚠️ **Dokument benötigt manuelle Prüfung**\n\nDatei: {{2.name}}\nVon: {{1.from.name}} ({{1.from.address}})\nBetreff: {{1.subject}}\n\nKI-Einschätzung: {{4.document_type}} (unsicher)\nBeschreibung: {{4.beschreibung}}\n\nGespeichert in: SharePoint/Eingang-Manuell-Pruefen"
+              },
+              "metadata": {
+                "designer": { "x": 2100, "y": -200, "name": "⚠️ Teams: Prüfung erforderlich" },
+                "parameters": [
+                  { "name": "__IMTCONN__", "type": "account:microsoft-teams", "label": "Connection", "required": true }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "label": "VERTRAG → Immer Alert",
+          "filter": {
+            "name": "Vertrag erkannt",
+            "conditions": [
+              [
+                { "a": "{{4.document_type}}", "b": "VERTRAG", "o": "text:equal" },
+                { "a": "{{4.sicher_klassifiziert}}", "b": "true", "o": "text:equal" }
+              ]
+            ]
+          },
+          "flow": [
+            {
+              "id": 21,
+              "module": "sharepoint:uploadAFile",
+              "version": 1,
+              "parameters": { "__IMTCONN__": 0 },
+              "mapper": {
+                "siteId": "SHAREPOINT_SITE_ID",
+                "libraryId": "SHAREPOINT_LIBRARY_ID",
+                "folderPath": "{{5.ziel_ordner}}",
+                "fileName": "{{5.dateiname_final}}",
+                "data": "{{2.content}}"
+              },
+              "metadata": {
+                "designer": { "x": 1800, "y": -50, "name": "📁 SharePoint: Vertraege speichern" },
+                "parameters": [
+                  { "name": "__IMTCONN__", "type": "account:sharepoint", "label": "Connection", "required": true }
+                ]
+              }
+            },
+            {
+              "id": 22,
+              "module": "microsoft-teams:sendMessage",
+              "version": 1,
+              "parameters": { "__IMTCONN__": 0 },
+              "mapper": {
+                "teamId": "TEAM_ID_HIER_EINTRAGEN",
+                "channelId": "CHANNEL_ID_HIER_EINTRAGEN",
+                "content": "📜 **NEUER VERTRAG eingegangen** — bitte prüfen!\n\nAbsender: {{4.absender}}\nDokument-Nr: {{if(4.dokument_nummer; 4.dokument_nummer; 'nicht erkannt')}}\nDatum: {{4.datum}}\n\nBeschreibung: {{4.beschreibung}}\nDatei: {{5.dateiname_final}}\n\nGespeichert: SharePoint/Vertraege"
+              },
+              "metadata": {
+                "designer": { "x": 2100, "y": -50, "name": "🔔 Teams: Vertrag Alert (immer)" },
+                "parameters": [
+                  { "name": "__IMTCONN__", "type": "account:microsoft-teams", "label": "Connection", "required": true }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "label": "EINGANGSRECHNUNG",
+          "filter": {
+            "name": "Eingangsrechnung",
+            "conditions": [
+              [
+                { "a": "{{4.document_type}}", "b": "EINGANGSRECHNUNG", "o": "text:equal" },
+                { "a": "{{4.sicher_klassifiziert}}", "b": "true", "o": "text:equal" }
+              ]
+            ]
+          },
+          "flow": [
+            {
+              "id": 31,
+              "module": "sharepoint:uploadAFile",
+              "version": 1,
+              "parameters": { "__IMTCONN__": 0 },
+              "mapper": {
+                "siteId": "SHAREPOINT_SITE_ID",
+                "libraryId": "SHAREPOINT_LIBRARY_ID",
+                "folderPath": "/HandwerkDokumente/Eingangsrechnungen/{{formatDate(now; 'YYYY')}}/{{formatDate(now; 'MM_MMMM')}}",
+                "fileName": "{{5.dateiname_final}}",
+                "data": "{{2.content}}"
+              },
+              "metadata": {
+                "designer": { "x": 1800, "y": 100, "name": "📁 SharePoint: Eingangsrechnungen" },
+                "parameters": [
+                  { "name": "__IMTCONN__", "type": "account:sharepoint", "label": "Connection", "required": true }
+                ]
+              }
+            },
+            {
+              "id": 32,
+              "module": "microsoft-excel:addRow",
+              "version": 1,
+              "parameters": { "__IMTCONN__": 0 },
+              "mapper": {
+                "driveId": "SHAREPOINT_DRIVE_ID",
+                "workbookId": "DOKUMENTE_LOG_XLSX_ID",
+                "worksheetId": "Eingangsrechnungen",
+                "row": {
+                  "Datum_Eingang": "{{formatDate(now; 'DD.MM.YYYY')}}",
+                  "Dokument_Typ": "{{4.document_type}}",
+                  "Absender": "{{4.absender}}",
+                  "Dokument_Nummer": "{{4.dokument_nummer}}",
+                  "Betrag_Netto": "{{4.betrag_netto}}",
+                  "Betrag_Brutto": "{{4.betrag_brutto}}",
+                  "Faelligkeit": "{{4.faelligkeitsdatum}}",
+                  "Projekt_Referenz": "{{4.projekt_referenz}}",
+                  "Status": "Offen",
+                  "Beschreibung": "{{4.beschreibung}}"
+                }
+              },
+              "metadata": {
+                "designer": { "x": 2100, "y": 100, "name": "📊 Excel: Log-Eintrag hinzufügen" },
+                "parameters": [
+                  { "name": "__IMTCONN__", "type": "account:microsoft-excel", "label": "Connection", "required": true }
+                ]
+              }
+            },
+            {
+              "id": 33,
+              "module": "builtin:BasicRouter",
+              "version": 1,
+              "mapper": null,
+              "metadata": {
+                "designer": { "x": 2400, "y": 100, "name": "💰 Betrag > 1.000€ prüfen?" }
+              },
+              "routes": [
+                {
+                  "label": "Betrag > 1000€ → GF Alert",
+                  "filter": {
+                    "name": "Großrechnung",
+                    "conditions": [
+                      [{ "a": "{{4.betrag_brutto}}", "b": "1000", "o": "number:greater" }]
+                    ]
+                  },
+                  "flow": [
+                    {
+                      "id": 34,
+                      "module": "microsoft-teams:sendMessage",
+                      "version": 1,
+                      "parameters": { "__IMTCONN__": 0 },
+                      "mapper": {
+                        "teamId": "TEAM_ID_HIER_EINTRAGEN",
+                        "channelId": "CHANNEL_GF_ID",
+                        "content": "💶 **Eingangsrechnung über {{4.betrag_brutto}} € brutto**\n\nVon: {{4.absender}}\nRechnungsnr: {{4.dokument_nummer}}\nDatum: {{4.datum}}\nFälligkeit: {{4.faelligkeitsdatum}}\n\nBeschreibung: {{4.beschreibung}}\nGespeichert: SharePoint/Eingangsrechnungen"
+                      },
+                      "metadata": {
+                        "designer": { "x": 2700, "y": 50, "name": "💶 Teams: GF Alert >1.000€" },
+                        "parameters": [
+                          { "name": "__IMTCONN__", "type": "account:microsoft-teams", "label": "Connection", "required": true }
+                        ]
+                      }
+                    }
+                  ]
+                },
+                {
+                  "label": "Normal (<= 1000€)",
+                  "filter": {
+                    "name": "Normalrechnung",
+                    "conditions": [
+                      [{ "a": "{{4.betrag_brutto}}", "b": "1000", "o": "number:less" }]
+                    ]
+                  },
+                  "flow": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "label": "ALLE ANDEREN DOKUMENTE",
+          "filter": {
+            "name": "Sonstige sicher klassifizierte Dokumente",
+            "conditions": [
+              [
+                { "a": "{{4.sicher_klassifiziert}}", "b": "true", "o": "text:equal" },
+                { "a": "{{4.document_type}}", "b": "EINGANGSRECHNUNG", "o": "text:notequal" },
+                { "a": "{{4.document_type}}", "b": "VERTRAG", "o": "text:notequal" }
+              ]
+            ]
+          },
+          "flow": [
+            {
+              "id": 41,
+              "module": "sharepoint:uploadAFile",
+              "version": 1,
+              "parameters": { "__IMTCONN__": 0 },
+              "mapper": {
+                "siteId": "SHAREPOINT_SITE_ID",
+                "libraryId": "SHAREPOINT_LIBRARY_ID",
+                "folderPath": "{{5.ziel_ordner}}",
+                "fileName": "{{5.dateiname_final}}",
+                "data": "{{2.content}}"
+              },
+              "metadata": {
+                "designer": { "x": 1800, "y": 250, "name": "📁 SharePoint: Automatisch ablegen" },
+                "parameters": [
+                  { "name": "__IMTCONN__", "type": "account:sharepoint", "label": "Connection", "required": true }
+                ]
+              }
+            },
+            {
+              "id": 42,
+              "module": "microsoft-excel:addRow",
+              "version": 1,
+              "parameters": { "__IMTCONN__": 0 },
+              "mapper": {
+                "driveId": "SHAREPOINT_DRIVE_ID",
+                "workbookId": "DOKUMENTE_LOG_XLSX_ID",
+                "worksheetId": "Alle_Dokumente",
+                "row": {
+                  "Datum_Eingang": "{{formatDate(now; 'DD.MM.YYYY')}}",
+                  "Dokument_Typ": "{{4.document_type}}",
+                  "Absender": "{{4.absender}}",
+                  "Dokument_Nummer": "{{if(4.dokument_nummer; 4.dokument_nummer; '-')}}",
+                  "Betrag_Brutto": "{{if(4.betrag_brutto; 4.betrag_brutto; '-')}}",
+                  "Ordner": "{{4.empfohlener_ordner}}",
+                  "Beschreibung": "{{4.beschreibung}}"
+                }
+              },
+              "metadata": {
+                "designer": { "x": 2100, "y": 250, "name": "📊 Excel: Allgemeines Log" },
+                "parameters": [
+                  { "name": "__IMTCONN__", "type": "account:microsoft-excel", "label": "Connection", "required": true }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "instant": false,
+    "version": 1,
+    "scenario": {
+      "roundtrips": 1,
+      "maxErrors": 3,
+      "autoCommit": true,
+      "autoCommitTriggerLast": true,
+      "sequential": true,
+      "confidential": false,
+      "dataloss": false,
+      "dlq": false,
+      "freshVariables": false
+    },
+    "designer": { "orphans": [] },
+    "zone": "eu1.make.com",
+    "notes": [
+      {
+        "note": "SETUP: 1) Outlook-Ordner 'Rechnungen_Eingang' anlegen 2) SharePoint Library-ID + Site-ID eintragen 3) Excel-Datei 'Dokumente-Log.xlsx' auf SharePoint anlegen mit Sheets: Eingangsrechnungen, Alle_Dokumente 4) Teams IDs eintragen 5) SharePoint Versionierung aktivieren (Schutz vor Überschreiben)",
+        "color": "#4444FF"
+      },
+      {
+        "note": "SECURITY: Original-Dateien werden NIEMALS gelöscht — nur kopiert. SharePoint Versionierung schützt gegen ungewolltes Überschreiben. Bei KI-Unsicherheit (sicher_klassifiziert=false) geht Datei in Manuelle-Prüfung + Teams Alert.",
+        "color": "#FF4444"
+      },
+      {
+        "note": "SHAREPOINT IDs ermitteln: In SharePoint URL öffnen → Entwicklertools F12 → Network → 'site' in API-Anfragen suchen. Oder: Make.com SharePoint-Modul verbinden und Dropdown nutzen.",
+        "color": "#44AA44"
+      }
+    ]
+  }
+}

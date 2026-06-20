@@ -1,0 +1,334 @@
+{
+  "name": "WF1 — Handwerk Email Intelligence Hub",
+  "flow": [
+    {
+      "id": 1,
+      "module": "microsoft-365-email:watchEmails",
+      "version": 1,
+      "parameters": {
+        "__IMTCONN__": 0,
+        "folder": "Inbox",
+        "criteria": "Only Unread Messages",
+        "markSeen": false,
+        "fetchAttachments": false,
+        "maxResults": 5
+      },
+      "mapper": {},
+      "metadata": {
+        "designer": { "x": 0, "y": 0, "name": "📧 Watch Outlook Inbox (unread)" },
+        "parameters": [
+          { "name": "__IMTCONN__", "type": "account:microsoft-365-email", "label": "Connection", "required": true }
+        ]
+      }
+    },
+    {
+      "id": 2,
+      "module": "openai-gpt-3:CreateCompletion",
+      "version": 1,
+      "parameters": { "__IMTCONN__": 0 },
+      "mapper": {
+        "model": "gpt-4o-mini",
+        "select": "chat",
+        "temperature": "0",
+        "max_tokens": "400",
+        "response_format": "json_object",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Du bist ein intelligenter E-Mail-Assistent für einen deutschen Handwerksbetrieb.\n\nAnalysiere die folgende E-Mail und klassifiziere sie EXAKT in EINE der folgenden Kategorien:\n- ANGEBOT_ANFRAGE: Kunde fragt nach Preis, Leistung, Verfügbarkeit oder möchte ein Angebot\n- REKLAMATION: Kunde beschwert sich, meldet Mangel, Schaden oder Unzufriedenheit\n- RECHNUNG: Eingehende Rechnung von Lieferant oder Dienstleister\n- SUPPORT: Frage zu laufendem Projekt, Rückfrage, Statusanfrage\n- TERMIN: Terminanfrage, Terminbestätigung, Terminverschiebung\n- SONSTIGES: Alles andere\n\nExtrahiere:\n- kundenname: vollständiger Name des Absenders (oder \"Unbekannt\")\n- firma: Firmenname falls erkennbar (oder null)\n- telefon: Telefonnummer falls im Text (oder null)\n- prioritaet: HOCH / MITTEL / NIEDRIG (HOCH = dringend, Schaden, Notfall)\n- zusammenfassung: 1-2 Sätze was der Absender möchte\n\nAntworte AUSSCHLIESSLICH als gültiges JSON:\n{\"kategorie\":\"...\",\"kundenname\":\"...\",\"firma\":null,\"telefon\":null,\"prioritaet\":\"MITTEL\",\"zusammenfassung\":\"...\"}"
+          },
+          {
+            "role": "user",
+            "content": "Betreff: {{1.subject}}\n\nAbsender: {{1.from.name}} <{{1.from.address}}>\n\nInhalt:\n{{1.text}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": { "x": 300, "y": 0, "name": "🤖 GPT-4o: Klassifiziere E-Mail" },
+        "parameters": [
+          { "name": "__IMTCONN__", "type": "account:openai-gpt-3", "label": "Connection", "required": true }
+        ]
+      }
+    },
+    {
+      "id": 3,
+      "module": "json:ParseJSON",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "json": "{{2.result}}"
+      },
+      "metadata": {
+        "designer": { "x": 600, "y": 0, "name": "📋 Parse JSON Antwort" }
+      }
+    },
+    {
+      "id": 10,
+      "module": "builtin:BasicRouter",
+      "version": 1,
+      "mapper": null,
+      "metadata": {
+        "designer": { "x": 900, "y": 0, "name": "🔀 Router nach Kategorie" }
+      },
+      "routes": [
+        {
+          "label": "ANGEBOT_ANFRAGE",
+          "filter": {
+            "name": "Nur Angebot-Anfragen",
+            "conditions": [
+              [{ "a": "{{3.kategorie}}", "b": "ANGEBOT_ANFRAGE", "o": "text:equal" }]
+            ]
+          },
+          "flow": [
+            {
+              "id": 11,
+              "module": "openai-gpt-3:CreateCompletion",
+              "version": 1,
+              "parameters": { "__IMTCONN__": 0 },
+              "mapper": {
+                "model": "gpt-4o",
+                "select": "chat",
+                "temperature": "0.4",
+                "max_tokens": "600",
+                "messages": [
+                  {
+                    "role": "system",
+                    "content": "Du bist ein erfahrener Sachbearbeiter in einem deutschen Handwerksbetrieb.\n\nSchreibe einen professionellen E-Mail-Entwurf als Antwort auf eine Kundenanfrage.\n\nRegeln:\n- Sprache: Deutsch, formell, Sie-Form\n- Ton: freundlich, verbindlich, kompetent\n- Struktur nach DIN 5008: Anrede → Danksagung → Kernaussage → nächster Schritt → Grußformel\n- KEINE Preise nennen (der Meister legt Preise fest)\n- Klar kommunizieren dass ein konkretes Angebot nach Besichtigung/Aufmaß folgt\n- Terminvorschlag für Erstgespräch anbieten\n- Abschluss: 'Mit freundlichen Grüßen' + [UNTERSCHRIFT EINFÜGEN]\n\nGib NUR den fertigen E-Mail-Text aus."
+                  },
+                  {
+                    "role": "user",
+                    "content": "Kundenname: {{3.kundenname}}\nFirma: {{3.firma}}\nAnliegen: {{3.zusammenfassung}}\n\nOriginal-E-Mail:\n{{1.text}}"
+                  }
+                ]
+              },
+              "metadata": {
+                "designer": { "x": 1200, "y": -200, "name": "✍️ GPT-4o: Entwurf Angebot-Antwort" },
+                "parameters": [
+                  { "name": "__IMTCONN__", "type": "account:openai-gpt-3", "label": "Connection", "required": true }
+                ]
+              }
+            },
+            {
+              "id": 12,
+              "module": "microsoft-365-email:createADraftMessage",
+              "version": 1,
+              "parameters": { "__IMTCONN__": 0 },
+              "mapper": {
+                "to": [{ "name": "{{1.from.name}}", "address": "{{1.from.address}}" }],
+                "subject": "Re: {{1.subject}}",
+                "content": "{{11.result}}",
+                "contentType": "Text"
+              },
+              "metadata": {
+                "designer": { "x": 1500, "y": -200, "name": "📝 Outlook Draft erstellen" },
+                "parameters": [
+                  { "name": "__IMTCONN__", "type": "account:microsoft-365-email", "label": "Connection", "required": true }
+                ]
+              }
+            },
+            {
+              "id": 13,
+              "module": "http:ActionSendData",
+              "version": 3,
+              "parameters": { "handleErrors": true, "useNewZLibDeCompress": true },
+              "mapper": {
+                "url": "https://login.hero-software.de/api/v1/Projects/create",
+                "method": "post",
+                "headers": [
+                  { "name": "Authorization", "value": "Bearer {{HERO_API_TOKEN}}" },
+                  { "name": "Content-Type", "value": "application/json" }
+                ],
+                "bodyType": "raw",
+                "contentType": "application/json",
+                "body": "{\"measure\":\"PRJ\",\"customer\":{\"email\":\"{{1.from.address}}\",\"first_name\":\"{{3.kundenname}}\"},\"address\":{\"zipcode\":\"00000\"},\"project\":{\"source\":\"Make.com E-Mail Automation\"},\"project_match\":{\"status_code\":201,\"comment\":\"{{3.zusammenfassung}}\"}}",
+                "parseResponse": true,
+                "gzip": true,
+                "rejectUnauthorized": true,
+                "followRedirect": true
+              },
+              "metadata": {
+                "designer": { "x": 1800, "y": -200, "name": "🏗 HERO: Neuen Lead anlegen" }
+              }
+            }
+          ]
+        },
+        {
+          "label": "REKLAMATION (HOCH)",
+          "filter": {
+            "name": "Reklamation dringend",
+            "conditions": [
+              [
+                { "a": "{{3.kategorie}}", "b": "REKLAMATION", "o": "text:equal" },
+                { "a": "{{3.prioritaet}}", "b": "HOCH", "o": "text:equal" }
+              ]
+            ]
+          },
+          "flow": [
+            {
+              "id": 21,
+              "module": "openai-gpt-3:CreateCompletion",
+              "version": 1,
+              "parameters": { "__IMTCONN__": 0 },
+              "mapper": {
+                "model": "gpt-4o",
+                "select": "chat",
+                "temperature": "0.3",
+                "max_tokens": "500",
+                "messages": [
+                  {
+                    "role": "system",
+                    "content": "Du bist ein erfahrener Sachbearbeiter in einem deutschen Handwerksbetrieb.\n\nSchreibe einen professionellen, deeskalierenden E-Mail-Entwurf als Antwort auf eine DRINGENDE Reklamation.\n\nRegeln:\n- Sprache: Deutsch, formell, Sie-Form\n- Ton: verständnisvoll, lösungsorientiert, NICHT defensiv\n- Struktur: Anrede → Verständnis zeigen → konkreter nächster Schritt (Rückruf HEUTE) → Zeitrahmen → Grußformel\n- KEINEN Fehler eingestehen ohne Prüfung\n- Rückruf oder sofortige Besichtigung anbieten\n- Signalisieren dass das Anliegen HÖCHSTE Priorität hat\n\nGib NUR den fertigen E-Mail-Text aus."
+                  },
+                  {
+                    "role": "user",
+                    "content": "Kundenname: {{3.kundenname}}\nAnliegen: {{3.zusammenfassung}}\n\nOriginal:\n{{1.text}}"
+                  }
+                ]
+              },
+              "metadata": {
+                "designer": { "x": 1200, "y": -50, "name": "✍️ GPT-4o: Entwurf Reklamation (HOCH)" },
+                "parameters": [
+                  { "name": "__IMTCONN__", "type": "account:openai-gpt-3", "label": "Connection", "required": true }
+                ]
+              }
+            },
+            {
+              "id": 22,
+              "module": "microsoft-365-email:createADraftMessage",
+              "version": 1,
+              "parameters": { "__IMTCONN__": 0 },
+              "mapper": {
+                "to": [{ "name": "{{1.from.name}}", "address": "{{1.from.address}}" }],
+                "subject": "Re: {{1.subject}}",
+                "content": "{{21.result}}",
+                "contentType": "Text"
+              },
+              "metadata": {
+                "designer": { "x": 1500, "y": -50, "name": "📝 Draft: Reklamations-Antwort" },
+                "parameters": [
+                  { "name": "__IMTCONN__", "type": "account:microsoft-365-email", "label": "Connection", "required": true }
+                ]
+              }
+            },
+            {
+              "id": 23,
+              "module": "microsoft-teams:sendMessage",
+              "version": 1,
+              "parameters": { "__IMTCONN__": 0 },
+              "mapper": {
+                "teamId": "TEAM_ID_HIER_EINTRAGEN",
+                "channelId": "CHANNEL_ID_HIER_EINTRAGEN",
+                "content": "🚨 **DRINGENDE REKLAMATION** von {{3.kundenname}} ({{1.from.address}})\n\nZusammenfassung: {{3.zusammenfassung}}\n\nBetreff: {{1.subject}}\n\nEntwurf liegt in Outlook Drafts. Bitte HEUTE bearbeiten!"
+              },
+              "metadata": {
+                "designer": { "x": 1800, "y": -50, "name": "⚠️ Teams: DRINGEND Alert" },
+                "parameters": [
+                  { "name": "__IMTCONN__", "type": "account:microsoft-teams", "label": "Connection", "required": true }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "label": "RECHNUNG",
+          "filter": {
+            "name": "Eingehende Rechnung",
+            "conditions": [
+              [{ "a": "{{3.kategorie}}", "b": "RECHNUNG", "o": "text:equal" }]
+            ]
+          },
+          "flow": [
+            {
+              "id": 31,
+              "module": "microsoft-365-email:moveMessage",
+              "version": 1,
+              "parameters": { "__IMTCONN__": 0 },
+              "mapper": {
+                "messageId": "{{1.id}}",
+                "folderId": "RECHNUNGEN_FOLDER_ID"
+              },
+              "metadata": {
+                "designer": { "x": 1200, "y": 100, "name": "📁 Verschiebe in 'Rechnungen'" },
+                "parameters": [
+                  { "name": "__IMTCONN__", "type": "account:microsoft-365-email", "label": "Connection", "required": true }
+                ]
+              }
+            },
+            {
+              "id": 32,
+              "module": "microsoft-teams:sendMessage",
+              "version": 1,
+              "parameters": { "__IMTCONN__": 0 },
+              "mapper": {
+                "teamId": "TEAM_ID_HIER_EINTRAGEN",
+                "channelId": "CHANNEL_ID_HIER_EINTRAGEN",
+                "content": "📄 Neue Eingangsrechnung von {{3.kundenname}} / {{3.firma}}\n\nBetreff: {{1.subject}}\n\nWurde in Ordner 'Rechnungen' verschoben und wird von WF2 weiterverarbeitet."
+              },
+              "metadata": {
+                "designer": { "x": 1500, "y": 100, "name": "📢 Teams: Neue Rechnung" },
+                "parameters": [
+                  { "name": "__IMTCONN__", "type": "account:microsoft-teams", "label": "Connection", "required": true }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "label": "SUPPORT / TERMIN / SONSTIGES",
+          "filter": {
+            "name": "Rest",
+            "conditions": [
+              [{ "a": "{{3.kategorie}}", "b": "RECHNUNG", "o": "text:notequal" }]
+            ]
+          },
+          "flow": [
+            {
+              "id": 41,
+              "module": "microsoft-teams:sendMessage",
+              "version": 1,
+              "parameters": { "__IMTCONN__": 0 },
+              "mapper": {
+                "teamId": "TEAM_ID_HIER_EINTRAGEN",
+                "channelId": "CHANNEL_ID_HIER_EINTRAGEN",
+                "content": "📬 Neue E-Mail [{{3.kategorie}}] von {{3.kundenname}}\n\nPriorität: {{3.prioritaet}}\nBetreff: {{1.subject}}\nZusammenfassung: {{3.zusammenfassung}}\n\nVon: {{1.from.address}}"
+              },
+              "metadata": {
+                "designer": { "x": 1200, "y": 250, "name": "📢 Teams: Info (Support/Termin)" },
+                "parameters": [
+                  { "name": "__IMTCONN__", "type": "account:microsoft-teams", "label": "Connection", "required": true }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "instant": false,
+    "version": 1,
+    "scenario": {
+      "roundtrips": 1,
+      "maxErrors": 3,
+      "autoCommit": true,
+      "autoCommitTriggerLast": true,
+      "sequential": false,
+      "confidential": false,
+      "dataloss": false,
+      "dlq": false,
+      "freshVariables": false
+    },
+    "designer": { "orphans": [] },
+    "zone": "eu1.make.com",
+    "notes": [
+      {
+        "note": "SECURITY: AI creates ONLY DRAFTS — never auto-sends. Human must approve all outgoing emails. HERO_API_TOKEN must be stored in Make.com Variables (not hardcoded). Teams IDs must be configured before activation.",
+        "color": "#FF4444"
+      },
+      {
+        "note": "SETUP: 1) Connect Microsoft 365 Email 2) Connect OpenAI 3) Connect Microsoft Teams 4) Set HERO API Token in Variables 5) Set Teams IDs 6) Run test with 1 email 7) Verify Draft created in Outlook",
+        "color": "#4444FF"
+      }
+    ]
+  }
+}
