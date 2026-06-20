@@ -49,6 +49,7 @@
         440,
         100
       ],
+      "onError": "continueErrorOutput",
       "notes": "Returns up to 25 jobs. Response: { data: [...] }"
     },
     {
@@ -80,6 +81,7 @@
         440,
         300
       ],
+      "onError": "continueErrorOutput",
       "notes": "Response: { jobs: [...], job-count: N }"
     },
     {
@@ -116,6 +118,7 @@
         440,
         500
       ],
+      "onError": "continueErrorOutput",
       "notes": "Returns JSON array. [0] = legal notice, [1+] = jobs.\nUser-Agent header required to avoid 403."
     },
     {
@@ -129,7 +132,8 @@
       "position": [
         660,
         100
-      ]
+      ],
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -142,7 +146,8 @@
       "position": [
         660,
         300
-      ]
+      ],
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -155,7 +160,8 @@
       "position": [
         660,
         500
-      ]
+      ],
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -175,7 +181,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Normalize job data from any API source into JobRadar's normalized_input shape.\n// source_label is 'arbeitnow' | 'remotive' | 'remoteok' — set by Flatten nodes.\n\nconst job = $input.item.json;\nconst source = job.source_label;\n\nfunction stripHtml(html) {\n  return (html || '').replace(/<[^>]*>/g, ' ').replace(/\\s+/g, ' ').trim();\n}\n\nlet title, companyName, location, jobTypes, tags, description, jobUrl, publishedAt;\n\nif (source === 'arbeitnow') {\n  title = job.title;\n  companyName = job.company_name;\n  location = job.location;\n  jobTypes = job.job_types || [];\n  tags = job.tags || [];\n  description = stripHtml(job.description);\n  jobUrl = job.url || ('https://www.arbeitnow.com/jobs/' + job.slug);\n  publishedAt = job.created_at ? new Date(job.created_at * 1000).toISOString() : null;\n} else if (source === 'remotive') {\n  title = job.title;\n  companyName = job.company_name;\n  location = job.candidate_required_location;\n  jobTypes = job.job_type ? [job.job_type] : [];\n  tags = job.tags || [];\n  description = stripHtml(job.description);\n  jobUrl = job.url;\n  publishedAt = job.publication_date || null;\n} else if (source === 'remoteok') {\n  title = job.title;\n  companyName = job.company;\n  location = job.location || 'Worldwide';\n  jobTypes = [];\n  tags = Array.isArray(job.tags) ? job.tags : [];\n  description = stripHtml(job.description || '');\n  jobUrl = job.url || job.apply_url;\n  publishedAt = job.date || null;\n} else if (source === 'jobicy_api') {\n  title = job.jobTitle;\n  companyName = job.companyName;\n  location = job.jobGeo || 'Remote';\n  jobTypes = job.jobType ? [job.jobType] : [];\n  tags = typeof job.jobIndustry === 'string' ? job.jobIndustry.split(',').map(s => s.trim()).filter(Boolean) : [];\n  description = stripHtml(job.jobDescription || '');\n  jobUrl = job.url;\n  publishedAt = job.pubDate || null;\n} else if (source === 'himalayas_api') {\n  title = job.title;\n  companyName = (job.company && (job.company.name || job.company)) || '';\n  location = Array.isArray(job.locationRestrictions) ? job.locationRestrictions.join(', ') : 'Remote';\n  jobTypes = job.jobType ? [job.jobType] : [];\n  tags = Array.isArray(job.skills) ? job.skills : (Array.isArray(job.tags) ? job.tags : []);\n  description = stripHtml(job.description || job.descriptionHtml || '');\n  jobUrl = job.applicationLink || job.url || job.applyLink || '';\n  publishedAt = job.createdAt || job.publishedAt || null;\n} else {\n  throw new Error('Unknown source_label: ' + source);\n}\n\nconst now = new Date().toISOString();\nconst rawText = [\n  'Title: ' + (title || ''),\n  'Company: ' + (companyName || ''),\n  'Location: ' + (location || 'Not specified'),\n  'Remote: Yes',\n  'Job Types: ' + (jobTypes || []).join(', '),\n  'Tags: ' + (tags || []).join(', '),\n  '',\n  'Job Description:',\n  (description || '').substring(0, 7000)\n].join('\\n');\n\nreturn [{\n  json: {\n    source_label: source,\n    normalized_input: {\n      input_source: 'scraped',\n      source_detail: source + '_api',\n      email_account_id: null,\n      email_address: null,\n      email_provider: null,\n      subject: title || null,\n      date: publishedAt || now,\n      raw_text: rawText,\n      raw_meta: {\n        url: jobUrl,\n        label: source + '-api'\n      }\n    }\n  }\n}];"
+        "jsCode": "// UTF-8 sanitizer: replace malformed chars before processing\nfunction sanitizeText(s) {\n  if (!s) return s;\n  return String(s)\n    .replace(/\\uFFFD/g, '')   // replacement char\n    .replace(/\\u0000/g, '')   // null bytes\n    .trim();\n}\n\n// Normalize job data from any API source into JobRadar's normalized_input shape.\n// source_label is 'arbeitnow' | 'remotive' | 'remoteok' — set by Flatten nodes.\n\nconst job = $input.item.json;\nconst source = job.source_label;\n\nfunction stripHtml(html) {\n  return (html || '').replace(/<[^>]*>/g, ' ').replace(/\\s+/g, ' ').trim();\n}\n\nlet title, companyName, location, jobTypes, tags, description, jobUrl, publishedAt;\n\nif (source === 'arbeitnow') {\n  title = job.title;\n  companyName = job.company_name;\n  location = job.location;\n  jobTypes = job.job_types || [];\n  tags = job.tags || [];\n  description = stripHtml(job.description);\n  jobUrl = job.url || ('https://www.arbeitnow.com/jobs/' + job.slug);\n  publishedAt = job.created_at ? new Date(job.created_at * 1000).toISOString() : null;\n} else if (source === 'remotive') {\n  title = job.title;\n  companyName = job.company_name;\n  location = job.candidate_required_location;\n  jobTypes = job.job_type ? [job.job_type] : [];\n  tags = job.tags || [];\n  description = stripHtml(job.description);\n  jobUrl = job.url;\n  publishedAt = job.publication_date || null;\n} else if (source === 'remoteok') {\n  title = job.title;\n  companyName = job.company;\n  location = job.location || 'Worldwide';\n  jobTypes = [];\n  tags = Array.isArray(job.tags) ? job.tags : [];\n  description = stripHtml(job.description || '');\n  jobUrl = job.url || job.apply_url;\n  publishedAt = job.date || null;\n} else if (source === 'jobicy_api') {\n  title = job.jobTitle;\n  companyName = job.companyName;\n  location = job.jobGeo || 'Remote';\n  jobTypes = job.jobType ? [job.jobType] : [];\n  tags = typeof job.jobIndustry === 'string' ? job.jobIndustry.split(',').map(s => s.trim()).filter(Boolean) : [];\n  description = stripHtml(job.jobDescription || '');\n  jobUrl = job.url;\n  publishedAt = job.pubDate || null;\n} else if (source === 'himalayas_api') {\n  title = job.title;\n  companyName = (job.company && (job.company.name || job.company)) || '';\n  location = Array.isArray(job.locationRestrictions) ? job.locationRestrictions.join(', ') : 'Remote';\n  jobTypes = job.jobType ? [job.jobType] : [];\n  tags = Array.isArray(job.skills) ? job.skills : (Array.isArray(job.tags) ? job.tags : []);\n  description = stripHtml(job.description || job.descriptionHtml || '');\n  jobUrl = job.applicationLink || job.url || job.applyLink || '';\n  publishedAt = job.createdAt || job.publishedAt || null;\n} else {\n  throw new Error('Unknown source_label: ' + source);\n}\n\nconst now = new Date().toISOString();\nconst rawText = [\n  'Title: ' + (title || ''),\n  'Company: ' + (companyName || ''),\n  'Location: ' + (location || 'Not specified'),\n  'Remote: Yes',\n  'Job Types: ' + (jobTypes || []).join(', '),\n  'Tags: ' + (tags || []).join(', '),\n  '',\n  'Job Description:',\n  (description || '').substring(0, 7000)\n].join('\\n');\n\nreturn [{\n  json: {\n    source_label: source,\n    normalized_input: {\n      input_source: 'scraped',\n      source_detail: source + '_api',\n      email_account_id: null,\n      email_address: null,\n      email_provider: null,\n      subject: title || null,\n      date: publishedAt || now,\n      raw_text: rawText,\n      raw_meta: {\n        url: jobUrl,\n        label: source + '-api'\n      }\n    }\n  }\n}];"
       },
       "id": "n_normalize",
       "name": "Normalize: API Job",
@@ -185,69 +191,6 @@
         1100,
         300
       ]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT COUNT(*) AS cnt\nFROM jobs\nWHERE source_url = $1\n  AND updated_at > NOW() - INTERVAL '24 hours';",
-        "options": {
-          "queryReplacement": "={{ [$json.normalized_input.raw_meta.url] }}"
-        }
-      },
-      "id": "n_dedup",
-      "name": "Dedup Check",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        1320,
-        300
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "ZjjVGIqiRAUVlCk6",
-          "name": "radar"
-        }
-      },
-      "notes": "Skip if this job URL was already processed within 24h.\nURL from raw_meta.url is a unique permalink per job."
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "conditions": [
-            {
-              "id": "cond_fresh",
-              "leftValue": "={{ $json.cnt }}",
-              "rightValue": "0",
-              "operator": {
-                "type": "number",
-                "operation": "equal"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "id": "n_if_fresh",
-      "name": "IF: not already processed",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.2,
-      "position": [
-        1540,
-        300
-      ]
-    },
-    {
-      "parameters": {},
-      "id": "n_skip",
-      "name": "Already Processed: Skip",
-      "type": "n8n-nodes-base.noOp",
-      "typeVersion": 1,
-      "position": [
-        1760,
-        520
-      ],
-      "notes": "Job was seen within 24h — skip LLM call to save tokens."
     },
     {
       "parameters": {
@@ -315,11 +258,10 @@
           "conditions": [
             {
               "id": "cond_related",
-              "leftValue": "={{ $json.job_event.is_job_related_str }}",
-              "rightValue": "yes",
+              "leftValue": "={{ $json.job_event.is_job_related }}",
               "operator": {
-                "type": "string",
-                "operation": "equals"
+                "type": "boolean",
+                "operation": "true"
               }
             }
           ],
@@ -337,19 +279,8 @@
       ]
     },
     {
-      "parameters": {},
-      "id": "n_not_related",
-      "name": "Not Job Related: Stop",
-      "type": "n8n-nodes-base.noOp",
-      "typeVersion": 1,
-      "position": [
-        2640,
-        520
-      ]
-    },
-    {
       "parameters": {
-        "jsCode": "/* ============================================================\n   Prepare DB Params — Combined Job APIs Flow\n   input_source: scraped, source_detail: {source}_api\n   sender_risk_level: low (trusted API sources)\n   ============================================================ */\n\nconst e = $input.item.json.job_event;\nconst ni = $('Normalize: API Job').item.json.normalized_input;\nconst sourceLabel = $('Normalize: API Job').item.json.source_label;\nconst rawText = ni.raw_text;\nconst sourceUrl = (ni.raw_meta && ni.raw_meta.url) || null;\n\nfunction sql(v) {\n  if (v === null || v === undefined) return 'NULL';\n  return \"'\" + String(v).replace(/'/g, \"''\") + \"'\";\n}\nfunction num(v) {\n  if (v === null || v === undefined) return 'NULL';\n  const n = parseFloat(v); return isNaN(n) ? 'NULL' : String(n);\n}\nfunction bool(v) { return v === true ? 'TRUE' : 'FALSE'; }\nfunction dt(v)   { return v ? \"'\" + String(v).replace(/'/g, \"''\") + \"'\" : 'NULL'; }\nfunction en(v, t) { return v ? \"'\" + String(v).replace(/'/g, \"''\") + \"'::\" + t : 'NULL'; }\nfunction arr(vals) {\n  if (!vals || vals.length === 0) return \"'{}'\";\n  const parts = vals.map(v => '\"' + String(v).replace(/\\\\/g, '\\\\\\\\').replace(/\"/g, '\\\\\"') + '\"');\n  return \"'\" + '{' + parts.join(',') + '}' + \"'\";\n}\nfunction jsonb(v) {\n  if (!v) return \"'{}'::jsonb\";\n  return \"'\" + JSON.stringify(v).replace(/'/g, \"''\") + \"'::jsonb\";\n}\n\nconst finalSourceUrl = sourceUrl || e.source_url || null;\n\nreturn [{\n  json: {\n    job_event: e,\n    source_label: sourceLabel,\n    db: {\n      company_id_sql:           sql(e.company_id           || 'unknown'),\n      company_name_sql:         sql(e.company_name         || 'Unknown Company'),\n      employer_id_sql:          sql(e.employer_id),\n      employer_name_sql:        sql(e.employer_name),\n      job_id_fuzzy_sql:         sql(e.job_id_fuzzy         || 'unknown__unknown__unknown'),\n      job_title_sql:            sql(e.job_title),\n      location_sql:             sql(e.location),\n      job_thread_key_sql:       sql(e.job_thread_key),\n      seniority_sql:            en(e.seniority,             'seniority_enum'),\n      work_mode_sql:            en(e.work_mode,             'work_mode_enum'),\n      work_mode_raw_sql:        sql(e.work_mode_raw),\n      working_hours_sql:        sql(e.working_hours),\n      salary_currency_sql:      sql(e.salary_currency),\n      salary_min_sql:           num(e.salary_min),\n      salary_max_sql:           num(e.salary_max),\n      salary_period_sql:        en(e.salary_period,         'salary_period_enum'),\n      tech_stack_sql:           arr(e.tech_stack),\n      key_requirements_sql:     arr(e.key_requirements),\n      current_stage_sql:        en(e.stage || 'discovered', 'job_stage_enum'),\n      priority_sql:             en(e.priority,              'priority_enum'),\n      priority_level_sql:       num(e.priority_level),\n      interview_date_sql:       dt(e.interview_date),\n      response_deadline_sql:    dt(e.response_deadline),\n      application_deadline_sql: dt(e.application_deadline),\n      has_had_call_sql:         bool(e.has_had_call),\n      call_count_sql:           String(e.call_count || 0),\n      last_call_date_sql:       dt(e.last_call_date),\n      source_url_sql:           sql(finalSourceUrl),\n      source_input_sql:         en('scraped',               'input_source_enum'),\n      source_detail_sql:        sql(ni.source_detail        || 'api_json'),\n      summary_sql:              sql(e.summary),\n      category_sql:             en(e.category,              'job_category_enum'),\n      action_sql:               sql(e.action),\n      is_job_related_sql:       bool(e.is_job_related),\n      call_platform_sql:        en(e.call_platform,         'call_platform_enum'),\n      call_platform_raw_sql:    sql(e.call_platform_raw),\n      raw_text_sql:             sql(rawText),\n      parsed_json_sql:          jsonb(e),\n      sender_risk_level_sql:    sql('low'),\n      sender_risk_signals_sql:  arr([])\n    }\n  }\n}];"
+        "jsCode": "/* ============================================================\n   Prepare DB Params — Combined Job APIs Flow\n   input_source: scraped, source_detail: {source}_api\n   sender_risk_level: low (trusted API sources)\n   ============================================================ */\n\nconst e = $input.item.json.job_event;\nconst ni = $('Normalize: API Job').item.json.normalized_input;\nconst sourceLabel = $('Normalize: API Job').item.json.source_label;\nconst rawText = ni.raw_text;\nconst sourceUrl = (ni.raw_meta && ni.raw_meta.url) || null;\n\nfunction sql(v) {\n  if (v === null || v === undefined) return 'NULL';\n  return \"'\" + String(v).replace(/'/g, \"''\") + \"'\";\n}\nfunction num(v) {\n  if (v === null || v === undefined) return 'NULL';\n  const n = parseFloat(v); return isNaN(n) ? 'NULL' : String(n);\n}\nfunction bool(v) { return v === true ? 'TRUE' : 'FALSE'; }\nfunction dt(v)   { return v ? \"'\" + String(v).replace(/'/g, \"''\") + \"'\" : 'NULL'; }\nfunction en(v, t) { return v ? \"'\" + String(v).replace(/'/g, \"''\") + \"'::\" + t : 'NULL'; }\nfunction arr(vals) {\n  if (!vals || vals.length === 0) return \"'{}'\";\n  const parts = vals.map(v => '\"' + String(v).replace(/\\\\/g, '\\\\\\\\').replace(/\"/g, '\\\\\"') + '\"');\n  return \"'\" + '{' + parts.join(',') + '}' + \"'\";\n}\nfunction jsonb(v) {\n  if (!v) return \"'{}'::jsonb\";\n  return \"'\" + JSON.stringify(v).replace(/'/g, \"''\") + \"'::jsonb\";\n}\n\nfunction normWorkMode(v) {\n  if (!v) return null;\n  const s = String(v).toLowerCase().replace(/[-\\s]/g, '_');\n  const map = {\n    on_site: 'onsite', onsite: 'onsite', in_office: 'onsite', office: 'onsite', vor_ort: 'onsite',\n    full_remote: 'remote', fully_remote: 'remote', remote: 'remote', homeoffice: 'remote', home_office: 'remote',\n    hybrid: 'hybrid', partially_remote: 'hybrid', teilweise_remote: 'hybrid'\n  };\n  return map[s] || null;\n}\nfunction normSeniority(v) {\n  if (!v) return null;\n  const s = String(v).toLowerCase().replace(/[-\\s]/g, '_');\n  const map = {\n    intern: 'intern', internship: 'intern', praktikum: 'intern',\n    junior: 'junior', jr: 'junior',\n    middle: 'middle', mid: 'middle', medior: 'middle', intermediate: 'middle',\n    senior: 'senior', sr: 'senior',\n    lead: 'lead', tech_lead: 'lead', team_lead: 'lead',\n    principal: 'principal', staff: 'principal', architect: 'principal'\n  };\n  return map[s] || null;\n}\n\n\nconst finalSourceUrl = sourceUrl || e.source_url || null;\n\nreturn [{\n  json: {\n    job_event: e,\n    source_label: sourceLabel,\n    db: {\n      company_id_sql:           sql(e.company_id           || 'unknown'),\n      company_name_sql:         sql(e.company_name         || 'Unknown Company'),\n      employer_id_sql:          sql(e.employer_id),\n      employer_name_sql:        sql(e.employer_name),\n      job_id_fuzzy_sql:         sql(e.job_id_fuzzy         || 'unknown__unknown__unknown'),\n      job_title_sql:            sql(e.job_title),\n      location_sql:             sql(e.location),\n      job_thread_key_sql:       sql(e.job_thread_key),\n      seniority_sql:            en(normSeniority(e.seniority),             'seniority_enum'),\n      work_mode_sql:            en(normWorkMode(e.work_mode),             'work_mode_enum'),\n      work_mode_raw_sql:        sql(e.work_mode_raw),\n      working_hours_sql:        sql(e.working_hours),\n      salary_currency_sql:      sql(e.salary_currency),\n      salary_min_sql:           num(e.salary_min),\n      salary_max_sql:           num(e.salary_max),\n      salary_period_sql:        en(e.salary_period,         'salary_period_enum'),\n      tech_stack_sql:           arr(e.tech_stack),\n      key_requirements_sql:     arr(e.key_requirements),\n      current_stage_sql:        en(e.stage || 'discovered', 'job_stage_enum'),\n      priority_sql:             en(e.priority,              'priority_enum'),\n      priority_level_sql:       num(e.priority_level),\n      interview_date_sql:       dt(e.interview_date),\n      response_deadline_sql:    dt(e.response_deadline),\n      application_deadline_sql: dt(e.application_deadline),\n      has_had_call_sql:         bool(e.has_had_call),\n      call_count_sql:           String(e.call_count || 0),\n      last_call_date_sql:       dt(e.last_call_date),\n      source_url_sql:           sql(finalSourceUrl),\n      source_input_sql:         en('scraped',               'input_source_enum'),\n      source_detail_sql:        sql(ni.source_detail        || 'api_json'),\n      summary_sql:              sql(e.summary),\n      category_sql:             en(e.category,              'job_category_enum'),\n      action_sql:               sql(e.action),\n      is_job_related_sql:       bool(e.is_job_related),\n      call_platform_sql:        en(e.call_platform,         'call_platform_enum'),\n      call_platform_raw_sql:    sql(e.call_platform_raw),\n      raw_text_sql:             sql(rawText),\n      parsed_json_sql:          jsonb(e),\n      sender_risk_level_sql:    sql('low'),\n      sender_risk_signals_sql:  arr([])\n    }\n  }\n}];"
       },
       "id": "n_prepare",
       "name": "Prepare DB Params",
@@ -376,8 +307,8 @@
       ],
       "credentials": {
         "postgres": {
-          "id": "ZjjVGIqiRAUVlCk6",
-          "name": "radar"
+          "id": "Tvuhat51UDCzKwnE",
+          "name": "Postgres account"
         }
       }
     },
@@ -387,11 +318,11 @@
           "conditions": [
             {
               "id": "cond_priority",
-              "leftValue": "={{ $json.priority }}",
-              "rightValue": "high",
+              "leftValue": "={{ parseInt($json.relevance_score) }}",
+              "rightValue": 40,
               "operator": {
-                "type": "string",
-                "operation": "equals"
+                "type": "number",
+                "operation": "gte"
               }
             }
           ],
@@ -400,7 +331,7 @@
         "options": {}
       },
       "id": "n_if_priority",
-      "name": "IF: priority = high",
+      "name": "IF: priority = medium",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
@@ -438,6 +369,7 @@
         440,
         700
       ],
+      "onError": "continueErrorOutput",
       "parameters": {
         "method": "GET",
         "url": "https://jobicy.com/api/v2/remote-jobs",
@@ -446,11 +378,11 @@
           "parameters": [
             {
               "name": "industry",
-              "value": "tech"
+              "value": "engineering"
             },
             {
               "name": "tag",
-              "value": "automation,ai,n8n,workflow"
+              "value": "automation"
             },
             {
               "name": "count",
@@ -473,6 +405,7 @@
         440,
         900
       ],
+      "onError": "continueErrorOutput",
       "parameters": {
         "method": "GET",
         "url": "https://himalayas.app/jobs/api",
@@ -540,8 +473,9 @@
         660,
         700
       ],
+      "onError": "continueErrorOutput",
       "parameters": {
-        "jsCode": "// Jobicy response: { jobs: [...] }\nconst data = .item.json.jobs || [];\nif (data.length === 0) return [];\nreturn data.map(job => ({ json: { ...job, source_label: \"jobicy_api\" } }));"
+        "jsCode": "// Jobicy response: { jobs: [...] }\nconst data = $input.item.json.jobs || [];\nif (data.length === 0) return [];\nreturn data.map(job => ({ json: { ...job, source_label: \"jobicy_api\" } }));"
       }
     },
     {
@@ -553,8 +487,22 @@
         660,
         900
       ],
+      "onError": "continueErrorOutput",
       "parameters": {
-        "jsCode": "// Himalayas response: { jobs: [...] }\nconst data = .item.json.jobs || [];\nif (data.length === 0) return [];\nreturn data.map(job => ({ json: { ...job, source_label: \"himalayas_api\" } }));"
+        "jsCode": "// Himalayas response: { jobs: [...] }\nconst data = $input.item.json.jobs || [];\nif (data.length === 0) return [];\nreturn data.map(job => ({ json: { ...job, source_label: \"himalayas_api\" } }));"
+      }
+    },
+    {
+      "id": "n_filter_expired_HDJIQgfB",
+      "name": "Filter: Skip Expired",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2660,
+        300
+      ],
+      "parameters": {
+        "jsCode": "// Filter: Skip Expired\n// Drops jobs whose deadline has already passed.\n// No deadline → always pass through (we can't know → benefit of the doubt).\nconst e = $('Parse LLM Response').item.json.job_event;\nconst deadline = e.application_deadline || e.response_deadline || null;\n\nif (deadline) {\n  const deadlineDate = new Date(deadline);\n  // Guard: invalid date string → pass through\n  if (!isNaN(deadlineDate.getTime()) && deadlineDate < new Date()) {\n    // Expired — drop silently\n    return [];\n  }\n}\n\nreturn [$input.item];"
       }
     }
   ],
@@ -671,36 +619,7 @@
       "main": [
         [
           {
-            "node": "Dedup Check",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Dedup Check": {
-      "main": [
-        [
-          {
-            "node": "IF: not already processed",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "IF: not already processed": {
-      "main": [
-        [
-          {
             "node": "Skip Security Checks",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Already Processed: Skip",
             "type": "main",
             "index": 0
           }
@@ -744,18 +663,12 @@
       "main": [
         [
           {
-            "node": "Prepare DB Params",
+            "node": "Filter: Skip Expired",
             "type": "main",
             "index": 0
           }
         ],
-        [
-          {
-            "node": "Not Job Related: Stop",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        []
       ]
     },
     "Prepare DB Params": {
@@ -773,14 +686,14 @@
       "main": [
         [
           {
-            "node": "IF: priority = high",
+            "node": "IF: priority = medium",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "IF: priority = high": {
+    "IF: priority = medium": {
       "main": [
         [
           {
@@ -832,6 +745,17 @@
             "node": "Merge: All Sources",
             "type": "main",
             "index": 4
+          }
+        ]
+      ]
+    },
+    "Filter: Skip Expired": {
+      "main": [
+        [
+          {
+            "node": "Prepare DB Params",
+            "type": "main",
+            "index": 0
           }
         ]
       ]

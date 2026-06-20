@@ -1,0 +1,122 @@
+{
+  "name": "JobRadar -- Flow 8: Telegram /digest Command",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": ["message"],
+        "additionalFields": {}
+      },
+      "id": "n_tg_trigger",
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.1,
+      "position": [200, 300],
+      "webhookId": "jobradar-tg-digest",
+      "credentials": {
+        "telegramApi": {
+          "id": "GbCUJcypvKpeqReQ",
+          "name": "JobRadar Telegram Bot"
+        }
+      },
+      "notes": "⚙️ После импорта: создать credential типа 'Telegram API' в n8n UI,\nвставить Bot Token из TELEGRAM_BOT_TOKEN, привязать к этому ноду.\nWebhook URL регистрируется автоматически при активации флоу."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "id": "cond_digest",
+              "leftValue": "={{ ($json.message && $json.message.text ? $json.message.text : '').trim() }}",
+              "rightValue": "/digest",
+              "operator": {
+                "type": "string",
+                "operation": "startsWith"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "n_if_digest",
+      "name": "IF: /digest command",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [420, 300],
+      "notes": "TRUE -> process /digest\nFALSE -> ignore (bot gets all messages in group if privacy mode off)"
+    },
+    {
+      "parameters": {},
+      "id": "n_ignore",
+      "name": "Ignore: Not /digest",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [640, 520]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  COALESCE((ev.parsed_json->>'relevance_score')::int, 0) AS relevance_score,\n  c.name        AS company,\n  j.job_title,\n  j.location,\n  j.work_mode::text AS work_mode,\n  j.summary,\n  j.source_url\nFROM jobs j\nJOIN companies c ON c.company_id = j.company_id\nJOIN LATERAL (\n  SELECT parsed_json FROM job_events\n  WHERE job_id = j.id\n  ORDER BY created_at DESC LIMIT 1\n) ev ON TRUE\nWHERE (j.seniority IS NULL OR j.seniority::text NOT IN ('senior','lead','principal','staff','head','executive'))\n  AND j.job_type = 'employment'\nORDER BY relevance_score DESC, j.created_at DESC\nLIMIT 20;",
+        "options": {}
+      },
+      "id": "n_db",
+      "name": "DB: Fetch Top Jobs",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [640, 300],
+      "credentials": {
+        "postgres": {
+          "id": "Tvuhat51UDCzKwnE",
+          "name": "Postgres account"
+        }
+      },
+      "notes": "Top 20 employment jobs by relevance (no senior filter).\njob_type = 'employment' excludes Gewerbe/freelance entries."
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all().map(item => item.json);\nconst trigger = $('Telegram Trigger').first().json;\nconst chatId = trigger.message && trigger.message.chat ? trigger.message.chat.id : null;\n\nif (!chatId) throw new Error('Cannot read chat_id from Telegram trigger');\n\nfunction esc(t) {\n  return (t || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');\n}\n\nif (!rows.length || !rows[0].job_title) {\n  return [{ json: { text: '\\u{1F4ED} Keine Stellen in der Datenbank.', chat_id: chatId } }];\n}\n\nconst medals = ['\\u{1F947}','\\u{1F948}','\\u{1F949}','4\\uFE0F\\u20E3','5\\uFE0F\\u20E3','6\\uFE0F\\u20E3','7\\uFE0F\\u20E3','8\\uFE0F\\u20E3','9\\uFE0F\\u20E3','\\u{1F51F}'];\nconst high = rows.filter(r => r.relevance_score >= 80);\nconst mid  = rows.filter(r => r.relevance_score >= 50 && r.relevance_score < 80);\nconst low  = rows.filter(r => r.relevance_score < 50);\n\nconst lines = [\n  `\\u{1F4CA} <b>JobRadar \\u2014 Aktuelle Stellen (Top ${rows.length})</b>`,\n  ''\n];\n\nif (high.length > 0) {\n  lines.push('\\u{1F525} <b>Hohe Relevanz</b>');\n  high.forEach((job, i) => {\n    const medal = medals[i] || `${i+1}.`;\n    const loc = job.location ? ` | \\u{1F4CD} ${esc(job.location)}` : '';\n    const wm  = job.work_mode ? ` (${esc(job.work_mode)})` : '';\n    lines.push(`${medal} <b>${esc(job.job_title)}</b>`);\n    lines.push(`   \\u{1F3E2} ${esc(job.company)}${loc}${wm}`);\n    lines.push(`   \\u2B50 <b>${job.relevance_score}/100</b>`);\n    if (job.summary) lines.push(`   \\u{1F4AC} <i>${esc(job.summary).substring(0,100)}\\u2026</i>`);\n    if (job.source_url) lines.push(`   \\u{1F517} <a href=\"${esc(job.source_url)}\">\\u00D6ffnen</a>`);\n    lines.push('');\n  });\n}\n\nif (mid.length > 0) {\n  lines.push('\\u2B50 <b>Mittlere Relevanz</b>');\n  mid.forEach(job => {\n    const link = job.source_url ? ` \\u2014 <a href=\"${esc(job.source_url)}\">\\u{1F517}</a>` : '';\n    lines.push(`\\u2022 <b>${esc(job.job_title)}</b> @ ${esc(job.company)} [${job.relevance_score}]${link}`);\n  });\n  lines.push('');\n}\n\nif (low.length > 0) {\n  lines.push('\\u{1F4CB} <b>Niedrige Relevanz</b>');\n  low.forEach(job => {\n    const link = job.source_url ? ` <a href=\"${esc(job.source_url)}\">\\u{1F517}</a>` : '';\n    lines.push(`\\u2022 ${esc(job.job_title)} @ ${esc(job.company)}${link}`);\n  });\n}\n\nreturn [{ json: { text: lines.join('\\n'), chat_id: chatId } }];"
+      },
+      "id": "n_format",
+      "name": "Format Digest",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [860, 300],
+      "notes": "Groups top 20 jobs into 3 tiers.\nchat_id taken from the incoming Telegram message — reply goes to same chat."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendMessage",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ chat_id: $json.chat_id, parse_mode: 'HTML', text: $json.text, disable_web_page_preview: true }) }}",
+        "options": { "timeout": 15000 }
+      },
+      "id": "n_send",
+      "name": "Telegram: Send Digest",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1080, 300],
+      "notes": "Sends reply to the same chat the /digest command came from.\nWorks in private chat, group, or channel."
+    }
+  ],
+  "connections": {
+    "Telegram Trigger": {
+      "main": [[{ "node": "IF: /digest command", "type": "main", "index": 0 }]]
+    },
+    "IF: /digest command": {
+      "main": [
+        [{ "node": "DB: Fetch Top Jobs", "type": "main", "index": 0 }],
+        [{ "node": "Ignore: Not /digest", "type": "main", "index": 0 }]
+      ]
+    },
+    "DB: Fetch Top Jobs": {
+      "main": [[{ "node": "Format Digest", "type": "main", "index": 0 }]]
+    },
+    "Format Digest": {
+      "main": [[{ "node": "Telegram: Send Digest", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1", "saveManualExecutions": true }
+}

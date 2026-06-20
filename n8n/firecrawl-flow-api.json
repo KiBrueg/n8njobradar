@@ -1,5 +1,5 @@
 {
-  "name": "JobRadar -- Flow 2: Firecrawl Scraper",
+  "name": "JobRadar -- Flow 2: Web Scraper (Crawl4AI + Jina)",
   "nodes": [
     {
       "parameters": {
@@ -25,7 +25,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Job board search pages -- max 5 per day (Firecrawl free tier limit).\n// Each URL is scraped once daily. Firecrawl returns markdown -> LLM extracts job data.\n// Arbeitnow is now covered by the API flow -- these targets are JS-rendered sites.\n\nconst TARGETS = [\n  { url: 'https://berlinstartupjobs.com/engineering/', label: 'berlinstartupjobs-engineering' },\n  { url: 'https://de.indeed.com/jobs?q=ai+automation&l=Remote&fromage=1', label: 'indeed-ai-automation' },\n  { url: 'https://www.remotely.de/jobs/ai-automation', label: 'remotely-ai-automation' },\n  { url: 'https://en.devjobs.de/jobs?q=automation+engineer+remote', label: 'devjobs-automation' },\n  { url: 'https://weworkremotely.com/remote-jobs/search?term=automation+engineer', label: 'wwr-automation' },\n];\n\nreturn TARGETS.map(t => ({ json: t }));\n"
+        "jsCode": "// Job board search pages — scraped once daily.\n// scraper='jina'    -> Jina AI (free, handles Cloudflare-protected sites)\n// scraper='crawl4ai' -> self-hosted Crawl4AI on VPS (free, no limits)\n//\n// Cloudflare-blocked sites confirmed: indeed.de, devjobs.de\n// XING requires Jina (JS-heavy + Cloudflare)\n\nconst TARGETS = [\n  { url: 'https://berlinstartupjobs.com/engineering/', label: 'berlinstartupjobs-engineering', scraper: 'crawl4ai' },\n  { url: 'https://www.remotely.de/jobs/ai-automation', label: 'remotely-ai-automation', scraper: 'crawl4ai' },\n  { url: 'https://en.devjobs.de/jobs?q=automation+engineer+remote', label: 'devjobs-automation', scraper: 'jina' },\n  { url: 'https://weworkremotely.com/remote-jobs/search?term=automation+engineer', label: 'wwr-automation', scraper: 'crawl4ai' },\n  { url: 'https://www.xing.com/jobs/search?keywords=automation+engineer+n8n+KI&location=Deutschland&sort=date', label: 'xing-automation', scraper: 'jina' },\n];\n\nreturn TARGETS.map(t => ({ json: t }));\n"
       },
       "id": "n_targets",
       "name": "Scrape Targets",
@@ -35,37 +35,149 @@
         440,
         300
       ],
-      "notes": "Add your scrape targets here.\nOr replace with a Postgres/Google Sheets read node."
+      "notes": "Add your scrape targets here.\nXING (label: xing-automation) is routed to Jina AI (free).\nOthers go to Firecrawl."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "id": "cond_is_jina",
+              "leftValue": "={{ $json.scraper }}",
+              "rightValue": "jina",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "n_route_scraper",
+      "name": "IF: use Jina",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        660,
+        300
+      ],
+      "notes": "TRUE (scraper=jina) -> Jina AI: XING + Cloudflare-protected sites\nFALSE (scraper=crawl4ai) -> Crawl4AI self-hosted"
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "https://api.firecrawl.dev/v1/scrape",
+        "url": "http://crawl4ai:11235/md",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ url: $json.url }) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "n_scrape",
+      "name": "Crawl4AI: Scrape",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "continueOnFail": true,
+      "position": [
+        880,
+        160
+      ],
+      "notes": "Self-hosted Crawl4AI (free, no limits).\nPOST /md -> {url, markdown}.\nRuns in Docker on same hub network as n8n.\ncontinueOnFail=true: blocked sites are skipped, others continue."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Wrap Crawl4AI response into Firecrawl-compatible format.\n// Handles both success and continueOnFail error objects gracefully.\n\nconst raw = $input.item.json;\nconst target = $('Scrape Targets').item.json;\n\n// continueOnFail error: raw has { error, statusCode } — treat as failed scrape\nif (raw.error || raw.statusCode >= 400) {\n  return [{ json: { success: false, data: { markdown: '', metadata: { sourceURL: target.url, scraper: 'crawl4ai', error: raw.error || raw.statusCode } } } }];\n}\n\nconst markdown = (typeof raw.markdown === 'string' && raw.markdown.length > 50)\n  ? raw.markdown\n  : '';\n\nreturn [{\n  json: {\n    success: markdown.length > 0,\n    data: {\n      markdown: markdown,\n      metadata: {\n        sourceURL: raw.url || target.url,\n        title: target.label || 'Crawl4AI',\n        scraper: 'crawl4ai'\n      }\n    }\n  }\n}];\n"
+      },
+      "id": "n_crawl4ai_format",
+      "name": "Crawl4AI: Format",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        160
+      ],
+      "notes": "Normalises Crawl4AI response to Firecrawl JSON shape {success, data.markdown, data.metadata}.\nAllows Crawl4AI and Jina paths to share one downstream pipeline."
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://r.jina.ai/{{ $json.url }}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
             {
-              "name": "Authorization",
-              "value": "=Bearer {{ $env.FIRECRAWL_API_KEY }}"
+              "name": "Accept",
+              "value": "text/plain"
+            },
+            {
+              "name": "X-Return-Format",
+              "value": "markdown"
             }
           ]
         },
-        "sendBody": true,
-        "contentType": "raw",
-        "rawContentType": "application/json",
-        "body": "={{ JSON.stringify({ url: $json.url, formats: ['markdown'], onlyMainContent: true, waitFor: 2000 }) }}",
         "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          },
           "timeout": 30000
         }
       },
-      "id": "n_scrape",
-      "name": "Firecrawl: Scrape",
+      "id": "n_jina_scrape",
+      "name": "Jina AI: Scrape",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
+      "continueOnFail": true,
       "position": [
-        660,
-        300
-      ]
+        880,
+        440
+      ],
+      "notes": "FREE — no API key required, no credit limit.\nr.jina.ai/URL -> JS-rendered markdown of target page.\nReturns plain text (wrapped in $json.data by n8n)."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Wrap Jina AI plain-text response into Firecrawl-compatible format\n// so the downstream pipeline (IF: scrape success -> Split -> Normalize) works unchanged.\n\nconst raw = $input.item.json;\nconst target = $('Scrape Targets').item.json;\n\n// n8n HTTP node with responseFormat:text puts body in raw.data\nconst jinaMarkdown = (typeof raw.data === 'string' && raw.data.length > 0)\n  ? raw.data\n  : (typeof raw === 'string' ? raw : JSON.stringify(raw));\n\nreturn [{\n  json: {\n    success: true,\n    data: {\n      markdown: jinaMarkdown,\n      metadata: {\n        sourceURL: target.url,\n        title: 'XING Search — Jina AI',\n        scraper: 'jina'\n      }\n    }\n  }\n}];\n"
+      },
+      "id": "n_jina_format",
+      "name": "Jina: Format as Firecrawl",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        440
+      ],
+      "notes": "Normalises Jina plain-text response to Firecrawl JSON shape {success, data.markdown, data.metadata}.\nAllows Firecrawl and Jina paths to share one downstream pipeline."
+    },
+    {
+      "parameters": {},
+      "id": "n_stub_scrapingbee",
+      "name": "ScrapingBee XING [STUB]",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "disabled": true,
+      "position": [
+        1100,
+        620
+      ],
+      "notes": "ПЛАТНЫЙ ЗАПАСНОЙ: ScrapingBee ($49/mo)\nReal browser + residential proxies.\nАктивировать если Jina блокируется XING.\n\nПодключить: Jina AI: Scrape -> ScrapingBee -> Jina: Format as Firecrawl\nAPI ключ: SCRAPINGBEE_API_KEY в .env VPS\nURL: https://app.scrapingbee.com/api/v1/?api_key=$env.SCRAPINGBEE_API_KEY&url={{ urlencode($json.url) }}&render_js=true"
+    },
+    {
+      "parameters": {},
+      "id": "n_stub_apify",
+      "name": "Apify XING [STUB]",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "disabled": true,
+      "position": [
+        1100,
+        780
+      ],
+      "notes": "ПЛАТНЫЙ ЗАПАСНОЙ: Apify (pay-per-use)\nHeadless Chrome + proxy rotation.\nАктивировать если и Jina и ScrapingBee заблокированы.\n\nActor: apify/web-scraper (universal) или xing-specific на apify.com/store\nAPI ключ: APIFY_API_TOKEN в .env VPS\nСм. также: n8n/flows.md -> Flow 4b"
     },
     {
       "parameters": {
@@ -90,111 +202,50 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        880,
+        1320,
         300
       ]
     },
     {
-      "parameters": {},
-      "id": "n_scrape_fail",
-      "name": "Scrape Failed: Stop",
-      "type": "n8n-nodes-base.noOp",
-      "typeVersion": 1,
+      "parameters": {
+        "jsCode": "// ============================================================\n// Split: XING / Listing Page Parser (v2 — URL-based)\n//\n// Finds all job hyperlinks in the Firecrawl/Jina markdown by URL\n// pattern — does NOT depend on numbered list format.\n// Each unique xing.com/jobs/ URL becomes a separate item.\n// ============================================================\n\nconst LISTING_LABELS = ['xing-automation'];\n\nconst scrape = $input.item.json;\nconst target = $('Scrape Targets').item.json;\nconst label = target.label || '';\n\nif (!LISTING_LABELS.includes(label)) {\n  return [{ json: scrape }];\n}\n\nconst markdown = (scrape.data && scrape.data.markdown) || scrape.markdown || '';\nconst searchPageUrl = target.url;\nconst lines = markdown.split('\\n');\n\n// Find all [text](url) links in the markdown\nconst linkPattern = /\\[([^\\]\\n]+)\\]\\((https?:\\/\\/[^\\)\\s\\n]{10,})\\)/g;\nconst seen = new Set();\nconst jobLinks = [];\nlet m;\n\nwhile ((m = linkPattern.exec(markdown)) !== null) {\n  const linkText = m[1].trim();\n  const url = m[2].trim();\n  if (seen.has(url)) continue;\n  if (url === searchPageUrl) continue;\n  // Only XING job detail pages (not search, not image/nav links)\n  const isXingJob = url.includes('xing.com/jobs/') && !url.includes('/search') && !url.includes('?keywords');\n  if (!isXingJob) continue;\n  seen.add(url);\n  jobLinks.push({ linkText, url, pos: m.index });\n}\n\nif (jobLinks.length === 0) {\n  // DEBUG: analyze what's actually in the markdown\n  const rawUrlPat = /https?:\\/\\/[^\\s\\n\"'<>]{10,}/g;\n  const xingUrls = [];\n  let ru;\n  while ((ru = rawUrlPat.exec(markdown)) !== null) {\n    if (ru[0].includes('xing')) xingUrls.push(ru[0].substring(0, 80));\n  }\n  const allLinkPat = /\\[([^\\]\\n]+)\\]\\((https?:\\/\\/[^\\)\\s\\n]{5,})\\)/g;\n  const allLinks = [];\n  let al;\n  while ((al = allLinkPat.exec(markdown)) !== null) { allLinks.push(al[2].substring(0, 80)); }\n\n  return [{ json: Object.assign({}, scrape, {\n    _debug: {\n      label: label,\n      scraper: (scrape.data && scrape.data.metadata && scrape.data.metadata.scraper) || 'firecrawl',\n      markdown_length: markdown.length,\n      xing_raw_urls_found: xingUrls,\n      all_md_links_count: allLinks.length,\n      all_md_links_sample: allLinks.slice(0, 8),\n      markdown_first_600: markdown.substring(0, 600)\n    }\n  }) }];\n}\n\n// For each job link, extract surrounding lines as context\nconst items = [];\nfor (let i = 0; i < jobLinks.length; i++) {\n  const { linkText, url, pos } = jobLinks[i];\n\n  const lineNum = (markdown.substring(0, pos).match(/\\n/g) || []).length;\n  const ctxStart = Math.max(0, lineNum - 1);\n  const ctxEnd   = Math.min(lines.length, lineNum + 20);\n  const ctx = lines.slice(ctxStart, ctxEnd)\n    .map(l => l.trim())\n    .filter(l => l && !l.startsWith('![') && l !== 'Save job' && l !== 'Urgently hiring');\n\n  const h2Line = ctx.find(l => /^#{1,3}\\s/.test(l));\n  const title = h2Line ? h2Line.replace(/^#{1,3}\\s+/, '').trim() : linkText;\n\n  let company = null;\n  const h2Idx = h2Line ? ctx.indexOf(h2Line) : -1;\n  if (h2Idx >= 0) {\n    const after = ctx.slice(h2Idx + 1).filter(l => !/^#{1,3}\\s/.test(l) && !l.startsWith('External job'));\n    company = after[0] || null;\n  }\n\n  const salaryLine = ctx.find(l => l.includes('\\u20ac'));\n  const salary = salaryLine ? salaryLine.replace(/\\s*\\*+.*$/, '').trim() : null;\n\n  const dateLine = ctx.find(l => /\\d+\\s+(hour|day|week|month)s?\\s+ago/i.test(l));\n  const postedAgo = dateLine ? (dateLine.match(/(\\d+\\s+(?:hour|day|week|month)s?\\s+ago)/i) || [])[1] : null;\n\n  const snip = ['# ' + title];\n  if (company)   snip.push('Company: ' + company);\n  if (salary)    snip.push('Salary/Type: ' + salary);\n  if (postedAgo) snip.push('Posted: ' + postedAgo);\n  snip.push('Source: XING');\n  snip.push('URL: ' + url);\n\n  items.push({\n    json: {\n      success: true,\n      data: {\n        markdown: snip.join('\\n'),\n        metadata: {\n          sourceURL: url,\n          title: title + (company ? ' \\u2014 ' + company : '')\n        }\n      }\n    }\n  });\n}\n\nreturn items;"
+      },
+      "id": "n_split_listings",
+      "name": "Split: XING Listings",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
-        1100,
-        520
+        1430,
+        300
       ],
-      "notes": "Firecrawl returned success=false.\nAdd error logging or Telegram alert here."
+      "notes": "For XING listing pages: splits markdown into individual job items.\nEach item gets its own xing.com URL for per-job dedup.\nNon-listing pages pass through unchanged as 1 item.\nWorks with both Firecrawl and Jina AI responses."
     },
     {
       "parameters": {
-        "jsCode": "const scrape = $input.item.json;\nconst target = $('Scrape Targets').item.json;\n\n// Extract page content from Firecrawl response\nconst markdown = (scrape.data && scrape.data.markdown) || scrape.markdown || '';\nconst sourceUrl = (scrape.data && scrape.data.metadata && scrape.data.metadata.sourceURL)\n               || (scrape.metadata && scrape.metadata.sourceURL)\n               || target.url || null;\nconst pageTitle = (scrape.data && scrape.data.metadata && scrape.data.metadata.title)\n               || (scrape.metadata && scrape.metadata.title) || null;\n\n// For long pages, keep first 10000 chars (approx 2500 tokens)\nconst rawText = markdown.substring(0, 10000);\n\nreturn [{\n  json: {\n    normalized_input: {\n      input_source: 'scraped',\n      source_detail: 'scraped_json',\n      email_account_id: null,\n      email_address: null,\n      email_provider: null,\n      subject: pageTitle,\n      date: null,\n      raw_text: rawText,\n      raw_meta: {\n        url: sourceUrl,\n        label: target.label || null\n      }\n    }\n  }\n}];"
+        "jsCode": "// UTF-8 sanitizer: replace malformed chars before processing\nfunction sanitizeText(s) {\n  if (!s) return s;\n  return String(s)\n    .replace(/\\uFFFD/g, '')   // replacement char\n    .replace(/\\u0000/g, '')   // null bytes\n    .trim();\n}\n\nconst scrape = $input.item.json;\nconst target = $('Scrape Targets').item.json;\n\nconst markdown = (scrape.data && scrape.data.markdown) || scrape.markdown || '';\nconst sourceUrl = (scrape.data && scrape.data.metadata && scrape.data.metadata.sourceURL)\n               || (scrape.metadata && scrape.metadata.sourceURL)\n               || target.url || null;\nconst pageTitle = (scrape.data && scrape.data.metadata && scrape.data.metadata.title)\n               || (scrape.metadata && scrape.metadata.title) || null;\n\nconst rawText = markdown.substring(0, 10000);\n\nreturn [{\n  json: {\n    normalized_input: {\n      input_source: 'scraped',\n      source_detail: 'scraped_json',\n      email_account_id: null,\n      email_address: null,\n      email_provider: null,\n      subject: pageTitle,\n      date: null,\n      raw_text: rawText,\n      raw_meta: {\n        url: sourceUrl,\n        label: target.label || null\n      }\n    }\n  }\n}];"
       },
       "id": "n_normalize",
       "name": "Normalize Item",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1100,
-        300
-      ]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT COUNT(*) AS cnt\nFROM jobs\nWHERE source_url = $1\n  AND updated_at > NOW() - INTERVAL '24 hours';",
-        "options": {
-          "queryReplacement": "={{ [$json.normalized_input.raw_meta.url] }}"
-        }
-      },
-      "id": "n_dedup",
-      "name": "Dedup Check",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        1320,
-        300
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "ZjjVGIqiRAUVlCk6",
-          "name": "radar"
-        }
-      },
-      "notes": "Skip if this URL was scraped in the last 24h."
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "conditions": [
-            {
-              "id": "cond_fresh",
-              "leftValue": "={{ $json.cnt }}",
-              "rightValue": "0",
-              "operator": {
-                "type": "number",
-                "operation": "equal"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "id": "n_if_fresh",
-      "name": "IF: not already fresh",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.2,
-      "position": [
         1540,
         300
       ]
     },
     {
-      "parameters": {},
-      "id": "n_skip",
-      "name": "Already Fresh: Skip",
-      "type": "n8n-nodes-base.noOp",
-      "typeVersion": 1,
-      "position": [
-        1760,
-        520
-      ],
-      "notes": "Job from this URL is already in DB and was updated within 24h -- skip."
-    },
-    {
       "parameters": {
-        "jsCode": "// Scraped content has no sender -- always returns unknown risk\nconst ni = $('Normalize Item').item.json.normalized_input;\n\nreturn [{ json: {\n  normalized_input: ni,\n  hard_injection_detected: 'no'\n} }];"
+        "jsCode": "const ni = $('Normalize Item').item.json.normalized_input;\n\nreturn [{ json: {\n  normalized_input: ni,\n  hard_injection_detected: 'no'\n} }];"
       },
       "id": "n_skip_security",
       "name": "Skip Security Checks",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1760,
+        2200,
         300
       ],
-      "notes": "Scraped content is from trusted URLs we configured.\nNo sender domain to check. Injection check still runs inside LLM via system prompt.\nWe still validate LLM output."
+      "notes": "Scraped content is from trusted URLs we configured.\nNo sender domain to check. Injection check still runs inside LLM via system prompt."
     },
     {
       "parameters": {
@@ -226,20 +277,20 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1980,
+        2420,
         300
       ]
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.item.json;\nlet jobEvent;\ntry {\n  let raw = (body.choices[0].message.content || '').trim();\n  raw = raw.replace(/<think>[\\s\\S]*?<\\/think>/gi, '').trim();\n  raw = raw.replace(/^```(?:json)?\\s*/i, '').replace(/\\s*```$/, '').trim();\n  jobEvent = JSON.parse(raw);\n} catch (err) {\n  throw new Error('LLM returned invalid JSON: ' + String(body?.choices?.[0]?.message?.content || '').substring(0, 300));\n}\n\nif (typeof jobEvent.is_job_related !== 'boolean') {\n  throw new Error('Parse error: is_job_related must be boolean, got: ' + typeof jobEvent.is_job_related);\n}\nif (typeof jobEvent.injection_suspected !== 'boolean') jobEvent.injection_suspected = false;\n\nconst ALLOWED_ACTIONS = ['create_job','update_stage','add_interview','add_deadline','log_only','flag_error','ignore'];\nif (!ALLOWED_ACTIONS.includes(jobEvent.action)) {\n  throw new Error('Parse error: invalid action value: ' + String(jobEvent.action));\n}\n\nif (jobEvent.company_id && !/^[a-z0-9][a-z0-9-]*[a-z0-9]$/.test(jobEvent.company_id)) {\n  jobEvent.company_id = jobEvent.company_id.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/--+/g, '-').replace(/^-|-$/g, '');\n}\n\nif (!Array.isArray(jobEvent.tech_stack)) jobEvent.tech_stack = [];\nif (!Array.isArray(jobEvent.key_requirements)) jobEvent.key_requirements = [];\n\nconst JOB_RELATED_CATEGORIES = ['job_posting','hr_invite','interview_invite','test_task','offer','rejection','follow_up','platform_notification','manual_note'];\nif (JOB_RELATED_CATEGORIES.includes(jobEvent.category)) jobEvent.is_job_related = true;\n\njobEvent.is_job_related_str = jobEvent.is_job_related ? 'yes' : 'no';\n\nreturn [{ json: { job_event: jobEvent } }];"
+        "jsCode": "const body = $input.item.json;\nlet jobEvent;\ntry {\n  let raw = (body.choices[0].message.content || '').trim();\n  raw = raw.replace(/<think>[\\s\\S]*?<\\/think>/gi, '').trim();\n  raw = raw.replace(/^```(?:json)?\\s*/i, '').replace(/\\s*```$/, '').trim();\n  // If LLM returned an array (multiple jobs from listing page), take first element\n  if (raw.startsWith('[')) {\n    const arr = JSON.parse(raw);\n    jobEvent = Array.isArray(arr) && arr.length > 0 ? arr[0] : { is_job_related: false, action: 'ignore' };\n  } else {\n    jobEvent = JSON.parse(raw);\n  }\n} catch (err) {\n  // LLM returned non-JSON (e.g. listing page confusion) — silently ignore\n  return [{ json: { job_event: {\n    is_job_related: false,\n    is_job_related_str: 'no',\n    action: 'ignore',\n    category: 'other',\n    injection_suspected: false,\n    tech_stack: [],\n    key_requirements: [],\n    _parse_error: String(err.message).substring(0, 200)\n  } } }];\n}\n\nif (typeof jobEvent.is_job_related !== 'boolean') jobEvent.is_job_related = false;\nif (typeof jobEvent.injection_suspected !== 'boolean') jobEvent.injection_suspected = false;\n\nconst ALLOWED_ACTIONS = ['create_job','update_stage','add_interview','add_deadline','log_only','flag_error','ignore'];\nif (!ALLOWED_ACTIONS.includes(jobEvent.action)) jobEvent.action = 'ignore';\n\nif (jobEvent.company_id && !/^[a-z0-9][a-z0-9-]*[a-z0-9]$/.test(jobEvent.company_id)) {\n  jobEvent.company_id = jobEvent.company_id.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/--+/g, '-').replace(/^-|-$/g, '');\n}\n\nif (!Array.isArray(jobEvent.tech_stack)) jobEvent.tech_stack = [];\nif (!Array.isArray(jobEvent.key_requirements)) jobEvent.key_requirements = [];\n\nconst JOB_RELATED_CATEGORIES = ['job_posting','hr_invite','interview_invite','test_task','offer','rejection','follow_up','platform_notification','manual_note'];\nif (JOB_RELATED_CATEGORIES.includes(jobEvent.category)) jobEvent.is_job_related = true;\n\njobEvent.is_job_related_str = jobEvent.is_job_related ? 'yes' : 'no';\n\nreturn [{ json: { job_event: jobEvent } }];"
       },
       "id": "n_parse",
       "name": "Parse LLM Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2200,
+        2640,
         300
       ]
     },
@@ -266,31 +317,20 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        2420,
+        2860,
         300
       ]
     },
     {
-      "parameters": {},
-      "id": "n_not_related",
-      "name": "Not Job Related: Stop",
-      "type": "n8n-nodes-base.noOp",
-      "typeVersion": 1,
-      "position": [
-        2640,
-        520
-      ]
-    },
-    {
       "parameters": {
-        "jsCode": "/* ============================================================\n   Prepare DB Params -- Firecrawl Flow\n   input_source: scraped, no email_account_id / raw_reference\n   ============================================================ */\n\nconst e = $input.item.json.job_event;\nconst ni = $('Normalize Item').item.json.normalized_input;\nconst rawText = ni.raw_text;\nconst sourceUrl = (ni.raw_meta && ni.raw_meta.url) || null;\n\nfunction sql(v) {\n  if (v === null || v === undefined) return 'NULL';\n  return \"'\" + String(v).replace(/'/g, \"''\") + \"'\";\n}\nfunction num(v) {\n  if (v === null || v === undefined) return 'NULL';\n  const n = parseFloat(v); return isNaN(n) ? 'NULL' : String(n);\n}\nfunction bool(v) { return v === true ? 'TRUE' : 'FALSE'; }\nfunction dt(v)   { return v ? \"'\" + String(v).replace(/'/g, \"''\") + \"'\" : 'NULL'; }\nfunction en(v, t) { return v ? \"'\" + String(v).replace(/'/g, \"''\") + \"'::\" + t : 'NULL'; }\nfunction arr(vals) {\n  if (!vals || vals.length === 0) return \"'{}'\";\n  const parts = vals.map(v => '\"' + String(v).replace(/\\\\/g, '\\\\\\\\').replace(/\"/g, '\\\\\"') + '\"');\n  return \"'\" + '{' + parts.join(',') + '}' + \"'\";\n}\nfunction jsonb(v) {\n  if (!v) return \"'{}'::jsonb\";\n  return \"'\" + JSON.stringify(v).replace(/'/g, \"''\") + \"'::jsonb\";\n}\n\n// For scraped: use source_url from raw_meta (overrides LLM output if present)\nconst finalSourceUrl = sourceUrl || e.source_url || null;\n\nreturn [{\n  json: {\n    job_event: e,\n    db: {\n      company_id_sql:           sql(e.company_id           || 'unknown'),\n      company_name_sql:         sql(e.company_name         || 'Unknown Company'),\n      employer_id_sql:          sql(e.employer_id),\n      employer_name_sql:        sql(e.employer_name),\n      job_id_fuzzy_sql:         sql(e.job_id_fuzzy         || 'unknown__unknown__unknown'),\n      job_title_sql:            sql(e.job_title),\n      location_sql:             sql(e.location),\n      job_thread_key_sql:       sql(e.job_thread_key),\n      seniority_sql:            en(e.seniority,             'seniority_enum'),\n      work_mode_sql:            en(e.work_mode,             'work_mode_enum'),\n      work_mode_raw_sql:        sql(e.work_mode_raw),\n      working_hours_sql:        sql(e.working_hours),\n      salary_currency_sql:      sql(e.salary_currency),\n      salary_min_sql:           num(e.salary_min),\n      salary_max_sql:           num(e.salary_max),\n      salary_period_sql:        en(e.salary_period,         'salary_period_enum'),\n      tech_stack_sql:           arr(e.tech_stack),\n      key_requirements_sql:     arr(e.key_requirements),\n      current_stage_sql:        en(e.stage || 'discovered', 'job_stage_enum'),\n      priority_sql:             en(e.priority,              'priority_enum'),\n      priority_level_sql:       num(e.priority_level),\n      interview_date_sql:       dt(e.interview_date),\n      response_deadline_sql:    dt(e.response_deadline),\n      application_deadline_sql: dt(e.application_deadline),\n      has_had_call_sql:         bool(e.has_had_call),\n      call_count_sql:           String(e.call_count || 0),\n      last_call_date_sql:       dt(e.last_call_date),\n      source_url_sql:           sql(finalSourceUrl),\n      source_input_sql:         en('scraped',               'input_source_enum'),\n      summary_sql:              sql(e.summary),\n      category_sql:             en(e.category,              'job_category_enum'),\n      action_sql:               sql(e.action),\n      is_job_related_sql:       bool(e.is_job_related),\n      call_platform_sql:        en(e.call_platform,         'call_platform_enum'),\n      call_platform_raw_sql:    sql(e.call_platform_raw),\n      raw_text_sql:             sql(rawText),\n      parsed_json_sql:          jsonb(e),\n      sender_risk_level_sql:    sql('unknown'),\n      sender_risk_signals_sql:  arr([])\n    }\n  }\n}];"
+        "jsCode": "/* ============================================================\n   Prepare DB Params -- Firecrawl Flow\n   input_source: scraped, no email_account_id / raw_reference\n   ============================================================ */\n\nconst e = $input.item.json.job_event;\nconst ni = $('Normalize Item').item.json.normalized_input;\nconst rawText = ni.raw_text;\nconst sourceUrl = (ni.raw_meta && ni.raw_meta.url) || null;\n\nfunction sql(v) {\n  if (v === null || v === undefined) return 'NULL';\n  return \"'\" + String(v).replace(/'/g, \"''\") + \"'\";\n}\nfunction num(v) {\n  if (v === null || v === undefined) return 'NULL';\n  const n = parseFloat(v); return isNaN(n) ? 'NULL' : String(n);\n}\nfunction bool(v) { return v === true ? 'TRUE' : 'FALSE'; }\nfunction dt(v)   { return v ? \"'\" + String(v).replace(/'/g, \"''\") + \"'\" : 'NULL'; }\nfunction en(v, t) { return v ? \"'\" + String(v).replace(/'/g, \"''\") + \"'::\" + t : 'NULL'; }\nfunction arr(vals) {\n  if (!vals || vals.length === 0) return \"'{}'\";\n  const parts = vals.map(v => '\"' + String(v).replace(/\\\\/g, '\\\\\\\\').replace(/\"/g, '\\\\\"') + '\"');\n  return \"'\" + '{' + parts.join(',') + '}' + \"'\";\n}\nfunction jsonb(v) {\n  if (!v) return \"'{}'::jsonb\";\n  return \"'\" + JSON.stringify(v).replace(/'/g, \"''\") + \"'::jsonb\";\n}\n\nfunction normWorkMode(v) {\n  if (!v) return null;\n  const s = String(v).toLowerCase().replace(/[-\\s]/g, '_');\n  const map = {\n    on_site: 'onsite', onsite: 'onsite', in_office: 'onsite', office: 'onsite', vor_ort: 'onsite',\n    full_remote: 'remote', fully_remote: 'remote', remote: 'remote', homeoffice: 'remote', home_office: 'remote',\n    hybrid: 'hybrid', partially_remote: 'hybrid', teilweise_remote: 'hybrid'\n  };\n  return map[s] || null;\n}\nfunction normSeniority(v) {\n  if (!v) return null;\n  const s = String(v).toLowerCase().replace(/[-\\s]/g, '_');\n  const map = {\n    intern: 'intern', internship: 'intern', praktikum: 'intern',\n    junior: 'junior', jr: 'junior',\n    middle: 'middle', mid: 'middle', medior: 'middle', intermediate: 'middle',\n    senior: 'senior', sr: 'senior',\n    lead: 'lead', tech_lead: 'lead', team_lead: 'lead',\n    principal: 'principal', staff: 'principal', architect: 'principal'\n  };\n  return map[s] || null;\n}\n\n\nconst finalSourceUrl = sourceUrl || e.source_url || null;\n\nreturn [{\n  json: {\n    job_event: e,\n    db: {\n      company_id_sql:           sql(e.company_id           || 'unknown'),\n      company_name_sql:         sql(e.company_name         || 'Unknown Company'),\n      employer_id_sql:          sql(e.employer_id),\n      employer_name_sql:        sql(e.employer_name),\n      job_id_fuzzy_sql:         sql(e.job_id_fuzzy         || 'unknown__unknown__unknown'),\n      job_title_sql:            sql(e.job_title),\n      location_sql:             sql(e.location),\n      job_thread_key_sql:       sql(e.job_thread_key),\n      seniority_sql:            en(normSeniority(e.seniority),             'seniority_enum'),\n      work_mode_sql:            en(normWorkMode(e.work_mode),             'work_mode_enum'),\n      work_mode_raw_sql:        sql(e.work_mode_raw),\n      working_hours_sql:        sql(e.working_hours),\n      salary_currency_sql:      sql(e.salary_currency),\n      salary_min_sql:           num(e.salary_min),\n      salary_max_sql:           num(e.salary_max),\n      salary_period_sql:        en(e.salary_period,         'salary_period_enum'),\n      tech_stack_sql:           arr(e.tech_stack),\n      key_requirements_sql:     arr(e.key_requirements),\n      current_stage_sql:        en(e.stage || 'discovered', 'job_stage_enum'),\n      priority_sql:             en(e.priority,              'priority_enum'),\n      priority_level_sql:       num(e.priority_level),\n      interview_date_sql:       dt(e.interview_date),\n      response_deadline_sql:    dt(e.response_deadline),\n      application_deadline_sql: dt(e.application_deadline),\n      has_had_call_sql:         bool(e.has_had_call),\n      call_count_sql:           String(e.call_count || 0),\n      last_call_date_sql:       dt(e.last_call_date),\n      source_url_sql:           sql(finalSourceUrl),\n      source_input_sql:         en('scraped',               'input_source_enum'),\n      summary_sql:              sql(e.summary),\n      category_sql:             en(e.category,              'job_category_enum'),\n      action_sql:               sql(e.action),\n      is_job_related_sql:       bool(e.is_job_related),\n      call_platform_sql:        en(e.call_platform,         'call_platform_enum'),\n      call_platform_raw_sql:    sql(e.call_platform_raw),\n      raw_text_sql:             sql(rawText),\n      parsed_json_sql:          jsonb(e),\n      sender_risk_level_sql:    sql('unknown'),\n      sender_risk_signals_sql:  arr([])\n    }\n  }\n}];"
       },
       "id": "n_prepare",
       "name": "Prepare DB Params",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2640,
+        3080,
         300
       ]
     },
@@ -305,13 +345,13 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        2860,
+        3300,
         300
       ],
       "credentials": {
         "postgres": {
-          "id": "ZjjVGIqiRAUVlCk6",
-          "name": "radar"
+          "id": "Tvuhat51UDCzKwnE",
+          "name": "Postgres account"
         }
       }
     },
@@ -338,7 +378,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        3080,
+        3520,
         300
       ]
     },
@@ -348,7 +388,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        3300,
+        3740,
         160
       ],
       "parameters": {
@@ -357,26 +397,98 @@
         "sendBody": true,
         "contentType": "raw",
         "rawContentType": "application/json",
-        "body": "={{ JSON.stringify({  chat_id: $env.TELEGRAM_CHAT_ID,  parse_mode: 'HTML',  text: [    '\\u{1F514} <b>JobRadar: ' + ($('Parse LLM Response').item.json.job_event.company_name || 'Unknown') + '</b>',    ($('Parse LLM Response').item.json.job_event.job_title || '\\u2014'),    '',    'Stage: <code>' + ($json.stage || '') + '</code>  Priority: <b>' + ($json.priority || '') + '</b>',    '',    ($json.summary || '')  ].join('\\n')}) }}",
-        "options": {
-          "timeout": 10000
-        }
+        "body": "={{ JSON.stringify({  chat_id: $env.TELEGRAM_CHAT_ID,  parse_mode: 'HTML',  text: [    '\\u{1F514} <b>JobRadar: ' + ($('Parse LLM Response').item.json.job_event.company_name || 'Unknown') + '</b>',    ($('Parse LLM Response').item.json.job_event.job_title || '\\u2014'),    '',    'Stage: <code>' + ($json.stage || '') + '</code>  Priority: <b>' + ($json.priority || '') + '</b>',    '',    ($json.summary || '')  ].join('\\n')}) }}"
+      }
+    },
+    {
+      "id": "n_filter_expired_8nSk6jvO",
+      "name": "Filter: Skip Expired",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3100,
+        300
+      ],
+      "parameters": {
+        "jsCode": "// Filter: Skip Expired\n// Drops jobs whose deadline has already passed.\n// No deadline → always pass through (we can't know → benefit of the doubt).\nconst e = $('Parse LLM Response').item.json.job_event;\nconst deadline = e.application_deadline || e.response_deadline || null;\n\nif (deadline) {\n  const deadlineDate = new Date(deadline);\n  // Guard: invalid date string → pass through\n  if (!isNaN(deadlineDate.getTime()) && deadlineDate < new Date()) {\n    // Expired — drop silently\n    return [];\n  }\n}\n\nreturn [$input.item];"
       }
     }
   ],
   "connections": {
-    "Scrape Targets": {
+    "Schedule: Daily 04:00": {
       "main": [
         [
           {
-            "node": "Firecrawl: Scrape",
+            "node": "Scrape Targets",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Firecrawl: Scrape": {
+    "Scrape Targets": {
+      "main": [
+        [
+          {
+            "node": "IF: use Jina",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: use Jina": {
+      "main": [
+        [
+          {
+            "node": "Jina AI: Scrape",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Crawl4AI: Scrape",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Jina AI: Scrape": {
+      "main": [
+        [
+          {
+            "node": "Jina: Format as Firecrawl",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Jina: Format as Firecrawl": {
+      "main": [
+        [
+          {
+            "node": "IF: scrape success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Crawl4AI: Scrape": {
+      "main": [
+        [
+          {
+            "node": "Crawl4AI: Format",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Crawl4AI: Format": {
       "main": [
         [
           {
@@ -391,14 +503,19 @@
       "main": [
         [
           {
-            "node": "Normalize Item",
+            "node": "Split: XING Listings",
             "type": "main",
             "index": 0
           }
         ],
+        []
+      ]
+    },
+    "Split: XING Listings": {
+      "main": [
         [
           {
-            "node": "Scrape Failed: Stop",
+            "node": "Normalize Item",
             "type": "main",
             "index": 0
           }
@@ -409,36 +526,7 @@
       "main": [
         [
           {
-            "node": "Dedup Check",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Dedup Check": {
-      "main": [
-        [
-          {
-            "node": "IF: not already fresh",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "IF: not already fresh": {
-      "main": [
-        [
-          {
             "node": "Skip Security Checks",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Already Fresh: Skip",
             "type": "main",
             "index": 0
           }
@@ -482,18 +570,12 @@
       "main": [
         [
           {
-            "node": "Prepare DB Params",
+            "node": "Filter: Skip Expired",
             "type": "main",
             "index": 0
           }
         ],
-        [
-          {
-            "node": "Not Job Related: Stop",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        []
       ]
     },
     "Prepare DB Params": {
@@ -530,11 +612,11 @@
         []
       ]
     },
-    "Schedule: Daily 04:00": {
+    "Filter: Skip Expired": {
       "main": [
         [
           {
-            "node": "Scrape Targets",
+            "node": "Prepare DB Params",
             "type": "main",
             "index": 0
           }

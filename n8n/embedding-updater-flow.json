@@ -1,0 +1,122 @@
+{
+  "name": "JobRadar -- Flow 9: Embedding Updater",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "n_trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT j.id, j.job_title, c.name AS company_name, j.location, j.summary FROM jobs j LEFT JOIN companies c ON c.company_id = j.company_id AND c.tenant_id = j.tenant_id WHERE j.embedding IS NULL ORDER BY j.created_at DESC LIMIT 50",
+        "options": {}
+      },
+      "id": "n_fetch",
+      "name": "DB: Jobs Without Embedding",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [420, 300],
+      "credentials": {
+        "postgres": {
+          "id": "Tvuhat51UDCzKwnE",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "n_split",
+      "name": "Split In Batches",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [640, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.jina.ai/v1/embeddings",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $env.JINA_API_KEY }}" },
+            { "name": "Content-Type",  "value": "application/json" },
+            { "name": "Accept",        "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ model: 'jina-embeddings-v3', task: 'retrieval.passage', dimensions: 1024, input: [[$json.job_title, $json.company_name, $json.location, $json.summary].filter(Boolean).join(' ')] }) }}",
+        "options": { "timeout": 30000 }
+      },
+      "id": "n_embed",
+      "name": "Jina: Generate Embedding",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [860, 300],
+      "notes": "Calls jina-embeddings-v3 (free tier: 1M tokens/month).\nInput: concatenated job_title + company + location + summary.\n1024-dim vector stored in jobs.embedding (pgvector)."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Pull original job row from the fetch node\nconst job = $('DB: Jobs Without Embedding').item.json;\n\n// Jina returns: { data: [{ embedding: [float, ...] }] }\nconst vec = $input.item.json.data[0].embedding;\n\nif (!vec || !vec.length) {\n  throw new Error('Jina returned empty embedding for job ' + job.id);\n}\n\n// pgvector expects '[0.1,0.2,...]' string format\nreturn [{ json: {\n  job_id:    job.id,\n  job_title: job.job_title,\n  embedding: '[' + vec.join(',') + ']'\n}}];"
+      },
+      "id": "n_format",
+      "name": "Format Vector",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1080, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE jobs SET embedding = $1::vector WHERE id = $2::uuid",
+        "options": {
+          "queryReplacement": "={{ $json.embedding }},={{ $json.job_id }}"
+        }
+      },
+      "id": "n_save",
+      "name": "DB: Save Embedding",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1300, 300],
+      "credentials": {
+        "postgres": {
+          "id": "Tvuhat51UDCzKwnE",
+          "name": "Postgres account"
+        }
+      },
+      "notes": "Parameterized UPDATE — $1::vector, $2::uuid.\nSafe: embedding data comes from Jina, not user input."
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [[{ "node": "DB: Jobs Without Embedding", "type": "main", "index": 0 }]]
+    },
+    "DB: Jobs Without Embedding": {
+      "main": [[{ "node": "Split In Batches", "type": "main", "index": 0 }]]
+    },
+    "Split In Batches": {
+      "main": [
+        [],
+        [{ "node": "Jina: Generate Embedding", "type": "main", "index": 0 }]
+      ]
+    },
+    "Jina: Generate Embedding": {
+      "main": [[{ "node": "Format Vector", "type": "main", "index": 0 }]]
+    },
+    "Format Vector": {
+      "main": [[{ "node": "DB: Save Embedding", "type": "main", "index": 0 }]]
+    },
+    "DB: Save Embedding": {
+      "main": [[{ "node": "Split In Batches", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" }
+}

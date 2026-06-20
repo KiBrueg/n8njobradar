@@ -20,7 +20,10 @@
       "name": "Gmail Trigger",
       "type": "n8n-nodes-base.gmailTrigger",
       "typeVersion": 1,
-      "position": [-2848, 64],
+      "position": [
+        -2848,
+        64
+      ],
       "credentials": {
         "gmailOAuth2": {
           "id": "7rf7G4mjBXt01V7T",
@@ -36,7 +39,10 @@
       "name": "Normalize Email",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-2608, 64]
+      "position": [
+        -2608,
+        64
+      ]
     },
     {
       "parameters": {
@@ -46,7 +52,10 @@
       "name": "Sender Risk Check",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-2384, 64]
+      "position": [
+        -2384,
+        64
+      ]
     },
     {
       "parameters": {
@@ -76,7 +85,10 @@
       "name": "IF: sender_risk high",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [-2176, 64]
+      "position": [
+        -2176,
+        64
+      ]
     },
     {
       "parameters": {},
@@ -84,7 +96,10 @@
       "name": "Quarantined: Stop",
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
-      "position": [-1952, 288],
+      "position": [
+        -1952,
+        288
+      ],
       "notes": "High-risk sender — email logged but not processed."
     },
     {
@@ -95,7 +110,10 @@
       "name": "Hard Injection Check",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-1952, 64]
+      "position": [
+        -1952,
+        64
+      ]
     },
     {
       "parameters": {
@@ -125,7 +143,10 @@
       "name": "IF: hard_injection_detected",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [-1728, 64]
+      "position": [
+        -1728,
+        64
+      ]
     },
     {
       "parameters": {},
@@ -133,7 +154,10 @@
       "name": "Injection Detected: Stop",
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
-      "position": [-1504, 288],
+      "position": [
+        -1504,
+        288
+      ],
       "notes": "Injection patterns detected — email discarded."
     },
     {
@@ -165,7 +189,10 @@
       "name": "LLM Call (OpenRouter)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-1504, 64]
+      "position": [
+        -1504,
+        64
+      ]
     },
     {
       "parameters": {
@@ -175,7 +202,10 @@
       "name": "Parse LLM Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-1296, 64]
+      "position": [
+        -1296,
+        64
+      ]
     },
     {
       "parameters": {
@@ -205,7 +235,10 @@
       "name": "IF: is_job_related",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [-1072, 64]
+      "position": [
+        -1072,
+        64
+      ]
     },
     {
       "parameters": {},
@@ -213,18 +246,24 @@
       "name": "Not Job Related: Stop",
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
-      "position": [-848, 288],
+      "position": [
+        -848,
+        288
+      ],
       "notes": "Email is not job-related — not stored."
     },
     {
       "parameters": {
-        "jsCode": "const e = $input.item.json.job_event;\nconst ni = $('Normalize Email').item.json.normalized_input;\nconst rawText = ni.raw_text;\nconst senderRisk = $('Sender Risk Check').item.json;\nconst senderRiskLevel = senderRisk.sender_risk_level || 'unknown';\nconst senderRiskSignals = senderRisk.sender_risk_signals || [];\nconst rawReference = (ni.raw_meta && ni.raw_meta.message_id) || null;\nconst emailDate = ni.date || null;\n\nfunction sql(v) {\n  if (v === null || v === undefined) return 'NULL';\n  return \"'\" + String(v).replace(/'/g, \"''\") + \"'\";\n}\nfunction num(v) {\n  if (v === null || v === undefined) return 'NULL';\n  const n = parseFloat(v); return isNaN(n) ? 'NULL' : String(n);\n}\nfunction bool(v) { return v === true ? 'TRUE' : 'FALSE'; }\nfunction dt(v)   { return v ? \"'\" + String(v).replace(/'/g, \"''\") + \"'\" : 'NULL'; }\nfunction en(v, t) { return v ? \"'\" + String(v).replace(/'/g, \"''\") + \"'::\" + t : 'NULL'; }\nfunction arr(vals) {\n  if (!vals || vals.length === 0) return \"'{}'\";\n  const parts = vals.map(v => '\"' + String(v).replace(/\\\\/g, '\\\\\\\\').replace(/\"/g, '\\\\\"') + '\"');\n  return \"'\" + '{' + parts.join(',') + '}' + \"'\";\n}\nfunction jsonb(v) {\n  if (!v) return \"'{}'::jsonb\";\n  return \"'\" + JSON.stringify(v).replace(/'/g, \"''\") + \"'::jsonb\";\n}\n\nreturn [{\n  json: {\n    job_event: e,\n    db: {\n      company_id_sql:           sql(e.company_id           || 'unknown'),\n      company_name_sql:         sql(e.company_name         || 'Unknown Company'),\n      employer_id_sql:          sql(e.employer_id),\n      employer_name_sql:        sql(e.employer_name),\n      job_id_fuzzy_sql:         sql(e.job_id_fuzzy         || 'unknown__unknown__unknown'),\n      job_title_sql:            sql(e.job_title),\n      location_sql:             sql(e.location),\n      job_thread_key_sql:       sql(e.job_thread_key),\n      seniority_sql:            en(e.seniority,             'seniority_enum'),\n      work_mode_sql:            en(e.work_mode,             'work_mode_enum'),\n      work_mode_raw_sql:        sql(e.work_mode_raw),\n      working_hours_sql:        sql(e.working_hours),\n      salary_currency_sql:      sql(e.salary_currency),\n      salary_min_sql:           num(e.salary_min),\n      salary_max_sql:           num(e.salary_max),\n      salary_period_sql:        en(e.salary_period,         'salary_period_enum'),\n      tech_stack_sql:           arr(e.tech_stack),\n      key_requirements_sql:     arr(e.key_requirements),\n      current_stage_sql:        en(e.stage || 'discovered', 'job_stage_enum'),\n      priority_sql:             en(e.priority,              'priority_enum'),\n      priority_level_sql:       num(e.priority_level),\n      interview_date_sql:       dt(e.interview_date),\n      response_deadline_sql:    dt(e.response_deadline),\n      application_deadline_sql: dt(e.application_deadline),\n      has_had_call_sql:         bool(e.has_had_call),\n      call_count_sql:           String(e.call_count || 0),\n      last_call_date_sql:       dt(e.last_call_date),\n      source_url_sql:           sql(e.source_url),\n      source_input_sql:         en(e.input_source,          'input_source_enum'),\n      summary_sql:              sql(e.summary),\n      category_sql:             en(e.category,              'job_category_enum'),\n      action_sql:               sql(e.action),\n      is_job_related_sql:       bool(e.is_job_related),\n      call_platform_sql:        en(e.call_platform,         'call_platform_enum'),\n      call_platform_raw_sql:    sql(e.call_platform_raw),\n      raw_text_sql:             sql(rawText),\n      parsed_json_sql:          jsonb(e),\n      email_account_id_sql:     sql(ni.email_account_id),\n      raw_reference_sql:        sql(rawReference),\n      email_date_sql:           dt(emailDate),\n      sender_risk_level_sql:    sql(senderRiskLevel),\n      sender_risk_signals_sql:  arr(senderRiskSignals)\n    }\n  }\n}];"
+        "jsCode": "const e = $input.item.json.job_event;\nconst ni = $('Normalize Email').item.json.normalized_input;\nconst rawText = ni.raw_text;\nconst senderRisk = $('Sender Risk Check').item.json;\nconst senderRiskLevel = senderRisk.sender_risk_level || 'unknown';\nconst senderRiskSignals = senderRisk.sender_risk_signals || [];\nconst rawReference = (ni.raw_meta && ni.raw_meta.message_id) || null;\nconst emailDate = ni.date || null;\n\nfunction sql(v) {\n  if (v === null || v === undefined) return 'NULL';\n  return \"'\" + String(v).replace(/'/g, \"''\") + \"'\";\n}\nfunction num(v) {\n  if (v === null || v === undefined) return 'NULL';\n  const n = parseFloat(v); return isNaN(n) ? 'NULL' : String(n);\n}\nfunction bool(v) { return v === true ? 'TRUE' : 'FALSE'; }\nfunction dt(v)   { return v ? \"'\" + String(v).replace(/'/g, \"''\") + \"'\" : 'NULL'; }\nfunction en(v, t) { return v ? \"'\" + String(v).replace(/'/g, \"''\") + \"'::\" + t : 'NULL'; }\nfunction arr(vals) {\n  if (!vals || vals.length === 0) return \"'{}'\";\n  const parts = vals.map(v => '\"' + String(v).replace(/\\\\/g, '\\\\\\\\').replace(/\"/g, '\\\\\"') + '\"');\n  return \"'\" + '{' + parts.join(',') + '}' + \"'\";\n}\nfunction jsonb(v) {\n  if (!v) return \"'{}'::jsonb\";\n  return \"'\" + JSON.stringify(v).replace(/'/g, \"''\") + \"'::jsonb\";\n}\n\nfunction normWorkMode(v) {\n  if (!v) return null;\n  const s = String(v).toLowerCase().replace(/[-\\s]/g, '_');\n  const map = {\n    on_site: 'onsite', onsite: 'onsite', in_office: 'onsite', office: 'onsite', vor_ort: 'onsite',\n    full_remote: 'remote', fully_remote: 'remote', remote: 'remote', homeoffice: 'remote', home_office: 'remote',\n    hybrid: 'hybrid', partially_remote: 'hybrid', teilweise_remote: 'hybrid'\n  };\n  return map[s] || null;\n}\nfunction normSeniority(v) {\n  if (!v) return null;\n  const s = String(v).toLowerCase().replace(/[-\\s]/g, '_');\n  const map = {\n    intern: 'intern', internship: 'intern', praktikum: 'intern',\n    junior: 'junior', jr: 'junior',\n    middle: 'middle', mid: 'middle', medior: 'middle', intermediate: 'middle',\n    senior: 'senior', sr: 'senior',\n    lead: 'lead', tech_lead: 'lead', team_lead: 'lead',\n    principal: 'principal', staff: 'principal', architect: 'principal'\n  };\n  return map[s] || null;\n}\n\n\nreturn [{\n  json: {\n    job_event: e,\n    db: {\n      company_id_sql:           sql(e.company_id           || 'unknown'),\n      company_name_sql:         sql(e.company_name         || 'Unknown Company'),\n      employer_id_sql:          sql(e.employer_id),\n      employer_name_sql:        sql(e.employer_name),\n      job_id_fuzzy_sql:         sql(e.job_id_fuzzy         || 'unknown__unknown__unknown'),\n      job_title_sql:            sql(e.job_title),\n      location_sql:             sql(e.location),\n      job_thread_key_sql:       sql(e.job_thread_key),\n      seniority_sql:            en(normSeniority(e.seniority),             'seniority_enum'),\n      work_mode_sql:            en(normWorkMode(e.work_mode),             'work_mode_enum'),\n      work_mode_raw_sql:        sql(e.work_mode_raw),\n      working_hours_sql:        sql(e.working_hours),\n      salary_currency_sql:      sql(e.salary_currency),\n      salary_min_sql:           num(e.salary_min),\n      salary_max_sql:           num(e.salary_max),\n      salary_period_sql:        en(e.salary_period,         'salary_period_enum'),\n      tech_stack_sql:           arr(e.tech_stack),\n      key_requirements_sql:     arr(e.key_requirements),\n      current_stage_sql:        en(e.stage || 'discovered', 'job_stage_enum'),\n      priority_sql:             en(e.priority,              'priority_enum'),\n      priority_level_sql:       num(e.priority_level),\n      interview_date_sql:       dt(e.interview_date),\n      response_deadline_sql:    dt(e.response_deadline),\n      application_deadline_sql: dt(e.application_deadline),\n      has_had_call_sql:         bool(e.has_had_call),\n      call_count_sql:           String(e.call_count || 0),\n      last_call_date_sql:       dt(e.last_call_date),\n      source_url_sql:           sql(e.source_url),\n      source_input_sql:         en(e.input_source,          'input_source_enum'),\n      summary_sql:              sql(e.summary),\n      category_sql:             en(e.category,              'job_category_enum'),\n      action_sql:               sql(e.action),\n      is_job_related_sql:       bool(e.is_job_related),\n      call_platform_sql:        en(e.call_platform,         'call_platform_enum'),\n      call_platform_raw_sql:    sql(e.call_platform_raw),\n      raw_text_sql:             sql(rawText),\n      parsed_json_sql:          jsonb(e),\n      email_account_id_sql:     sql(ni.email_account_id),\n      raw_reference_sql:        sql(rawReference),\n      email_date_sql:           dt(emailDate),\n      sender_risk_level_sql:    sql(senderRiskLevel),\n      sender_risk_signals_sql:  arr(senderRiskSignals)\n    }\n  }\n}];"
       },
       "id": "13b41073-4870-427f-b607-92cc8d366703",
       "name": "Prepare DB Params",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-848, 64]
+      "position": [
+        -848,
+        64
+      ]
     },
     {
       "parameters": {
@@ -236,7 +275,10 @@
       "name": "DB: Write All",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [-624, 64],
+      "position": [
+        -624,
+        64
+      ],
       "credentials": {
         "postgres": {
           "id": "ZjjVGIqiRAUVlCk6",
@@ -252,7 +294,10 @@
       "name": "Map Category → Gmail Label",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-416, 64]
+      "position": [
+        -416,
+        64
+      ]
     },
     {
       "parameters": {
@@ -267,7 +312,10 @@
       "name": "Gmail: Fetch Labels",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [16, -80],
+      "position": [
+        16,
+        -80
+      ],
       "credentials": {
         "gmailOAuth2": {
           "id": "7rf7G4mjBXt01V7T",
@@ -283,7 +331,10 @@
       "name": "Gmail: Find Label ID",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [240, -224]
+      "position": [
+        240,
+        -224
+      ]
     },
     {
       "parameters": {
@@ -315,7 +366,10 @@
       "name": "IF: label_found",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
-      "position": [496, -112]
+      "position": [
+        496,
+        -112
+      ]
     },
     {
       "parameters": {
@@ -335,7 +389,10 @@
       "name": "Gmail: Apply Label",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [720, -64],
+      "position": [
+        720,
+        -64
+      ],
       "credentials": {
         "gmailOAuth2": {
           "id": "7rf7G4mjBXt01V7T",
@@ -362,7 +419,10 @@
       "name": "Google Calendar: Create Event",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [688, 256],
+      "position": [
+        688,
+        256
+      ],
       "credentials": {
         "googleCalendarOAuth2Api": {
           "id": "",
@@ -401,7 +461,10 @@
       "name": "IF: priority = high",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [32, 464]
+      "position": [
+        32,
+        464
+      ]
     },
     {
       "parameters": {
@@ -419,14 +482,20 @@
       "name": "Telegram: Job Alert",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [672, 496],
+      "position": [
+        672,
+        496
+      ],
       "onError": "continueRegularOutput"
     },
     {
       "parameters": {},
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
-      "position": [352, 80],
+      "position": [
+        352,
+        80
+      ],
       "id": "93009ee0-4985-4eb6-bb3d-4a954c56d67e",
       "name": "No Operation, do nothing"
     },
@@ -434,7 +503,10 @@
       "parameters": {},
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
-      "position": [320, 624],
+      "position": [
+        320,
+        624
+      ],
       "id": "bf068dbf-6291-4324-89c3-12fba8bd2042",
       "name": "No Operation, do nothing2"
     },
@@ -444,83 +516,246 @@
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [64, 192],
+      "position": [
+        64,
+        192
+      ],
       "id": "a41eb2d5-3cc9-4d12-97f4-2eb2e2280fee",
       "name": "Filter: has interview_date"
     }
   ],
   "connections": {
     "Gmail Trigger": {
-      "main": [[{ "node": "Normalize Email", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Normalize Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Normalize Email": {
-      "main": [[{ "node": "Sender Risk Check", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Sender Risk Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Sender Risk Check": {
-      "main": [[{ "node": "IF: sender_risk high", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "IF: sender_risk high",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "IF: sender_risk high": {
       "main": [
-        [{ "node": "Hard Injection Check", "type": "main", "index": 0 }],
-        [{ "node": "Quarantined: Stop", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Hard Injection Check",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Quarantined: Stop",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Hard Injection Check": {
-      "main": [[{ "node": "IF: hard_injection_detected", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "IF: hard_injection_detected",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "IF: hard_injection_detected": {
       "main": [
-        [{ "node": "LLM Call (OpenRouter)", "type": "main", "index": 0 }],
-        [{ "node": "Injection Detected: Stop", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "LLM Call (OpenRouter)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Injection Detected: Stop",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "LLM Call (OpenRouter)": {
-      "main": [[{ "node": "Parse LLM Response", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Parse LLM Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Parse LLM Response": {
-      "main": [[{ "node": "IF: is_job_related", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "IF: is_job_related",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "IF: is_job_related": {
       "main": [
-        [{ "node": "Prepare DB Params", "type": "main", "index": 0 }],
-        [{ "node": "Not Job Related: Stop", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Prepare DB Params",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Not Job Related: Stop",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Prepare DB Params": {
-      "main": [[{ "node": "DB: Write All", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "DB: Write All",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "DB: Write All": {
-      "main": [[{ "node": "Map Category → Gmail Label", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Map Category → Gmail Label",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Map Category → Gmail Label": {
       "main": [
         [
-          { "node": "Gmail: Fetch Labels", "type": "main", "index": 0 },
-          { "node": "IF: priority = high", "type": "main", "index": 0 },
-          { "node": "Filter: has interview_date", "type": "main", "index": 0 }
+          {
+            "node": "Gmail: Fetch Labels",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "IF: priority = high",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Filter: has interview_date",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Gmail: Fetch Labels": {
-      "main": [[{ "node": "Gmail: Find Label ID", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Gmail: Find Label ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Gmail: Find Label ID": {
-      "main": [[{ "node": "IF: label_found", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "IF: label_found",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "IF: label_found": {
       "main": [
-        [{ "node": "Gmail: Apply Label", "type": "main", "index": 0 }],
-        [{ "node": "No Operation, do nothing", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Gmail: Apply Label",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Operation, do nothing",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "IF: priority = high": {
       "main": [
-        [{ "node": "Telegram: Job Alert", "type": "main", "index": 0 }],
-        [{ "node": "No Operation, do nothing2", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Telegram: Job Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Operation, do nothing2",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Filter: has interview_date": {
-      "main": [[{ "node": "Google Calendar: Create Event", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Google Calendar: Create Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "settings": {

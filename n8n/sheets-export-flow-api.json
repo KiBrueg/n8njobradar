@@ -1,0 +1,115 @@
+{
+  "name": "JobRadar -- Flow 6: Sheets Export",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "n_trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        200,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  COALESCE((ev.parsed_json->>'relevance_score')::int, 0)     AS relevance_score,\n  CASE\n    WHEN j.source_url LIKE '%xing.com%'            THEN 'XING'\n    WHEN j.source_url LIKE '%linkedin.com%'         THEN 'LinkedIn'\n    WHEN j.source_url LIKE '%berlinstartupjobs%'    THEN 'BerlinStartupJobs'\n    WHEN j.source_url LIKE '%indeed.%'              THEN 'Indeed'\n    WHEN j.source_url LIKE '%greenhouse.io%'        THEN 'Greenhouse'\n    WHEN j.source_url LIKE '%lever.co%'             THEN 'Lever'\n    WHEN j.source_url LIKE '%arbeitnow%'            THEN 'Arbeitnow'\n    WHEN j.source_url LIKE '%remotive%'             THEN 'Remotive'\n    WHEN j.source_url LIKE '%weworkremotely%'       THEN 'WeWorkRemotely'\n    WHEN j.source_url LIKE '%remotely.de%'          THEN 'Remotely.de'\n    WHEN j.source_url LIKE '%devjobs.de%'           THEN 'DevJobs'\n    WHEN j.source_input::text = 'manual'            THEN 'Manual'\n    ELSE regexp_replace(j.source_url, '^https?://(?:www\\.)?([^/?#]+).*$', '\u0001')\n  END                                                        AS source_site,\n  c.name                                                     AS company,\n  emp.name                                                   AS employer_name,\n  j.job_title,\n  j.seniority::text,\n  j.location,\n  j.work_mode::text,\n  j.current_stage::text,\n  j.summary,\n  j.source_url,\n  j.created_at::text\nFROM jobs j\nJOIN companies c ON c.company_id = j.company_id AND c.tenant_id = j.tenant_id\nLEFT JOIN employers emp ON emp.employer_id = j.employer_id AND emp.tenant_id = j.tenant_id\nJOIN LATERAL (\n  SELECT parsed_json\n  FROM job_events\n  WHERE job_id = j.id\n  ORDER BY created_at DESC\n  LIMIT 1\n) ev ON TRUE\nWHERE (j.seniority IS NULL OR j.seniority::text NOT IN ('senior', 'lead', 'principal', 'staff', 'head', 'executive'))\nORDER BY relevance_score DESC, j.created_at DESC",
+        "options": {}
+      },
+      "id": "n_db",
+      "name": "DB: Fetch All Jobs",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        420,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "Tvuhat51UDCzKwnE",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const jobs = $input.all().map(item => item.json);\nreturn [{ json: { jobs } }];"
+      },
+      "id": "n_aggregate",
+      "name": "Aggregate Jobs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://script.google.com/macros/s/AKfycbxr-48SV19FCbsVsBJ7wSfnq2Qxw68YbD8TyU28cvlfQ70h0vpvmJuCQ5XdGW9wyOqpbw/exec",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify($json) }}",
+        "options": {
+          "timeout": 30000,
+          "redirect": {
+            "redirect": {
+              "followRedirects": true,
+              "maxRedirects": 5
+            }
+          }
+        }
+      },
+      "id": "n_gas",
+      "name": "GAS: Write to Sheets",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        860,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "DB: Fetch All Jobs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Fetch All Jobs": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Jobs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Jobs": {
+      "main": [
+        [
+          {
+            "node": "GAS: Write to Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

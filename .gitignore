@@ -10,6 +10,7 @@
 *.pem
 *.p12
 secrets/
+.mcp.json
 
 # --- Session summaries (contain real IPs, API keys, emails) ---
 sessions/
@@ -39,6 +40,19 @@ outputs/
 *.bak
 *.sql.gz
 n8n/*-clean.json
+
+# --- Temp / working files (patch scripts, live exports, test payloads) ---
+*_live.json
+*_patched.json
+*_patch.json
+*_fixed.json
+*-fixed.json
+*_current.json
+*-current.json
+test_payload.json
+scripts/deploy_payloads/
+scripts/update_prompt_vps.py
+gas/sheets-writer-v2.gs
 
 # --- OS ---
 .DS_Store

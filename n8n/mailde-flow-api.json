@@ -53,7 +53,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const msg = $input.item.json;\n\n// Parse sender from 'from' field: \"Name <email>\" or bare \"email@domain\"\nconst fromRaw = msg.from || '';\nconst emailMatch = fromRaw.match(/<([^>]+)>/) || fromRaw.match(/([^\\s]+@[^\\s]+)/);\nconst senderEmail = emailMatch ? emailMatch[1].toLowerCase().trim() : null;\nconst senderDomain = senderEmail ? senderEmail.split('@')[1] : null;\n\n// Prefer plain text; fall back to stripping HTML\nlet rawText = msg.text || '';\nif (!rawText && msg.html) {\n  rawText = msg.html.replace(/<[^>]+>/g, ' ').replace(/\\s+/g, ' ').trim();\n}\nrawText = rawText.substring(0, 10000);\n\n// Build thread key from In-Reply-To or References header if available\nconst messageId = msg.messageId || msg.headers?.['message-id'] || null;\n\nreturn [{\n  json: {\n    normalized_input: {\n      input_source: 'email',\n      source_detail: 'email',\n      email_account_id: 'mailde_main',\n      email_address: $env.MAILDE_ADDRESS || null,\n      email_provider: 'imap',\n      subject: msg.subject || null,\n      date: msg.date || new Date().toISOString(),\n      raw_text: rawText,\n      raw_meta: {\n        message_id: messageId,\n        sender: fromRaw,\n        sender_email: senderEmail,\n        sender_domain: senderDomain\n      }\n    }\n  }\n}];"
+        "jsCode": "// UTF-8 sanitizer: replace malformed chars before processing\nfunction sanitizeText(s) {\n  if (!s) return s;\n  return String(s)\n    .replace(/\\uFFFD/g, '')   // replacement char\n    .replace(/\\u0000/g, '')   // null bytes\n    .trim();\n}\n\nconst msg = $input.item.json;\n\n// Parse sender from 'from' field: \"Name <email>\" or bare \"email@domain\"\nconst fromRaw = msg.from || '';\nconst emailMatch = fromRaw.match(/<([^>]+)>/) || fromRaw.match(/([^\\s]+@[^\\s]+)/);\nconst senderEmail = emailMatch ? emailMatch[1].toLowerCase().trim() : null;\nconst senderDomain = senderEmail ? senderEmail.split('@')[1] : null;\n\n// Prefer plain text; fall back to stripping HTML\nlet rawText = msg.text || '';\nif (!rawText && msg.html) {\n  rawText = msg.html.replace(/<[^>]+>/g, ' ').replace(/\\s+/g, ' ').trim();\n}\nrawText = rawText.substring(0, 10000);\n\n// Build thread key from In-Reply-To or References header if available\nconst messageId = msg.messageId || msg.headers?.['message-id'] || null;\n\nreturn [{\n  json: {\n    normalized_input: {\n      input_source: 'email',\n      source_detail: 'email',\n      email_account_id: 'mailde_main',\n      email_address: $env.MAILDE_ADDRESS || null,\n      email_provider: 'imap',\n      subject: msg.subject || null,\n      date: msg.date || new Date().toISOString(),\n      raw_text: rawText,\n      raw_meta: {\n        message_id: messageId,\n        sender: fromRaw,\n        sender_email: senderEmail,\n        sender_domain: senderDomain\n      }\n    }\n  }\n}];"
       },
       "id": "n_normalize",
       "name": "Normalize Email",
@@ -105,18 +105,6 @@
       ]
     },
     {
-      "parameters": {},
-      "id": "n_quarantine",
-      "name": "Quarantined: Stop",
-      "type": "n8n-nodes-base.noOp",
-      "typeVersion": 1,
-      "position": [
-        1320,
-        520
-      ],
-      "notes": "High-risk sender — email not processed.\nIMAPnode marks as read implicitly on next poll if desired."
-    },
-    {
       "parameters": {
         "jsCode": "const ni = $input.item.json.normalized_input;\n\nconst MAX_RAW = 10000;\nif (ni.raw_text && ni.raw_text.length > MAX_RAW) {\n  ni.raw_text = ni.raw_text.substring(0, MAX_RAW);\n}\n\nconst text = [(ni.raw_text || ''), (ni.subject || '')].join(' ').toLowerCase();\n\nconst INJECTION_PATTERNS = [\n  /ignore\\s+(all\\s+)?(previous|prior|above|earlier)\\s+instructions?/i,\n  /forget\\s+(your\\s+)?(rules?|instructions?|guidelines?|prompt|system)/i,\n  /you\\s+are\\s+now\\s+(a\\s+)?(?:an?\\s+)?(?:new|different|another|unrestricted)/i,\n  /act\\s+as\\s+(?:if\\s+you\\s+are\\s+)?(?:a\\s+)?(?:different|another|unrestricted|jailbreak)/i,\n  /\\[\\s*(?:INST|SYS|SYSTEM|ADMIN|ROOT|OVERRIDE)\\s*\\]/i,\n  /<\\|\\s*(?:system|assistant|user|im_start|im_end)\\s*\\|>/i,\n  /(?:^|\\s)SYSTEM\\s*:/im,\n  /(?:^|\\s)ADMIN\\s*:/im,\n  /from\\s*:\\s*anthropic/i,\n  /new\\s+role\\s*:/i,\n  /your\\s+new\\s+(instructions?|rules?|persona|role)\\s+(are|is)/i,\n  /disregard\\s+(all\\s+)?(previous|prior|your)\\s+(instructions?|rules?)/i,\n  /override\\s+(safety|content|all)\\s*(filter|policy|rules?|restrictions?|guidelines?)/i,\n  /pretend\\s+(you\\s+)?(have\\s+no|there\\s+are\\s+no|to\\s+be\\s+(?:a\\s+)?(?:different|another))/i,\n  /do\\s+not\\s+follow\\s+(your\\s+)?(rules?|guidelines?|instructions?|training)/i,\n  /reveal\\s+(your\\s+)?(system\\s+prompt|instructions?|secrets?|api\\s+key)/i,\n  /print\\s+(your\\s+)?(system\\s+prompt|instructions?|configuration)/i,\n  /token\\s+manipulation|context\\s+injection|prompt\\s+leak/i\n];\n\nconst detected = INJECTION_PATTERNS.some(p => p.test(text));\n\nreturn [{ json: {\n  normalized_input: ni,\n  hard_injection_detected: detected ? 'yes' : 'no'\n} }];"
       },
@@ -154,17 +142,6 @@
       "position": [
         1540,
         300
-      ]
-    },
-    {
-      "parameters": {},
-      "id": "n_injection_stop",
-      "name": "Injection Detected: Stop",
-      "type": "n8n-nodes-base.noOp",
-      "typeVersion": 1,
-      "position": [
-        1760,
-        520
       ]
     },
     {
@@ -242,19 +219,8 @@
       ]
     },
     {
-      "parameters": {},
-      "id": "n_not_related",
-      "name": "Not Job Related: Stop",
-      "type": "n8n-nodes-base.noOp",
-      "typeVersion": 1,
-      "position": [
-        2420,
-        520
-      ]
-    },
-    {
       "parameters": {
-        "jsCode": "/* ============================================================\n   Prepare DB Params — mail.de IMAP Flow\n   email_account_id: mailde_main\n   ============================================================ */\n\nconst e = $input.item.json.job_event;\nconst ni = $('Normalize Email').item.json.normalized_input;\nconst rawText = ni.raw_text;\nconst senderRisk = $('Sender Risk Check').item.json;\nconst senderRiskLevel = senderRisk.sender_risk_level || 'unknown';\nconst senderRiskSignals = senderRisk.sender_risk_signals || [];\nconst rawReference = (ni.raw_meta && ni.raw_meta.message_id) || null;\nconst emailDate = ni.date || null;\n\nfunction sql(v) {\n  if (v === null || v === undefined) return 'NULL';\n  return \"'\" + String(v).replace(/'/g, \"''\") + \"'\";\n}\nfunction num(v) {\n  if (v === null || v === undefined) return 'NULL';\n  const n = parseFloat(v); return isNaN(n) ? 'NULL' : String(n);\n}\nfunction bool(v) { return v === true ? 'TRUE' : 'FALSE'; }\nfunction dt(v)   { return v ? \"'\" + String(v).replace(/'/g, \"''\") + \"'\" : 'NULL'; }\nfunction en(v, t) { return v ? \"'\" + String(v).replace(/'/g, \"''\") + \"'::\" + t : 'NULL'; }\nfunction arr(vals) {\n  if (!vals || vals.length === 0) return \"'{}'\";\n  const parts = vals.map(v => '\"' + String(v).replace(/\\\\/g, '\\\\\\\\').replace(/\"/g, '\\\\\"') + '\"');\n  return \"'\" + '{' + parts.join(',') + '}' + \"'\";\n}\nfunction jsonb(v) {\n  if (!v) return \"'{}'::jsonb\";\n  return \"'\" + JSON.stringify(v).replace(/'/g, \"''\") + \"'::jsonb\";\n}\n\nreturn [{\n  json: {\n    job_event: e,\n    db: {\n      company_id_sql:           sql(e.company_id           || 'unknown'),\n      company_name_sql:         sql(e.company_name         || 'Unknown Company'),\n      employer_id_sql:          sql(e.employer_id),\n      employer_name_sql:        sql(e.employer_name),\n      job_id_fuzzy_sql:         sql(e.job_id_fuzzy         || 'unknown__unknown__unknown'),\n      job_title_sql:            sql(e.job_title),\n      location_sql:             sql(e.location),\n      job_thread_key_sql:       sql(e.job_thread_key),\n      seniority_sql:            en(e.seniority,             'seniority_enum'),\n      work_mode_sql:            en(e.work_mode,             'work_mode_enum'),\n      work_mode_raw_sql:        sql(e.work_mode_raw),\n      working_hours_sql:        sql(e.working_hours),\n      salary_currency_sql:      sql(e.salary_currency),\n      salary_min_sql:           num(e.salary_min),\n      salary_max_sql:           num(e.salary_max),\n      salary_period_sql:        en(e.salary_period,         'salary_period_enum'),\n      tech_stack_sql:           arr(e.tech_stack),\n      key_requirements_sql:     arr(e.key_requirements),\n      current_stage_sql:        en(e.stage || 'discovered', 'job_stage_enum'),\n      priority_sql:             en(e.priority,              'priority_enum'),\n      priority_level_sql:       num(e.priority_level),\n      interview_date_sql:       dt(e.interview_date),\n      response_deadline_sql:    dt(e.response_deadline),\n      application_deadline_sql: dt(e.application_deadline),\n      has_had_call_sql:         bool(e.has_had_call),\n      call_count_sql:           String(e.call_count || 0),\n      last_call_date_sql:       dt(e.last_call_date),\n      source_url_sql:           sql(e.source_url),\n      source_input_sql:         en(e.input_source,          'input_source_enum'),\n      summary_sql:              sql(e.summary),\n      category_sql:             en(e.category,              'job_category_enum'),\n      action_sql:               sql(e.action),\n      is_job_related_sql:       bool(e.is_job_related),\n      call_platform_sql:        en(e.call_platform,         'call_platform_enum'),\n      call_platform_raw_sql:    sql(e.call_platform_raw),\n      raw_text_sql:             sql(rawText),\n      parsed_json_sql:          jsonb(e),\n      email_account_id_sql:     sql(ni.email_account_id),\n      raw_reference_sql:        sql(rawReference),\n      email_date_sql:           dt(emailDate),\n      sender_risk_level_sql:    sql(senderRiskLevel),\n      sender_risk_signals_sql:  arr(senderRiskSignals)\n    }\n  }\n}];"
+        "jsCode": "/* ============================================================\n   Prepare DB Params — mail.de IMAP Flow\n   email_account_id: mailde_main\n   ============================================================ */\n\nconst e = $input.item.json.job_event;\nconst ni = $('Normalize Email').item.json.normalized_input;\nconst rawText = ni.raw_text;\nconst senderRisk = $('Sender Risk Check').item.json;\nconst senderRiskLevel = senderRisk.sender_risk_level || 'unknown';\nconst senderRiskSignals = senderRisk.sender_risk_signals || [];\nconst rawReference = (ni.raw_meta && ni.raw_meta.message_id) || null;\nconst emailDate = ni.date || null;\n\nfunction sql(v) {\n  if (v === null || v === undefined) return 'NULL';\n  return \"'\" + String(v).replace(/'/g, \"''\") + \"'\";\n}\nfunction num(v) {\n  if (v === null || v === undefined) return 'NULL';\n  const n = parseFloat(v); return isNaN(n) ? 'NULL' : String(n);\n}\nfunction bool(v) { return v === true ? 'TRUE' : 'FALSE'; }\nfunction dt(v)   { return v ? \"'\" + String(v).replace(/'/g, \"''\") + \"'\" : 'NULL'; }\nfunction en(v, t) { return v ? \"'\" + String(v).replace(/'/g, \"''\") + \"'::\" + t : 'NULL'; }\nfunction arr(vals) {\n  if (!vals || vals.length === 0) return \"'{}'\";\n  const parts = vals.map(v => '\"' + String(v).replace(/\\\\/g, '\\\\\\\\').replace(/\"/g, '\\\\\"') + '\"');\n  return \"'\" + '{' + parts.join(',') + '}' + \"'\";\n}\nfunction jsonb(v) {\n  if (!v) return \"'{}'::jsonb\";\n  return \"'\" + JSON.stringify(v).replace(/'/g, \"''\") + \"'::jsonb\";\n}\n\nfunction normWorkMode(v) {\n  if (!v) return null;\n  const s = String(v).toLowerCase().replace(/[-\\s]/g, '_');\n  const map = {\n    on_site: 'onsite', onsite: 'onsite', in_office: 'onsite', office: 'onsite', vor_ort: 'onsite',\n    full_remote: 'remote', fully_remote: 'remote', remote: 'remote', homeoffice: 'remote', home_office: 'remote',\n    hybrid: 'hybrid', partially_remote: 'hybrid', teilweise_remote: 'hybrid'\n  };\n  return map[s] || null;\n}\nfunction normSeniority(v) {\n  if (!v) return null;\n  const s = String(v).toLowerCase().replace(/[-\\s]/g, '_');\n  const map = {\n    intern: 'intern', internship: 'intern', praktikum: 'intern',\n    junior: 'junior', jr: 'junior',\n    middle: 'middle', mid: 'middle', medior: 'middle', intermediate: 'middle',\n    senior: 'senior', sr: 'senior',\n    lead: 'lead', tech_lead: 'lead', team_lead: 'lead',\n    principal: 'principal', staff: 'principal', architect: 'principal'\n  };\n  return map[s] || null;\n}\n\n\nreturn [{\n  json: {\n    job_event: e,\n    db: {\n      company_id_sql:           sql(e.company_id           || 'unknown'),\n      company_name_sql:         sql(e.company_name         || 'Unknown Company'),\n      employer_id_sql:          sql(e.employer_id),\n      employer_name_sql:        sql(e.employer_name),\n      job_id_fuzzy_sql:         sql(e.job_id_fuzzy         || 'unknown__unknown__unknown'),\n      job_title_sql:            sql(e.job_title),\n      location_sql:             sql(e.location),\n      job_thread_key_sql:       sql(e.job_thread_key),\n      seniority_sql:            en(normSeniority(e.seniority),             'seniority_enum'),\n      work_mode_sql:            en(normWorkMode(e.work_mode),             'work_mode_enum'),\n      work_mode_raw_sql:        sql(e.work_mode_raw),\n      working_hours_sql:        sql(e.working_hours),\n      salary_currency_sql:      sql(e.salary_currency),\n      salary_min_sql:           num(e.salary_min),\n      salary_max_sql:           num(e.salary_max),\n      salary_period_sql:        en(e.salary_period,         'salary_period_enum'),\n      tech_stack_sql:           arr(e.tech_stack),\n      key_requirements_sql:     arr(e.key_requirements),\n      current_stage_sql:        en(e.stage || 'discovered', 'job_stage_enum'),\n      priority_sql:             en(e.priority,              'priority_enum'),\n      priority_level_sql:       num(e.priority_level),\n      interview_date_sql:       dt(e.interview_date),\n      response_deadline_sql:    dt(e.response_deadline),\n      application_deadline_sql: dt(e.application_deadline),\n      has_had_call_sql:         bool(e.has_had_call),\n      call_count_sql:           String(e.call_count || 0),\n      last_call_date_sql:       dt(e.last_call_date),\n      source_url_sql:           sql(e.source_url),\n      source_input_sql:         en(e.input_source,          'input_source_enum'),\n      summary_sql:              sql(e.summary),\n      category_sql:             en(e.category,              'job_category_enum'),\n      action_sql:               sql(e.action),\n      is_job_related_sql:       bool(e.is_job_related),\n      call_platform_sql:        en(e.call_platform,         'call_platform_enum'),\n      call_platform_raw_sql:    sql(e.call_platform_raw),\n      raw_text_sql:             sql(rawText),\n      parsed_json_sql:          jsonb(e),\n      email_account_id_sql:     sql(ni.email_account_id),\n      raw_reference_sql:        sql(rawReference),\n      email_date_sql:           dt(emailDate),\n      sender_risk_level_sql:    sql(senderRiskLevel),\n      sender_risk_signals_sql:  arr(senderRiskSignals)\n    }\n  }\n}];"
       },
       "id": "n_prepare",
       "name": "Prepare DB Params",
@@ -281,8 +247,8 @@
       ],
       "credentials": {
         "postgres": {
-          "id": "ZjjVGIqiRAUVlCk6",
-          "name": "radar"
+          "id": "Tvuhat51UDCzKwnE",
+          "name": "Postgres account"
         }
       }
     },
@@ -390,6 +356,89 @@
           "timeout": 10000
         }
       }
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.item.json;\nconst ni = item.normalized_input || {};\nconst riskLevel = item.sender_risk_level || 'unknown';\nconst riskSignals = item.sender_risk_signals || [];\n\nreturn [{ json: {\n  sender: (ni.raw_meta && ni.raw_meta.sender) || 'unknown',\n  subject: ni.subject || '(no subject)',\n  date: ni.date || null,\n  email_account: ni.email_account_id || 'unknown',\n  risk_level: riskLevel,\n  risk_signals: riskSignals.join(', ') || 'none',\n  preview: (ni.raw_text || '').substring(0, 300)\n} }];"
+      },
+      "id": "mailde_q_log",
+      "name": "Log: Quarantine",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        520
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendMessage",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ chat_id: $env.TELEGRAM_CHAT_ID, parse_mode: 'HTML', text: [ '\\u{1F6AB} <b>Quarantine [mail.de]</b>', '', '\\u{1F4E7} ' + ($json.sender || '\\u2014'), '\\u{1F4CB} ' + ($json.subject || '\\u2014'), ($json.date ? '\\u{1F4C5} ' + String($json.date).substring(0,10) : null), '\\u26A0\\uFE0F \\u0420\\u0438\\u0441\\u043a: <code>' + ($json.risk_level || '?') + '</code>', '\\u{1F50D} \\u0421\\u0438\\u0433\\u043d\\u0430\\u043b\\u044b: <code>' + ($json.risk_signals || 'none') + '</code>', '', '<i>' + String($json.preview || '').substring(0,200) + '</i>' ].filter(Boolean).join('\\n')}) }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "mailde_q_tg",
+      "name": "Telegram: Quarantine Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1800,
+        520
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.item.json;\nconst ni = item.normalized_input || {};\n\nreturn [{ json: {\n  sender: (ni.raw_meta && ni.raw_meta.sender) || 'unknown',\n  subject: ni.subject || '(no subject)',\n  date: ni.date || null,\n  preview: (ni.raw_text || '').substring(0, 300)\n} }];"
+      },
+      "id": "mailde_inj_inj_log",
+      "name": "Log: Injection Detected",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1760,
+        520
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendMessage",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ chat_id: $env.TELEGRAM_CHAT_ID, parse_mode: 'HTML', text: [ '\\u{1F6E1}\\uFE0F <b>Injection Detected [mail.de]</b>', '', '\\u{1F4E7} ' + ($json.sender || '\\u2014'), '\\u{1F4CB} ' + ($json.subject || '\\u2014'), ($json.date ? '\\u{1F4C5} ' + String($json.date).substring(0,10) : null), '', '<i>' + String($json.preview || '').substring(0,200) + '</i>' ].filter(Boolean).join('\\n')}) }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "mailde_inj_inj_tg",
+      "name": "Telegram: Injection Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2240,
+        520
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "n_filter_expired_crCYiC5L",
+      "name": "Filter: Skip Expired",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2440,
+        300
+      ],
+      "parameters": {
+        "jsCode": "// Filter: Skip Expired\n// Drops jobs whose deadline has already passed.\n// No deadline → always pass through (we can't know → benefit of the doubt).\nconst e = $('Parse LLM Response').item.json.job_event;\nconst deadline = e.application_deadline || e.response_deadline || null;\n\nif (deadline) {\n  const deadlineDate = new Date(deadline);\n  // Guard: invalid date string → pass through\n  if (!isNaN(deadlineDate.getTime()) && deadlineDate < new Date()) {\n    // Expired — drop silently\n    return [];\n  }\n}\n\nreturn [$input.item];"
+      }
     }
   ],
   "connections": {
@@ -448,7 +497,7 @@
         ],
         [
           {
-            "node": "Quarantined: Stop",
+            "node": "Log: Quarantine",
             "type": "main",
             "index": 0
           }
@@ -477,7 +526,7 @@
         ],
         [
           {
-            "node": "Injection Detected: Stop",
+            "node": "Log: Injection Detected",
             "type": "main",
             "index": 0
           }
@@ -510,18 +559,12 @@
       "main": [
         [
           {
-            "node": "Prepare DB Params",
+            "node": "Filter: Skip Expired",
             "type": "main",
             "index": 0
           }
         ],
-        [
-          {
-            "node": "Not Job Related: Stop",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        []
       ]
     },
     "Prepare DB Params": {
@@ -573,6 +616,39 @@
           }
         ],
         []
+      ]
+    },
+    "Log: Quarantine": {
+      "main": [
+        [
+          {
+            "node": "Telegram: Quarantine Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log: Injection Detected": {
+      "main": [
+        [
+          {
+            "node": "Telegram: Injection Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter: Skip Expired": {
+      "main": [
+        [
+          {
+            "node": "Prepare DB Params",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     }
   },
