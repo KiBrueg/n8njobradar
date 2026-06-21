@@ -1,0 +1,414 @@
+{
+  "name": "WF2 — Projektprozess: Angebot → Auftrag → Rechnung → Teams + SharePoint",
+  "flow": [
+    {
+      "id": 1,
+      "module": "builtin:BasicScheduler",
+      "version": 1,
+      "parameters": {
+        "type": "interval",
+        "interval": 15
+      },
+      "mapper": {},
+      "metadata": {
+        "designer": { "x": 0, "y": 0 },
+        "notes": "Alle 15 Minuten ausführen — sucht nach neuen HERO-Statusänderungen"
+      }
+    },
+    {
+      "id": 2,
+      "module": "data-store:GetARecord",
+      "version": 1,
+      "parameters": {
+        "__IMTCONN__": 0,
+        "datastore": 0
+      },
+      "mapper": {
+        "key": "wf2_last_checked"
+      },
+      "metadata": {
+        "designer": { "x": 300, "y": 0 },
+        "restore": {
+          "__IMTCONN__": { "label": "WF2 Projektprozess Data Store — HIER_EINTRAGEN" }
+        },
+        "notes": "Letzten Prüfzeitpunkt holen. Beim ersten Lauf: leer → Fallback auf 24h zurück"
+      }
+    },
+    {
+      "id": 3,
+      "module": "builtin:BasicRouter",
+      "version": 1,
+      "parameters": {},
+      "mapper": {},
+      "metadata": {
+        "designer": { "x": 600, "y": 0 },
+        "notes": "Zwei parallele Abfragen: A) Angenommene Angebote, B) Abgeschlossene Projekte"
+      },
+      "routes": [
+        {
+          "label": "Route A — Angebot angenommen → Auftrag erstellen",
+          "flow": [
+            {
+              "id": 4,
+              "module": "http:ActionSendData",
+              "version": 3,
+              "parameters": {
+                "handleErrors": true,
+                "useNewZLibDeCompression": true
+              },
+              "mapper": {
+                "url": "https://login.hero-software.de/api/external/v7/graphql",
+                "method": "POST",
+                "headers": [
+                  { "name": "Authorization", "value": "Bearer {{$env.HERO_API_TOKEN}}" },
+                  { "name": "Content-Type", "value": "application/json" }
+                ],
+                "bodyType": "raw",
+                "contentType": "application/json",
+                "body": "{\"query\": \"query { customer_documents(filter: { document_type: { base_type: { eq: \\\"OFFER\\\" } }, status_code: { eq: \\\"ACCEPTED\\\" }, updated_at: { gte: \\\"{{ifempty(2.value; formatDate(addDays(now; -1); \\\"YYYY-MM-DDTHH:mm:ssZ\\\"))}}\\\"}}) { id document_number value vat updated_at contact { id first_name last_name company_name email phone_home addresses { street zipcode city } } project_match { id status_code } } }\"}"
+              },
+              "metadata": {
+                "designer": { "x": 900, "y": -300 },
+                "notes": "HERO: Alle angenommenen Angebote seit letztem Check holen"
+              }
+            },
+            {
+              "id": 5,
+              "module": "builtin:BasicFeeder",
+              "version": 1,
+              "parameters": {},
+              "mapper": {
+                "array": "{{4.data.customer_documents}}"
+              },
+              "metadata": {
+                "designer": { "x": 1200, "y": -300 },
+                "notes": "Jeden Auftrag einzeln verarbeiten"
+              }
+            },
+            {
+              "id": 6,
+              "module": "data-store:GetARecord",
+              "version": 1,
+              "parameters": {
+                "__IMTCONN__": 0,
+                "datastore": 0
+              },
+              "mapper": {
+                "key": "offer_{{5.id}}"
+              },
+              "metadata": {
+                "designer": { "x": 1500, "y": -300 },
+                "notes": "Prüfen: Wurde dieses Angebot schon verarbeitet? → Duplikat-Schutz"
+              }
+            },
+            {
+              "id": 7,
+              "module": "http:ActionSendData",
+              "version": 3,
+              "parameters": {
+                "handleErrors": true,
+                "useNewZLibDeCompression": true
+              },
+              "filter": {
+                "name": "Noch nicht verarbeitet",
+                "conditions": [[{ "a": "{{6.value}}", "b": "", "o": "text:equal" }]]
+              },
+              "mapper": {
+                "url": "https://login.hero-software.de/api/external/v7/graphql",
+                "method": "POST",
+                "headers": [
+                  { "name": "Authorization", "value": "Bearer {{$env.HERO_API_TOKEN}}" },
+                  { "name": "Content-Type", "value": "application/json" }
+                ],
+                "bodyType": "raw",
+                "contentType": "application/json",
+                "body": "{\"query\": \"mutation { create_project_match(input: { contact_id: \\\"{{5.contact.id}}\\\", status_code: 801, description: \\\"Auftrag aus Angebot {{5.document_number}}. Wert: {{5.value}} EUR. Erstellt via Make.com Automation.\\\", source: \\\"Make.com WF2\\\" }) { id status_code } }\"}"
+              },
+              "metadata": {
+                "designer": { "x": 1800, "y": -300 },
+                "notes": "HERO: Auftrag (project_match) mit Status 801 anlegen"
+              }
+            },
+            {
+              "id": 8,
+              "module": "sharepoint:createFolder",
+              "version": 1,
+              "parameters": {
+                "__IMTCONN__": 0
+              },
+              "mapper": {
+                "siteId": "{{$env.SHAREPOINT_SITE_ID}}",
+                "driveId": "{{$env.SHAREPOINT_DRIVE_ID}}",
+                "parentPath": "HandwerkDokumente/Projekte",
+                "name": "{{5.id}}_{{replace(replace(5.contact.company_name; ' '; '_'); '/'; '-')}}"
+              },
+              "metadata": {
+                "designer": { "x": 2100, "y": -300 },
+                "restore": {
+                  "__IMTCONN__": { "label": "Microsoft SharePoint — HIER_EINTRAGEN" }
+                },
+                "notes": "SharePoint Projektordner erstellen: ANGEBOTS-ID_Firmenname"
+              }
+            },
+            {
+              "id": 9,
+              "module": "sharepoint:createFolder",
+              "version": 1,
+              "parameters": {
+                "__IMTCONN__": 0
+              },
+              "mapper": {
+                "siteId": "{{$env.SHAREPOINT_SITE_ID}}",
+                "driveId": "{{$env.SHAREPOINT_DRIVE_ID}}",
+                "parentPath": "HandwerkDokumente/Projekte/{{5.id}}_{{replace(replace(5.contact.company_name; ' '; '_'); '/'; '-')}}",
+                "name": "Korrespondenz"
+              },
+              "metadata": {
+                "designer": { "x": 2100, "y": -200 }
+              }
+            },
+            {
+              "id": 10,
+              "module": "sharepoint:createFolder",
+              "version": 1,
+              "parameters": {
+                "__IMTCONN__": 0
+              },
+              "mapper": {
+                "siteId": "{{$env.SHAREPOINT_SITE_ID}}",
+                "driveId": "{{$env.SHAREPOINT_DRIVE_ID}}",
+                "parentPath": "HandwerkDokumente/Projekte/{{5.id}}_{{replace(replace(5.contact.company_name; ' '; '_'); '/'; '-')}}",
+                "name": "Rechnungen"
+              },
+              "metadata": {
+                "designer": { "x": 2100, "y": -100 }
+              }
+            },
+            {
+              "id": 11,
+              "module": "microsoft-teams:sendMessage",
+              "version": 1,
+              "parameters": {
+                "__IMTCONN__": 0
+              },
+              "mapper": {
+                "groupId": "TEAM_ID_HIER_EINTRAGEN",
+                "channelId": "CHANNEL_ID_HIER_EINTRAGEN",
+                "content": "<h3>✅ Neuer Auftrag angelegt</h3><p><strong>Kunde:</strong> {{5.contact.company_name}} — {{5.contact.first_name}} {{5.contact.last_name}}</p><p><strong>Angebot:</strong> {{5.document_number}} | <strong>Wert:</strong> {{5.value}} EUR zzgl. MwSt.</p><p><strong>E-Mail:</strong> {{5.contact.email}}</p><p><strong>HERO Auftrag-ID:</strong> {{7.data.create_project_match.id}}</p><p><strong>SharePoint:</strong> <a href='https://IHRE-FIRMA.sharepoint.com/sites/HandwerkDokumente/Projekte/{{5.id}}_{{replace(5.contact.company_name; ' '; '_')}}'>Projektordner öffnen</a></p><p><em>Auftrag erteilt am {{formatDate(now; 'DD.MM.YYYY HH:mm')}}</em></p>",
+                "contentType": "html"
+              },
+              "metadata": {
+                "designer": { "x": 2400, "y": -300 },
+                "restore": {
+                  "__IMTCONN__": { "label": "Microsoft Teams — HIER_EINTRAGEN" }
+                },
+                "notes": "Teams: Auftragsmeldung ins Projektkanal"
+              }
+            },
+            {
+              "id": 12,
+              "module": "data-store:UpdateARecord",
+              "version": 1,
+              "parameters": {
+                "__IMTCONN__": 0,
+                "datastore": 0
+              },
+              "mapper": {
+                "key": "offer_{{5.id}}",
+                "value": "{\"processed_at\": \"{{now}}\", \"hero_project_id\": \"{{7.data.create_project_match.id}}\", \"sharepoint_folder\": \"{{5.id}}_{{replace(5.contact.company_name; ' '; '_')}}\", \"status\": \"auftrag_erstellt\"}"
+              },
+              "metadata": {
+                "designer": { "x": 2700, "y": -300 },
+                "notes": "Data Store: Angebot als verarbeitet markieren + Hero-Projekt-ID speichern"
+              }
+            }
+          ]
+        },
+        {
+          "label": "Route B — Projekt abgeschlossen → Rechnung vorbereiten",
+          "flow": [
+            {
+              "id": 13,
+              "module": "http:ActionSendData",
+              "version": 3,
+              "parameters": {
+                "handleErrors": true,
+                "useNewZLibDeCompression": true
+              },
+              "mapper": {
+                "url": "https://login.hero-software.de/api/external/v7/graphql",
+                "method": "POST",
+                "headers": [
+                  { "name": "Authorization", "value": "Bearer {{$env.HERO_API_TOKEN}}" },
+                  { "name": "Content-Type", "value": "application/json" }
+                ],
+                "bodyType": "raw",
+                "contentType": "application/json",
+                "body": "{\"query\": \"query { project_matches(filter: { status_code: { eq: 901 }, updated_at: { gte: \\\"{{ifempty(2.value; formatDate(addDays(now; -1); \\\"YYYY-MM-DDTHH:mm:ssZ\\\"))}}\\\"}}) { id status_code comment updated_at contact { id first_name last_name company_name email } } }\"}"
+              },
+              "metadata": {
+                "designer": { "x": 900, "y": 300 },
+                "notes": "HERO: Abgeschlossene Projekte (status_code 901) holen"
+              }
+            },
+            {
+              "id": 14,
+              "module": "builtin:BasicFeeder",
+              "version": 1,
+              "parameters": {},
+              "mapper": {
+                "array": "{{13.data.project_matches}}"
+              },
+              "metadata": {
+                "designer": { "x": 1200, "y": 300 }
+              }
+            },
+            {
+              "id": 15,
+              "module": "data-store:GetARecord",
+              "version": 1,
+              "parameters": {
+                "__IMTCONN__": 0,
+                "datastore": 0
+              },
+              "mapper": {
+                "key": "invoice_{{14.id}}"
+              },
+              "metadata": {
+                "designer": { "x": 1500, "y": 300 },
+                "notes": "Prüfen: Wurde für dieses Projekt schon eine Rechnung ausgelöst?"
+              }
+            },
+            {
+              "id": 16,
+              "module": "microsoft-365-email:createADraftMessage",
+              "version": 1,
+              "parameters": {
+                "__IMTCONN__": 0
+              },
+              "filter": {
+                "name": "Noch keine Rechnung ausgelöst",
+                "conditions": [[{ "a": "{{15.value}}", "b": "", "o": "text:equal" }]]
+              },
+              "mapper": {
+                "subject": "Rechnung erstellen: Projekt {{14.id}} — {{14.contact.company_name}}",
+                "bodyContentType": "html",
+                "body": "<h3>Projekt abgeschlossen — Rechnung vorbereiten</h3><p><strong>Kunde:</strong> {{14.contact.company_name}} ({{14.contact.first_name}} {{14.contact.last_name}})</p><p><strong>E-Mail:</strong> {{14.contact.email}}</p><p><strong>HERO Projekt-ID:</strong> {{14.id}}</p><p><strong>Abgeschlossen am:</strong> {{formatDate(14.updated_at; 'DD.MM.YYYY')}}</p><p><strong>Kommentar aus HERO:</strong> {{14.comment}}</p><hr><p>⚠️ <strong>Nächste Schritte:</strong></p><ol><li>In HERO Rechnung erstellen</li><li>Rechnung prüfen und in SharePoint ablegen</li><li>Rechnung per E-Mail an Kunden senden</li></ol><p><small>Erstellt automatisch via Make.com WF2</small></p>",
+                "toRecipients": [
+                  {
+                    "emailAddress": {
+                      "address": "BUCHHALTUNG@IHRE-FIRMA.de",
+                      "name": "Buchhaltung"
+                    }
+                  }
+                ]
+              },
+              "metadata": {
+                "designer": { "x": 1800, "y": 300 },
+                "restore": {
+                  "__IMTCONN__": { "label": "Microsoft 365 Outlook — HIER_EINTRAGEN" }
+                },
+                "notes": "Outlook Draft: Rechnungshinweis für Buchhaltung — BUCHHALTUNG@IHRE-FIRMA.de anpassen!"
+              }
+            },
+            {
+              "id": 17,
+              "module": "http:ActionSendData",
+              "version": 3,
+              "parameters": {
+                "handleErrors": true,
+                "useNewZLibDeCompression": true
+              },
+              "mapper": {
+                "url": "https://login.hero-software.de/api/external/v7/graphql",
+                "method": "POST",
+                "headers": [
+                  { "name": "Authorization", "value": "Bearer {{$env.HERO_API_TOKEN}}" },
+                  { "name": "Content-Type", "value": "application/json" }
+                ],
+                "bodyType": "raw",
+                "contentType": "application/json",
+                "body": "{\"query\": \"mutation { add_logbook_entry(input: { project_match_id: \\\"{{14.id}}\\\", title: \\\"Rechnungserinnerung gesendet\\\", text: \\\"Make.com WF2: Rechnungshinweis am {{formatDate(now; 'DD.MM.YYYY HH:mm')}} als Outlook-Entwurf an Buchhaltung gesendet.\\\" }) { id } }\"}"
+              },
+              "metadata": {
+                "designer": { "x": 2100, "y": 300 },
+                "notes": "HERO: Logbucheintrag — Rechnungserinnerung wurde ausgelöst"
+              }
+            },
+            {
+              "id": 18,
+              "module": "microsoft-teams:sendMessage",
+              "version": 1,
+              "parameters": {
+                "__IMTCONN__": 0
+              },
+              "mapper": {
+                "groupId": "TEAM_ID_HIER_EINTRAGEN",
+                "channelId": "CHANNEL_ID_HIER_EINTRAGEN",
+                "content": "<h3>🔔 Rechnung erforderlich</h3><p><strong>Projekt abgeschlossen:</strong> {{14.contact.company_name}}</p><p><strong>HERO Projekt-ID:</strong> {{14.id}}</p><p><strong>Abgeschlossen:</strong> {{formatDate(14.updated_at; 'DD.MM.YYYY')}}</p><p>📧 Rechnungshinweis wurde als Outlook-Entwurf an Buchhaltung gesendet.</p>",
+                "contentType": "html"
+              },
+              "metadata": {
+                "designer": { "x": 2400, "y": 300 },
+                "restore": {
+                  "__IMTCONN__": { "label": "Microsoft Teams — HIER_EINTRAGEN" }
+                }
+              }
+            },
+            {
+              "id": 19,
+              "module": "data-store:UpdateARecord",
+              "version": 1,
+              "parameters": {
+                "__IMTCONN__": 0,
+                "datastore": 0
+              },
+              "mapper": {
+                "key": "invoice_{{14.id}}",
+                "value": "{\"triggered_at\": \"{{now}}\", \"status\": \"rechnung_angefordert\"}"
+              },
+              "metadata": {
+                "designer": { "x": 2700, "y": 300 },
+                "notes": "Data Store: Rechnung als ausgelöst markieren — kein doppelter Trigger"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 20,
+      "module": "data-store:UpdateARecord",
+      "version": 1,
+      "parameters": {
+        "__IMTCONN__": 0,
+        "datastore": 0
+      },
+      "mapper": {
+        "key": "wf2_last_checked",
+        "value": "{{formatDate(now; \"YYYY-MM-DDTHH:mm:ssZ\")}}"
+      },
+      "metadata": {
+        "designer": { "x": 3000, "y": 0 },
+        "notes": "Timestamp nach jedem Lauf aktualisieren — für nächsten Polling-Zyklus"
+      }
+    }
+  ],
+  "metadata": {
+    "instant": false,
+    "version": 1,
+    "scenario": {
+      "roundtrips": 1,
+      "maxErrors": 3,
+      "autoCommit": true,
+      "autoCommitTriggerLast": true,
+      "sequential": true,
+      "confidential": true,
+      "dataloss": false,
+      "dlq": false,
+      "freshVariables": false
+    },
+    "designer": { "orphans": [] },
+    "zone": "eu1.make.com"
+  }
+}

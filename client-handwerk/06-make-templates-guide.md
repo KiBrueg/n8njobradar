@@ -57,6 +57,26 @@ Das ist ein Platzhalter — Make.com fragt nach dem Import automatisch, welche C
 
 ---
 
+## ⚠️ Data Stores: Free-Plan Einschränkung (Workaround aktiv)
+
+**Aktuell (Entwicklungsphase, Free Plan):** Nur 1 Data Store erlaubt.
+Workaround: Ein einziger Store `CONFIG - Variablen & API Keys` mit Schlüssel-Präfixen:
+- `CONFIG_*` — API Keys und IDs (HERO, SharePoint, Teams)
+- `PROD_WF2_*` / `PROD_WF5_*` — Produktions-Zustand
+- `TEST_WF2_*` / `TEST_WF5_*` — Test-Zustand
+
+**TODO FÜR CLIENT (nach Upgrade auf Pro/Teams):**
+Separate Data Stores anlegen — ein Store pro Workflow, klar getrennt:
+- `CONFIG - Variablen & API Keys`
+- `PROD - WF2 Projektprozess`
+- `PROD - WF5 HERO Sync`
+- `TEST - WF2 Projektprozess`
+- `TEST - WF5 HERO Sync`
+
+Dann in den Blueprints den `datastore`-Parameter auf den jeweiligen Store umstellen.
+
+---
+
 ## Welche Make.com Tarif-Features werden benötigt?
 
 | Feature | WF1 | WF2 | WF3 | Tarif |
