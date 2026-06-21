@@ -1,0 +1,417 @@
+{
+  "name": "WF5 — HERO ↔ Microsoft 365 Bidirectional Sync (Contacts + SharePoint + Logbook)",
+  "flow": [
+    {
+      "id": 1,
+      "module": "builtin:BasicRouter",
+      "version": 1,
+      "parameters": {},
+      "mapper": {},
+      "metadata": {
+        "designer": { "x": 0, "y": 0 },
+        "notes": "Zwei parallele Richtungen: A) HERO → M365 (Schedule), B) M365 → HERO (Outlook Watch)"
+      },
+      "routes": [
+        {
+          "label": "Richtung A: HERO → Microsoft 365",
+          "flow": [
+            {
+              "id": 2,
+              "module": "builtin:BasicScheduler",
+              "version": 1,
+              "parameters": {
+                "type": "interval",
+                "interval": 15
+              },
+              "mapper": {},
+              "metadata": {
+                "designer": { "x": 300, "y": -200 },
+                "notes": "Alle 15 Minuten: neue/geänderte HERO-Kontakte holen"
+              }
+            },
+            {
+              "id": 3,
+              "module": "data-store:GetARecord",
+              "version": 1,
+              "parameters": {
+                "__IMTCONN__": 0,
+                "datastore": 0
+              },
+              "mapper": {
+                "key": "last_sync_timestamp"
+              },
+              "metadata": {
+                "designer": { "x": 600, "y": -200 },
+                "restore": {
+                  "datastore": { "label": "WF5 Sync State Store — HIER_EINTRAGEN" }
+                },
+                "notes": "Holt letzten Sync-Timestamp für updated_since Query"
+              }
+            },
+            {
+              "id": 4,
+              "module": "http:ActionSendData",
+              "version": 3,
+              "parameters": {
+                "handleErrors": true,
+                "useNewZLibDeCompression": true
+              },
+              "mapper": {
+                "url": "https://login.hero-software.de/api/external/v7/graphql",
+                "method": "POST",
+                "headers": [
+                  {
+                    "name": "Authorization",
+                    "value": "Bearer {{$env.HERO_API_TOKEN}}"
+                  },
+                  {
+                    "name": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "bodyType": "raw",
+                "contentType": "application/json",
+                "body": "{\"query\": \"query { contacts(updated_since: \\\"{{ifempty(3.value; formatDate(addDays(now; -1); \\\"YYYY-MM-DDTHH:mm:ssZ\\\"))}}\\\") { id nr first_name last_name company_name email phone_home phone_mobile addresses { street zipcode city } } }\"}"
+              },
+              "metadata": {
+                "designer": { "x": 900, "y": -200 },
+                "notes": "HERO GraphQL: Kontakte seit letztem Sync. Fallback: letzte 24h"
+              }
+            },
+            {
+              "id": 5,
+              "module": "builtin:BasicFeeder",
+              "version": 1,
+              "parameters": {},
+              "mapper": {
+                "array": "{{4.data.contacts}}"
+              },
+              "metadata": {
+                "designer": { "x": 1200, "y": -200 },
+                "notes": "Jeden Kontakt einzeln verarbeiten"
+              }
+            },
+            {
+              "id": 6,
+              "module": "data-store:GetARecord",
+              "version": 1,
+              "parameters": {
+                "__IMTCONN__": 0,
+                "datastore": 0
+              },
+              "mapper": {
+                "key": "{{5.email}}"
+              },
+              "metadata": {
+                "designer": { "x": 1500, "y": -200 },
+                "notes": "Prüfen: Haben wir diesen HERO-Kontakt bereits mit M365 verknüpft?"
+              }
+            },
+            {
+              "id": 7,
+              "module": "builtin:BasicRouter",
+              "version": 1,
+              "parameters": {},
+              "mapper": {},
+              "metadata": {
+                "designer": { "x": 1800, "y": -200 }
+              },
+              "routes": [
+                {
+                  "label": "Kontakt NEU — anlegen",
+                  "flow": [
+                    {
+                      "id": 8,
+                      "module": "microsoft-365-people:CreateContact",
+                      "version": 1,
+                      "parameters": {
+                        "__IMTCONN__": 0
+                      },
+                      "filter": {
+                        "name": "Noch kein M365-Kontakt",
+                        "conditions": [[{ "a": "{{6.value}}", "b": "", "o": "text:equal" }]]
+                      },
+                      "mapper": {
+                        "givenName": "{{5.first_name}}",
+                        "surname": "{{5.last_name}}",
+                        "companyName": "{{5.company_name}}",
+                        "emailAddresses": [{ "address": "{{5.email}}", "name": "{{5.first_name}} {{5.last_name}}" }],
+                        "businessPhones": ["{{5.phone_home}}"],
+                        "mobilePhone": "{{5.phone_mobile}}",
+                        "businessAddress": {
+                          "street": "{{5.addresses[].street}}",
+                          "postalCode": "{{5.addresses[].zipcode}}",
+                          "city": "{{5.addresses[].city}}"
+                        }
+                      },
+                      "metadata": {
+                        "designer": { "x": 2100, "y": -350 },
+                        "restore": {
+                          "__IMTCONN__": { "label": "Microsoft 365 — HIER_EINTRAGEN" }
+                        }
+                      }
+                    },
+                    {
+                      "id": 9,
+                      "module": "data-store:UpdateARecord",
+                      "version": 1,
+                      "parameters": {
+                        "__IMTCONN__": 0,
+                        "datastore": 0
+                      },
+                      "mapper": {
+                        "key": "{{5.email}}",
+                        "value": "{\"hero_id\": \"{{5.id}}\", \"m365_contact_id\": \"{{8.id}}\", \"last_sync\": \"{{now}}\"}"
+                      },
+                      "metadata": {
+                        "designer": { "x": 2400, "y": -350 },
+                        "notes": "Mapping hero_id ↔ m365_contact_id im Data Store speichern"
+                      }
+                    },
+                    {
+                      "id": 10,
+                      "module": "sharepoint:createFolder",
+                      "version": 1,
+                      "parameters": {
+                        "__IMTCONN__": 0
+                      },
+                      "mapper": {
+                        "siteId": "{{$env.SHAREPOINT_SITE_ID}}",
+                        "driveId": "{{$env.SHAREPOINT_DRIVE_ID}}",
+                        "parentPath": "HandwerkDokumente/Projekte",
+                        "name": "{{5.id}}_{{replace(5.company_name; \" \"; \"_\")}}"
+                      },
+                      "metadata": {
+                        "designer": { "x": 2700, "y": -350 },
+                        "restore": {
+                          "__IMTCONN__": { "label": "Microsoft SharePoint — HIER_EINTRAGEN" }
+                        },
+                        "notes": "Projektordner anlegen: HERO_ID_Firmenname"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "label": "Kontakt VORHANDEN — aktualisieren",
+                  "flow": [
+                    {
+                      "id": 11,
+                      "module": "microsoft-365-people:UpdateContact",
+                      "version": 1,
+                      "parameters": {
+                        "__IMTCONN__": 0
+                      },
+                      "filter": {
+                        "name": "M365-Kontakt vorhanden",
+                        "conditions": [[{ "a": "{{6.value}}", "b": "", "o": "text:notequal" }]]
+                      },
+                      "mapper": {
+                        "contactId": "{{parseJSON(6.value).m365_contact_id}}",
+                        "givenName": "{{5.first_name}}",
+                        "surname": "{{5.last_name}}",
+                        "companyName": "{{5.company_name}}",
+                        "businessPhones": ["{{5.phone_home}}"],
+                        "mobilePhone": "{{5.phone_mobile}}"
+                      },
+                      "metadata": {
+                        "designer": { "x": 2100, "y": -100 },
+                        "restore": {
+                          "__IMTCONN__": { "label": "Microsoft 365 — HIER_EINTRAGEN" }
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": 12,
+              "module": "data-store:UpdateARecord",
+              "version": 1,
+              "parameters": {
+                "__IMTCONN__": 0,
+                "datastore": 0
+              },
+              "mapper": {
+                "key": "last_sync_timestamp",
+                "value": "{{formatDate(now; \"YYYY-MM-DDTHH:mm:ssZ\")}}"
+              },
+              "metadata": {
+                "designer": { "x": 3000, "y": -200 },
+                "notes": "Timestamp nach erfolgreichem Sync aktualisieren"
+              }
+            }
+          ]
+        },
+        {
+          "label": "Richtung B: Microsoft 365 → HERO",
+          "flow": [
+            {
+              "id": 13,
+              "module": "microsoft-365-email:watchEmails",
+              "version": 1,
+              "parameters": {
+                "__IMTCONN__": 0,
+                "maxResults": 5
+              },
+              "mapper": {
+                "folder": "Inbox",
+                "markAsRead": false
+              },
+              "metadata": {
+                "designer": { "x": 300, "y": 200 },
+                "restore": {
+                  "__IMTCONN__": { "label": "Microsoft 365 Outlook — HIER_EINTRAGEN" }
+                },
+                "notes": "Neue eingehende E-Mails überwachen (nur externe Absender)"
+              }
+            },
+            {
+              "id": 14,
+              "module": "builtin:BasicRouter",
+              "version": 1,
+              "parameters": {},
+              "mapper": {},
+              "filter": {
+                "name": "Nur externe Absender",
+                "conditions": [[
+                  { "a": "{{13.from.emailAddress.address}}", "b": "@IHRE-FIRMA.de", "o": "text:notcontain" }
+                ]]
+              },
+              "metadata": {
+                "designer": { "x": 600, "y": 200 },
+                "notes": "Interne E-Mails herausfiltern"
+              },
+              "routes": [
+                {
+                  "label": "Kontakt in HERO suchen / anlegen",
+                  "flow": [
+                    {
+                      "id": 15,
+                      "module": "http:ActionSendData",
+                      "version": 3,
+                      "parameters": {
+                        "handleErrors": true,
+                        "useNewZLibDeCompression": true
+                      },
+                      "mapper": {
+                        "url": "https://login.hero-software.de/api/external/v7/graphql",
+                        "method": "POST",
+                        "headers": [
+                          { "name": "Authorization", "value": "Bearer {{$env.HERO_API_TOKEN}}" },
+                          { "name": "Content-Type", "value": "application/json" }
+                        ],
+                        "bodyType": "raw",
+                        "contentType": "application/json",
+                        "body": "{\"query\": \"query { contacts(filter: { email: { eq: \\\"{{13.from.emailAddress.address}}\\\" } }) { id first_name last_name company_name } }\"}"
+                      },
+                      "metadata": {
+                        "designer": { "x": 900, "y": 200 },
+                        "notes": "HERO: Kontakt per E-Mail-Adresse suchen"
+                      }
+                    },
+                    {
+                      "id": 16,
+                      "module": "builtin:BasicRouter",
+                      "version": 1,
+                      "parameters": {},
+                      "mapper": {},
+                      "metadata": {
+                        "designer": { "x": 1200, "y": 200 }
+                      },
+                      "routes": [
+                        {
+                          "label": "Kontakt NICHT in HERO — neu anlegen",
+                          "flow": [
+                            {
+                              "id": 17,
+                              "module": "http:ActionSendData",
+                              "version": 3,
+                              "parameters": {
+                                "handleErrors": true,
+                                "useNewZLibDeCompression": true
+                              },
+                              "filter": {
+                                "name": "Kein HERO-Kontakt gefunden",
+                                "conditions": [[{ "a": "{{length(15.data.contacts)}}", "b": "0", "o": "number:equal" }]]
+                              },
+                              "mapper": {
+                                "url": "https://login.hero-software.de/api/external/v7/graphql",
+                                "method": "POST",
+                                "headers": [
+                                  { "name": "Authorization", "value": "Bearer {{$env.HERO_API_TOKEN}}" },
+                                  { "name": "Content-Type", "value": "application/json" }
+                                ],
+                                "bodyType": "raw",
+                                "contentType": "application/json",
+                                "body": "{\"query\": \"mutation { create_contact(input: { email: \\\"{{13.from.emailAddress.address}}\\\", first_name: \\\"{{split(13.from.emailAddress.name; ' ')[1]}}\\\", last_name: \\\"{{split(13.from.emailAddress.name; ' ')[2]}}\\\", phone_home: \\\"\\\" }) { id } }\"}"
+                              },
+                              "metadata": {
+                                "designer": { "x": 1500, "y": 100 },
+                                "notes": "Neuen Kontakt in HERO anlegen (Mindestfelder: email, name)"
+                              }
+                            }
+                          ]
+                        },
+                        {
+                          "label": "Kontakt in HERO — Logbuch-Eintrag",
+                          "flow": [
+                            {
+                              "id": 18,
+                              "module": "http:ActionSendData",
+                              "version": 3,
+                              "parameters": {
+                                "handleErrors": true,
+                                "useNewZLibDeCompression": true
+                              },
+                              "filter": {
+                                "name": "HERO-Kontakt vorhanden",
+                                "conditions": [[{ "a": "{{length(15.data.contacts)}}", "b": "0", "o": "number:greater" }]]
+                              },
+                              "mapper": {
+                                "url": "https://login.hero-software.de/api/external/v7/graphql",
+                                "method": "POST",
+                                "headers": [
+                                  { "name": "Authorization", "value": "Bearer {{$env.HERO_API_TOKEN}}" },
+                                  { "name": "Content-Type", "value": "application/json" }
+                                ],
+                                "bodyType": "raw",
+                                "contentType": "application/json",
+                                "body": "{\"query\": \"mutation { add_logbook_entry(input: { contact_id: \\\"{{15.data.contacts[].id}}\\\", title: \\\"E-Mail: {{13.subject}}\\\", text: \\\"Von: {{13.from.emailAddress.address}}\\\\nEingegangen: {{formatDate(13.receivedDateTime; 'DD.MM.YYYY HH:mm')}}\\\\nBetreff: {{13.subject}}\\\" }) { id } }\"}"
+                              },
+                              "metadata": {
+                                "designer": { "x": 1500, "y": 300 },
+                                "notes": "E-Mail als Logbuch-Eintrag in HERO speichern"
+                              }
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "instant": false,
+    "version": 1,
+    "scenario": {
+      "roundtrips": 1,
+      "maxErrors": 3,
+      "autoCommit": true,
+      "autoCommitTriggerLast": true,
+      "sequential": false,
+      "confidential": true,
+      "dataloss": false,
+      "dlq": false,
+      "freshVariables": false
+    },
+    "designer": { "orphans": [] },
+    "zone": "eu1.make.com"
+  }
+}

@@ -240,18 +240,87 @@ Variables:
 
 ---
 
+## GraphQL — Contacts mit Polling (updated_since)
+
+```graphql
+query {
+  contacts(updated_since: "2026-06-21T00:00:00Z") {
+    id
+    nr
+    first_name
+    last_name
+    company_name
+    email
+    phone_home
+    phone_mobile
+    address { street zipcode city country }
+  }
+}
+```
+
+`updated_since` — Schlüssel für Polling ohne Duplikate. Im Data Store letzten Timestamp speichern.
+
+---
+
+## GraphQL — Dokumente nach Typ und Status
+
+```graphql
+query {
+  customer_documents(
+    filter: {
+      document_type: { base_type: "OFFER" }
+      status_code: { eq: "ACCEPTED" }
+    }
+  ) {
+    id
+    document_number
+    value
+    vat
+    status_code
+    document_type { base_type name }
+    contact { id first_name last_name company_name email }
+    project_match { id status_code }
+  }
+}
+```
+
+`base_type` Werte: `"OFFER"` (Angebot), `"ORDER"` (Auftrag), `"INVOICE"` (Rechnung).
+
+---
+
+## GraphQL — Logbuch-Eintrag erstellen
+
+```graphql
+mutation {
+  add_logbook_entry(input: {
+    project_match_id: "HERO_PROJECT_ID",
+    title: "E-Mail von kunde@beispiel.de",
+    text: "Betreff: Anfrage Badezimmer\n\nEingegangen via Make.com Automation."
+  }) {
+    id
+  }
+}
+```
+
+Verwenden für: jede eingehende E-Mail → als Logbucheintrag in HERO speichern.
+
+---
+
 ## Make.com: Native HERO Integration
 
 Make.com hat ein offizielles HERO Software Modul unter:
-`make.com/en/integrations/hero-software`
+`apps.make.com/hero-software`
 
 Verfügbare Aktionen (über native Integration):
 - Watch Projects (Trigger)
+- Watch Contacts (Trigger)
 - Create a Project
 - Update a Project
 - Get a Project
 - Create a Contact
 - Get a Contact
+- Create Logbook Entry
+- Watch Tasks
 
 **Für WF3:** Falls der native HERO Connector für Make.com verfügbar ist, einfach den `http:ActionSendData`-Block durch das native Modul ersetzen — sauberer und wartungsfreundlicher.
 

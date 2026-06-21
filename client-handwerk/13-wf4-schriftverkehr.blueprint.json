@@ -1,0 +1,293 @@
+{
+  "name": "WF4 — AI-Schriftverkehr: Mahnung & Auftragsbestätigung → Outlook Draft",
+  "flow": [
+    {
+      "id": 1,
+      "module": "gateway:CustomWebhook",
+      "version": 1,
+      "parameters": {
+        "hook": 0,
+        "maxResults": 1
+      },
+      "mapper": {},
+      "metadata": {
+        "designer": { "x": 0, "y": 0 },
+        "restore": {
+          "hook": { "label": "WF4 Schriftverkehr Webhook — HIER_EINTRAGEN" }
+        },
+        "parameters": [
+          { "name": "hook", "type": "hook:gateway-webhook", "label": "Webhook" },
+          { "name": "maxResults", "type": "number", "label": "Maximum number of results" }
+        ],
+        "expect": [
+          { "name": "letter_type", "type": "text", "label": "Brieftyp (Mahnung / Auftragsbestaetigung / Zahlungserinnerung)" },
+          { "name": "customer_company", "type": "text", "label": "Firmenname" },
+          { "name": "customer_name", "type": "text", "label": "Ansprechpartner (Vor- und Nachname)" },
+          { "name": "customer_email", "type": "email", "label": "E-Mail Empfänger" },
+          { "name": "customer_address", "type": "text", "label": "Straße, PLZ Ort" },
+          { "name": "document_number", "type": "text", "label": "Rechnungs- oder Auftragsnummer" },
+          { "name": "amount", "type": "text", "label": "Betrag in EUR" },
+          { "name": "due_date", "type": "text", "label": "Fälligkeitsdatum (TT.MM.JJJJ)" },
+          { "name": "service_description", "type": "text", "label": "Leistungsbeschreibung" },
+          { "name": "project_name", "type": "text", "label": "Projektname" },
+          { "name": "hero_project_id", "type": "text", "label": "HERO Projekt-ID (optional)" }
+        ]
+      }
+    },
+    {
+      "id": 2,
+      "module": "builtin:BasicRouter",
+      "version": 1,
+      "parameters": {},
+      "mapper": {},
+      "metadata": {
+        "designer": { "x": 300, "y": 0 }
+      },
+      "routes": [
+        {
+          "flow": [
+            {
+              "id": 3,
+              "module": "openai-gpt-3:CreateCompletion",
+              "version": 1,
+              "parameters": {
+                "__IMTCONN__": 0
+              },
+              "filter": {
+                "name": "Ist Mahnung oder Zahlungserinnerung",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{1.letter_type}}",
+                      "b": "Mahnung",
+                      "o": "text:contain"
+                    }
+                  ],
+                  [
+                    {
+                      "a": "{{1.letter_type}}",
+                      "b": "Zahlungserinnerung",
+                      "o": "text:contain"
+                    }
+                  ]
+                ]
+              },
+              "mapper": {
+                "model": "gpt-4o",
+                "temperature": "0.3",
+                "max_tokens": "800",
+                "messages": [
+                  {
+                    "role": "system",
+                    "content": "Du bist ein deutscher Rechtsanwalt für Inkassorecht und Geschäftskorrespondenz.\nAntworte AUSSCHLIESSLICH mit einem gültigen JSON-Objekt. Kein Text außerhalb des JSON.\nDer E-Mail-Body muss in gültigem HTML-Format für Microsoft Outlook vorliegen:\n- Verwende <p>, <br>, <strong> Tags\n- Schriftart: Arial\n- Keine CSS-Klassen, kein inline style außer font-family:Arial\n- DIN 5008 Aufbau: Betreff fett, Anrede, Absätze, Grußformel, Signaturblock\n- Ton: formell, höflich, aber bestimmt\n- Rechtliche Basis: §286 BGB für Mahnung"
+                  },
+                  {
+                    "role": "user",
+                    "content": "Schreibe eine {{1.letter_type}} gemäß §286 BGB nach DIN 5008.\n\nEmpfängerdaten:\n- Firma: {{1.customer_company}}\n- Ansprechpartner: {{1.customer_name}}\n- Adresse: {{1.customer_address}}\n- E-Mail: {{1.customer_email}}\n\nVorgangsdaten:\n- Rechnungsnummer: {{1.document_number}}\n- Offener Betrag: {{1.amount}} EUR\n- Ursprüngliches Fälligkeitsdatum: {{1.due_date}}\n- Leistung: {{1.service_description}}\n- Projekt: {{1.project_name}}\n\nAnforderungen:\n- Setze Zahlungsfrist: 14 Tage ab heute\n- Verzugszinsen: 5% über dem Basiszinssatz gemäß §288 BGB\n- Mahnkosten: 5,00 EUR\n- Bei Nicht-Zahlung: Ankündigung gerichtlicher Schritte (sachlich, nicht aggressiv)\n- Signatur: [FIRMA_NAME], [STRASSE], [PLZ ORT], Tel: [TEL], E-Mail: [EMAIL]\n\nAntworte NUR mit diesem JSON:\n{\n  \"subject\": \"Betreff der E-Mail\",\n  \"body_html\": \"Vollständiger HTML-Text\",\n  \"body_text\": \"Vollständiger Plaintext\",\n  \"review_notes\": \"Kurze Notiz für den menschlichen Prüfer\",\n  \"missing_fields\": []\n}"
+                  }
+                ]
+              },
+              "metadata": {
+                "designer": { "x": 600, "y": -150 },
+                "restore": {
+                  "__IMTCONN__": { "label": "OpenAI API Key — HIER_EINTRAGEN" }
+                }
+              }
+            },
+            {
+              "id": 4,
+              "module": "json:ParseJSON",
+              "version": 1,
+              "parameters": {},
+              "mapper": {
+                "json": "{{replace(replace(3.choices[].message.content; \"```json\"; \"\"); \"```\"; \"\")}}"
+              },
+              "metadata": {
+                "designer": { "x": 900, "y": -150 }
+              }
+            },
+            {
+              "id": 5,
+              "module": "microsoft-365-email:createADraftMessage",
+              "version": 1,
+              "parameters": {
+                "__IMTCONN__": 0
+              },
+              "mapper": {
+                "subject": "{{4.subject}}",
+                "bodyContentType": "html",
+                "body": "{{4.body_html}}",
+                "toRecipients": [
+                  {
+                    "emailAddress": {
+                      "address": "{{1.customer_email}}",
+                      "name": "{{1.customer_name}}, {{1.customer_company}}"
+                    }
+                  }
+                ],
+                "importance": "normal"
+              },
+              "metadata": {
+                "designer": { "x": 1200, "y": -150 },
+                "restore": {
+                  "__IMTCONN__": { "label": "Microsoft 365 Outlook — HIER_EINTRAGEN" }
+                }
+              }
+            },
+            {
+              "id": 6,
+              "module": "microsoft-teams:sendMessage",
+              "version": 1,
+              "parameters": {
+                "__IMTCONN__": 0
+              },
+              "mapper": {
+                "groupId": "TEAM_ID_HIER_EINTRAGEN",
+                "channelId": "CHANNEL_ID_HIER_EINTRAGEN",
+                "content": "📋 **Mahnung erstellt — Prüfung erforderlich**\n\n**Empfänger:** {{1.customer_name}}, {{1.customer_company}}\n**Rechnung:** {{1.document_number}} | **Betrag:** {{1.amount}} EUR\n**Fällig war:** {{1.due_date}}\n\n**KI-Hinweis:** {{4.review_notes}}\n\n✉️ Entwurf liegt in Outlook → Entwürfe. Bitte prüfen und senden.",
+                "contentType": "html"
+              },
+              "metadata": {
+                "designer": { "x": 1500, "y": -150 },
+                "restore": {
+                  "__IMTCONN__": { "label": "Microsoft Teams — HIER_EINTRAGEN" }
+                }
+              }
+            }
+          ]
+        },
+        {
+          "flow": [
+            {
+              "id": 7,
+              "module": "openai-gpt-3:CreateCompletion",
+              "version": 1,
+              "parameters": {
+                "__IMTCONN__": 0
+              },
+              "filter": {
+                "name": "Ist Auftragsbestätigung",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{1.letter_type}}",
+                      "b": "Auftragsbestaetigung",
+                      "o": "text:contain"
+                    }
+                  ],
+                  [
+                    {
+                      "a": "{{1.letter_type}}",
+                      "b": "Auftragsbestätigung",
+                      "o": "text:contain"
+                    }
+                  ]
+                ]
+              },
+              "mapper": {
+                "model": "gpt-4o",
+                "temperature": "0.4",
+                "max_tokens": "800",
+                "messages": [
+                  {
+                    "role": "system",
+                    "content": "Du bist ein professioneller deutscher kaufmännischer Sachbearbeiter.\nAntworte AUSSCHLIESSLICH mit einem gültigen JSON-Objekt. Kein Text außerhalb des JSON.\nDer E-Mail-Body muss in gültigem HTML-Format für Microsoft Outlook vorliegen:\n- Verwende <p>, <br>, <strong> Tags\n- Schriftart: Arial\n- Keine CSS-Klassen\n- DIN 5008 Aufbau: Betreff fett, Anrede, Haupttext, Grußformel\n- Ton: freundlich, professionell, verbindlich"
+                  },
+                  {
+                    "role": "user",
+                    "content": "Schreibe eine Auftragsbestätigung nach DIN 5008.\n\nEmpfängerdaten:\n- Firma: {{1.customer_company}}\n- Ansprechpartner: {{1.customer_name}}\n- Adresse: {{1.customer_address}}\n- E-Mail: {{1.customer_email}}\n\nAuftragsdaten:\n- Auftragsnummer: {{1.document_number}}\n- Leistung: {{1.service_description}}\n- Auftragswert: {{1.amount}} EUR (zzgl. 19% MwSt.)\n- Projekt: {{1.project_name}}\n- Ausführungsbeginn: {{1.due_date}}\n\nInhalte:\n- Dank für den Auftrag\n- Bestätigung der vereinbarten Leistung\n- Zahlungsbedingungen: 14 Tage netto nach Rechnungsstellung\n- Ansprechpartner für Rückfragen nennen\n- Signatur: [FIRMA_NAME], [STRASSE], [PLZ ORT], Tel: [TEL]\n\nAntworte NUR mit diesem JSON:\n{\n  \"subject\": \"Betreff der E-Mail\",\n  \"body_html\": \"Vollständiger HTML-Text\",\n  \"body_text\": \"Vollständiger Plaintext\",\n  \"review_notes\": \"Kurze Notiz für den menschlichen Prüfer\",\n  \"missing_fields\": []\n}"
+                  }
+                ]
+              },
+              "metadata": {
+                "designer": { "x": 600, "y": 150 },
+                "restore": {
+                  "__IMTCONN__": { "label": "OpenAI API Key — HIER_EINTRAGEN" }
+                }
+              }
+            },
+            {
+              "id": 8,
+              "module": "json:ParseJSON",
+              "version": 1,
+              "parameters": {},
+              "mapper": {
+                "json": "{{replace(replace(7.choices[].message.content; \"```json\"; \"\"); \"```\"; \"\")}}"
+              },
+              "metadata": {
+                "designer": { "x": 900, "y": 150 }
+              }
+            },
+            {
+              "id": 9,
+              "module": "microsoft-365-email:createADraftMessage",
+              "version": 1,
+              "parameters": {
+                "__IMTCONN__": 0
+              },
+              "mapper": {
+                "subject": "{{8.subject}}",
+                "bodyContentType": "html",
+                "body": "{{8.body_html}}",
+                "toRecipients": [
+                  {
+                    "emailAddress": {
+                      "address": "{{1.customer_email}}",
+                      "name": "{{1.customer_name}}, {{1.customer_company}}"
+                    }
+                  }
+                ],
+                "importance": "normal"
+              },
+              "metadata": {
+                "designer": { "x": 1200, "y": 150 },
+                "restore": {
+                  "__IMTCONN__": { "label": "Microsoft 365 Outlook — HIER_EINTRAGEN" }
+                }
+              }
+            },
+            {
+              "id": 10,
+              "module": "microsoft-teams:sendMessage",
+              "version": 1,
+              "parameters": {
+                "__IMTCONN__": 0
+              },
+              "mapper": {
+                "groupId": "TEAM_ID_HIER_EINTRAGEN",
+                "channelId": "CHANNEL_ID_HIER_EINTRAGEN",
+                "content": "✅ **Auftragsbestätigung erstellt — Prüfung erforderlich**\n\n**Kunde:** {{1.customer_name}}, {{1.customer_company}}\n**Auftrag:** {{1.document_number}} | **Wert:** {{1.amount}} EUR\n**Projekt:** {{1.project_name}}\n\n**KI-Hinweis:** {{8.review_notes}}\n\n✉️ Entwurf liegt in Outlook → Entwürfe. Bitte prüfen und senden.",
+                "contentType": "html"
+              },
+              "metadata": {
+                "designer": { "x": 1500, "y": 150 },
+                "restore": {
+                  "__IMTCONN__": { "label": "Microsoft Teams — HIER_EINTRAGEN" }
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "instant": true,
+    "version": 1,
+    "scenario": {
+      "roundtrips": 1,
+      "maxErrors": 3,
+      "autoCommit": true,
+      "autoCommitTriggerLast": true,
+      "sequential": false,
+      "confidential": true,
+      "dataloss": false,
+      "dlq": false,
+      "freshVariables": false
+    },
+    "designer": {
+      "orphans": []
+    },
+    "zone": "eu1.make.com"
+  }
+}
