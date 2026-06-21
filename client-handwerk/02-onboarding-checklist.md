@@ -6,9 +6,10 @@
 
 ## Kritisch (Blocker — ohne diese kann nicht gestartet werden)
 
-- [ ] **Make.com Account** — Team oder Pro Plan (kein Free-Plan, der hat zu wenige Operationen)
+- [ ] **Make.com Account** — mindestens **Pro Plan** ($16/Monat), kein Free- oder Core-Plan
   - URL: https://www.make.com/en/pricing
-  - Team-Plan reicht für den Start (~€10.59/Monat)
+  - Pro ist Minimum: nur Pro+ hat Custom Variables (nötig für HERO API Token-Speicherung)
+  - Empfohlen: Teams ($29/Monat) für Rollentrennung (Builder + Client-Owner)
 
 - [ ] **OpenAI API Key** (oder Azure OpenAI — empfohlen für DSGVO)
   - OpenAI: https://platform.openai.com/api-keys → neuen Key erstellen
@@ -29,8 +30,12 @@
 
 ## Wichtig (in der ersten Session klären)
 
-- [ ] **Welche 3 Use Cases haben höchste Priorität?**
-  (Email-Automatisierung / Dokumentenverarbeitung / Angebot-Generator)
+- [ ] **Welche Use Cases haben höchste Priorität?** (alle 5 sind gebaut, Reihenfolge klären)
+  - WF1: Email Intelligence Hub (eingehende E-Mails → KI-Klassifikation → Outlook Draft)
+  - WF2: Dokumentenverarbeitung (HERO Projekte → SharePoint-Ablage)
+  - WF3: Angebot-Generator (Webhook → KI → PDF-Entwurf)
+  - WF4: Schriftverkehr KI (Mahnung & Auftragsbestätigung → Outlook Draft)
+  - WF5: HERO ↔ M365 Sync (Kontakte bidirektional)
 
 - [ ] **Wer ist die Person, die später selbstständig weiterarbeiten soll?**
   (Name, Rolle, technisches Niveau — damit ich das Coaching anpasse)
@@ -72,16 +77,16 @@
 
 | Tool | Kosten/Monat |
 |------|-------------|
-| Make.com Team | ~€10–20 |
+| Make.com Pro/Teams | ~€16–29 |
 | OpenAI API | ~€20–50 (je nach Volumen) |
 | Microsoft 365 | bereits vorhanden |
 | HERO Software | bereits vorhanden |
-| **Gesamt** | **~€30–70/Monat** |
+| **Gesamt** | **~€36–80/Monat** |
 
 ---
 
 ## Timeline-Warnung
 
 > ⚠️ Den HERO API Key **sofort** bei HERO Support anfragen.  
-> Ohne diesen Key kann Workflow 3 (Angebot-Generator) in der Projektwoche nicht vollständig getestet werden.  
-> Fallback: Wir bauen WF3 mit Excel/SharePoint und migrieren zu HERO sobald der Key da ist.
+> Ohne diesen Key können WF3 (Angebot-Generator), WF2b (Projektprozess) und WF5 (HERO↔M365 Sync) nicht vollständig getestet werden.  
+> WF1 (Email Hub) und WF4 (Schriftverkehr) laufen auch ohne HERO API — diese zuerst testen.
