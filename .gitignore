@@ -15,6 +15,9 @@ secrets/
 # --- Session summaries (contain real IPs, API keys, emails) ---
 sessions/
 
+# --- Financial documents (invoices, NDA, bank details — never on GitHub) ---
+client-handwerk/finanzen/
+
 # --- Personal documents (CV, cover letters, drafts — never on GitHub) ---
 spec/base-lebenslauf.yaml
 spec/lebenslauf-template.html
@@ -50,6 +53,7 @@ n8n/*-clean.json
 *_current.json
 *-current.json
 test_payload.json
+notion_patch_*.json
 scripts/deploy_payloads/
 scripts/update_prompt_vps.py
 gas/sheets-writer-v2.gs

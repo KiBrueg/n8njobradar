@@ -86,7 +86,7 @@ grep -rn --include="*.json" --include="*.md" --include="*.yaml" --include="*.txt
 - [ ] No real API keys in any tracked file
 - [ ] No real VPS IP or hostname in tracked files
 - [ ] No personal email, phone, or address in tracked files
-- [ ] `.gitignore` covers all sensitive paths (`sessions/`, `.env*`, `spec/base-lebenslauf.yaml`, `NEXT_SESSION.md`)
+- [ ] `.gitignore` covers all sensitive paths (`sessions/`, `.env*`, `NEXT_SESSION.md`) — личные документы (Anschreiben, Lebenslauf) перенесены в отдельный проект `C:\Users\brueg\Desktop\projects\anschreiben`
 - [ ] `README.md` and `docs/` contain only generic placeholders for infrastructure details
 
 ## Dev environment
@@ -174,7 +174,21 @@ git stash pop   # восстановить
 - Если `.env` случайно закоммичен **локально** (не запушен): `git rm --cached .env` → добавить в `.gitignore` → коммит
 - Если `.env` уже **запушен**: считать ключи скомпрометированными → ротировать все секреты немедленно
 
-Текущий `.gitignore` этого проекта закрывает: `sessions/`, `.env*`, `spec/base-lebenslauf.yaml`, `NEXT_SESSION.md`, `.claude/`, `outputs/`
+Текущий `.gitignore` этого проекта закрывает: `sessions/`, `.env*`, `NEXT_SESSION.md`, `.claude/`, `outputs/`
+
+## Личные документы (вынесены из проекта)
+
+Anschreiben, Lebenslauf, pitch-письма, portfolio — перенесены в отдельный проект:
+**`C:\Users\brueg\Desktop\projects\anschreiben`**
+
+Структура там:
+- `letters/` — Anschreiben (34+ писем), anfrage, reply
+- `lebenslauf/` — base-lebenslauf.yaml, lebenslauf-template.html, PDF-версии CV
+- `pitch/` — pitch-письма для freelance проектов
+- `portfolio/` — portfolio-kirill.html + assets
+- `templates/` — шаблон anschreiben-DE.md
+
+В этом проекте (n8njobradar) остаётся только `gas/anschreiben-generator.gs` — это код автоматизации, не документ.
 
 ## Sources handled by JobRadar
 
