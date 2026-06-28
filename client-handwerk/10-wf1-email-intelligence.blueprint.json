@@ -220,6 +220,16 @@
                 "channelId": "CHANNEL_ID_HIER_EINTRAGEN",
                 "content": "🚨 **DRINGENDE REKLAMATION** von {{3.kundenname}} ({{1.from.address}})\n\nZusammenfassung: {{3.zusammenfassung}}\n\nBetreff: {{1.subject}}\n\nEntwurf liegt in Outlook Drafts. Bitte HEUTE bearbeiten!"
               },
+              "onerror": [
+                {
+                  "id": 50,
+                  "module": "builtin:BasicResumer",
+                  "version": 1,
+                  "parameters": {},
+                  "mapper": {},
+                  "metadata": { "designer": { "x": 2100, "y": -50 } }
+                }
+              ],
               "metadata": {
                 "designer": { "x": 1800, "y": -50, "name": "⚠️ Teams: DRINGEND Alert" },
                 "parameters": [
@@ -264,6 +274,16 @@
                 "channelId": "CHANNEL_ID_HIER_EINTRAGEN",
                 "content": "📄 Neue Eingangsrechnung von {{3.kundenname}} / {{3.firma}}\n\nBetreff: {{1.subject}}\n\nWurde in Ordner 'Rechnungen' verschoben und wird von WF2 weiterverarbeitet."
               },
+              "onerror": [
+                {
+                  "id": 51,
+                  "module": "builtin:BasicResumer",
+                  "version": 1,
+                  "parameters": {},
+                  "mapper": {},
+                  "metadata": { "designer": { "x": 1800, "y": 100 } }
+                }
+              ],
               "metadata": {
                 "designer": { "x": 1500, "y": 100, "name": "📢 Teams: Neue Rechnung" },
                 "parameters": [
@@ -292,6 +312,16 @@
                 "channelId": "CHANNEL_ID_HIER_EINTRAGEN",
                 "content": "📬 Neue E-Mail [{{3.kategorie}}] von {{3.kundenname}}\n\nPriorität: {{3.prioritaet}}\nBetreff: {{1.subject}}\nZusammenfassung: {{3.zusammenfassung}}\n\nVon: {{1.from.address}}"
               },
+              "onerror": [
+                {
+                  "id": 52,
+                  "module": "builtin:BasicResumer",
+                  "version": 1,
+                  "parameters": {},
+                  "mapper": {},
+                  "metadata": { "designer": { "x": 1500, "y": 250 } }
+                }
+              ],
               "metadata": {
                 "designer": { "x": 1200, "y": 250, "name": "📢 Teams: Info (Support/Termin)" },
                 "parameters": [
@@ -313,7 +343,7 @@
       "autoCommit": true,
       "autoCommitTriggerLast": true,
       "sequential": false,
-      "confidential": false,
+      "confidential": true,
       "dataloss": false,
       "dlq": false,
       "freshVariables": false
