@@ -1,0 +1,155 @@
+{
+  "name": "Flow 11 — Auto Apply (Email mit CV + Portfolio)",
+  "nodes": [
+    {
+      "id": "node_schedule",
+      "name": "Schedule: jede Stunde",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [0, 0],
+      "parameters": {
+        "rule": { "interval": [{ "field": "hours", "hoursInterval": 1 }] }
+      }
+    },
+    {
+      "id": "node_db_fetch",
+      "name": "DB: Jobs mit Email holen",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [220, 0],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT j.id, c.name AS company_name, j.job_title, j.location, j.contact_email, j.job_type, j.working_hours, je.parsed_json FROM jobs j LEFT JOIN companies c ON c.tenant_id = j.tenant_id AND c.company_id = j.company_id LEFT JOIN LATERAL ( SELECT parsed_json FROM job_events WHERE job_id = j.id ORDER BY created_at DESC LIMIT 1 ) je ON true WHERE j.contact_email IS NOT NULL AND j.auto_applied_at IS NULL AND j.created_at > NOW() - INTERVAL '48 hours' ORDER BY j.created_at DESC LIMIT 20;",
+        "options": {}
+      },
+      "credentials": { "postgres": { "id": "Tvuhat51UDCzKwnE", "name": "Postgres account" } }
+    },
+    {
+      "id": "node_if_jobs",
+      "name": "IF: Jobs vorhanden",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [440, 0],
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [{ "id": "c1", "leftValue": "={{ $input.all().length }}", "rightValue": 0, "operator": { "type": "number", "operation": "gt" } }],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "node_llm",
+      "name": "LLM: FIRMA_GRUND generieren",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [660, -100],
+      "parameters": {
+        "method": "POST",
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $env.OPENROUTER_API_KEY }}" },
+            { "name": "content-type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ model: 'qwen/qwen3-30b-a3b-instruct-2507', max_tokens: 80, messages: [{ role: 'system', content: '/no_think\\nSchreibe GENAU EINEN Satz (max. 20 Wörter), warum sich ein Automation Engineer (Python, n8n, LLM) bei dieser Firma bewirbt. Der Satz beginnt MIT KLEINBUCHSTABEN (kommt nach \"weil\"). Nur den Satz, kein Punkt, keine Anführungszeichen.' }, { role: 'user', content: 'Firma: ' + $json.company_name + '\\nStelle: ' + $json.job_title + '\\nInfo: ' + (($json.parsed_json && typeof $json.parsed_json === 'object') ? ($json.parsed_json.summary || '') : '') }] }) }}",
+        "options": { "timeout": 30000 }
+      }
+    },
+    {
+      "id": "node_build",
+      "name": "Code: Anschreiben bauen",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [880, -100],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const llmRaw = $input.item.json.choices?.[0]?.message?.content || '';\nconst grund = llmRaw.replace(/<think>[\\s\\S]*?<\\/think>/gi, '').trim() || 'mich die Kombination aus KI und Automatisierung in Ihrem Unternehmen überzeugt';\n\nconst job = $('DB: Jobs mit Email holen').item.json;\nconst firma = job.company_name || 'Ihr Unternehmen';\nconst ort = job.location || 'Berlin';\nconst stelle = job.job_title || 'die ausgeschriebene Stelle';\n\nconst heute = new Date().toLocaleDateString('de-DE', { day: '2-digit', month: 'long', year: 'numeric' });\n\nconst body = `Kirill Brüggemann · Berlin\\nogi-ogi@mail.de · github.com/KiBrueg · linkedin.com/in/ki-brueg-2520033bb\\n\\nBerlin, ${heute}\\n\\n${firma}\\n${ort}\\n\\nBetreff: Bewerbung als ${stelle} (m/w/d)\\n\\nSehr geehrte Damen und Herren,\\n\\nich bin Automation Engineer aus Berlin mit Schwerpunkt auf KI-gestützten Systemen, LLM-Integration und Backend-Entwicklung. Ich bewerbe mich bei ${firma}, weil ${grund}. Das Arbeitsformat ist für mich flexibel — Praktikum, Teilzeit, Vollzeit oder freiberuflich; entscheidend ist das Problem, das wir gemeinsam lösen.\\n\\nWas ich mitbringe: Ich baue produktionsreife Systeme in Python, die wirklich laufen. Mein Referenzprojekt JobRadar ist eine vollautomatisierte Multi-Source-Pipeline mit LLM-Parser, PostgreSQL-Backend, HMAC-Webhook-Auth und Prompt Injection Detection — deployed auf eigenem VPS mit Docker. Daneben habe ich einen Crypto Intel Agent mit Multi-Agenten-Architektur (Council of Advisors), Vektorsuche via pgvector und vollständiger pytest-Test-Suite entwickelt. LLM-APIs (Claude, OpenAI, open-source über OpenRouter), REST-Integrationen, n8n-Workflows, Telegram-Bots — alles aus eigener Initiative, ohne Team, ohne Deadline-Druck von außen.\\n\\nIch bin Berliner, spreche Deutsch auf Verhandlungsniveau (C1), Englisch (B2) und Russisch (Muttersprache). Remote bevorzugt, Hybrid oder vor Ort nach Absprache möglich. Verfügbar kurzfristig.\\n\\nWenn Sie ein konkretes Problem haben, das Automatisierung, KI oder Backend-Entwicklung lösen kann — ich höre gerne zu.\\n\\nMit freundlichen Grüßen,\\nKirill Brüggemann\\n\\n---\\n📄 Lebenslauf: https://drive.google.com/file/d/1HwbI0zcSySikQdV2yEJuaoeU-hyNaDVy/view\\n📊 Portfolio (JobRadar): https://drive.google.com/file/d/1G2uANtdZywakvzyt4JJyA73tI4ilzO5W/view\\n🔗 GitHub: https://github.com/KiBrueg\\n🔗 LinkedIn: https://linkedin.com/in/ki-brueg-2520033bb`;\n\nreturn {\n  job_id: job.id,\n  contact_email: job.contact_email,\n  subject: `Bewerbung als ${stelle} (m/w/d) — Kirill Brüggemann`,\n  body,\n  firma,\n  stelle\n};"
+      }
+    },
+    {
+      "id": "node_gmail",
+      "name": "Gmail: Senden",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [1100, -100],
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "sendTo": "={{ $json.contact_email }}",
+        "subject": "={{ $json.subject }}",
+        "message": "={{ $json.body }}",
+        "options": {
+          "senderName": "Kirill Brüggemann"
+        }
+      },
+      "credentials": { "gmailOAuth2": { "id": "7rf7G4mjBXt01V7T", "name": "Gmail account" } }
+    },
+    {
+      "id": "node_db_update",
+      "name": "DB: auto_applied_at setzen",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1320, -100],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE jobs SET auto_applied_at = NOW() WHERE id = $1;",
+        "options": { "queryReplacement": "={{ $('Code: Anschreiben bauen').item.json.job_id }}" }
+      },
+      "credentials": { "postgres": { "id": "Tvuhat51UDCzKwnE", "name": "Postgres account" } }
+    },
+    {
+      "id": "node_telegram",
+      "name": "Telegram: Beworben",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [1540, -100],
+      "parameters": {
+        "chatId": "={{ $env.TELEGRAM_CHAT_ID }}",
+        "text": "=📧 *Auto-Bewerbung gesendet*\n{{ $('Code: Anschreiben bauen').item.json.firma }} — {{ $('Code: Anschreiben bauen').item.json.stelle }}\n✉️ {{ $('Code: Anschreiben bauen').item.json.contact_email }}",
+        "additionalFields": { "parse_mode": "Markdown" }
+      },
+      "credentials": { "telegramApi": { "id": "GbCUJcypvKpeqReQ", "name": "JobRadar Telegram Bot" } }
+    },
+    {
+      "id": "node_noop",
+      "name": "Keine Jobs",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [660, 100],
+      "parameters": {}
+    }
+  ],
+  "connections": {
+    "Schedule: jede Stunde": {
+      "main": [[{ "node": "DB: Jobs mit Email holen", "type": "main", "index": 0 }]]
+    },
+    "DB: Jobs mit Email holen": {
+      "main": [[{ "node": "IF: Jobs vorhanden", "type": "main", "index": 0 }]]
+    },
+    "IF: Jobs vorhanden": {
+      "main": [
+        [{ "node": "LLM: FIRMA_GRUND generieren", "type": "main", "index": 0 }],
+        [{ "node": "Keine Jobs", "type": "main", "index": 0 }]
+      ]
+    },
+    "LLM: FIRMA_GRUND generieren": {
+      "main": [[{ "node": "Code: Anschreiben bauen", "type": "main", "index": 0 }]]
+    },
+    "Code: Anschreiben bauen": {
+      "main": [[{ "node": "Gmail: Senden", "type": "main", "index": 0 }]]
+    },
+    "Gmail: Senden": {
+      "main": [[{ "node": "DB: auto_applied_at setzen", "type": "main", "index": 0 }]]
+    },
+    "DB: auto_applied_at setzen": {
+      "main": [[{ "node": "Telegram: Beworben", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" }
+}
