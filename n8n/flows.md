@@ -200,9 +200,55 @@ VALUES ( ... );
 - **Description:** `summary` + link to source email
 - **Update if exists:** match by `job_thread_key` in event description
 
+### Rejection side effects (category = "rejection")
+
+Triggered when LLM returns `category: "rejection"`. Runs in parallel after DB Upsert.
+
+```
+[IF: category = "rejection"]
+    ↓
+    ├─→ [Notion: Update Bewerbungen]
+    │       Search by Unternehmen = company_name
+    │       → set Status = "Abgelehnt"
+    │       → append to Notizen: "Absage erhalten: {{ date }}"
+    │
+    └─→ [Google Calendar: Remove interview event]
+            Search events in "Job Interviews" calendar
+            where title contains company_name OR description contains job_thread_key
+            → Delete event if found (or rename to "❌ [original title]" if prefer to keep)
+    ↓
+[Telegram: Absage notification (optional)]
+    "❌ Absage: {{ company_name }} — {{ job_title }}"
+```
+
+**Notion API call (n8n HTTP Request node):**
+```
+PATCH https://api.notion.com/v1/pages/{{ page_id }}
+Headers: Authorization: Bearer {{ NOTION_TOKEN }}, Notion-Version: 2022-06-28
+Body:
+{
+  "properties": {
+    "Status": { "select": { "name": "Abgelehnt" } },
+    "Notizen": { "rich_text": [{ "text": { "content": "{{ existing_notizen }}\nAbsage erhalten: {{ email_date }}" } }] }
+  }
+}
+```
+
+To find the page_id: first call `POST https://api.notion.com/v1/databases/387e9707-d991-8163-8a85-000b44201f36/query` with filter `{ "filter": { "property": "Unternehmen", "title": { "contains": "{{ company_name }}" } } }`.
+
+**Google Calendar search:**
+Use Google Calendar API (n8n HTTP node or Calendar node):
+`GET /calendars/primary/events?q={{ company_name }}&timeMin={{ now }}&singleEvents=true`
+→ Filter results where event title or description contains `company_name`
+→ `DELETE /calendars/primary/events/{{ event_id }}`
+
+**Fallback if Notion page not found:** Log `company_name` + `email_date` to `job_events.parsed_json` under key `rejection_unmatched: true`. Do not block the main flow.
+
 ### Error handling
 - On Claude API error: retry 2×, then route to "Error" Gmail label + Telegram alert.
 - On DB error: log to `job_events.parsed_json` anyway (raw log preserved).
+- On Notion update error: log to DB, continue — non-blocking.
+- On Calendar delete error: log to DB, continue — non-blocking.
 
 ---
 
@@ -276,9 +322,14 @@ VALUES ( ... );
 
 Note: IMAP doesn't provide a thread_id natively. `job_thread_key` will be derived by Claude from `company_id` + subject hash, or by n8n from `In-Reply-To` / `References` headers if available.
 
+### Rejection side effects
+
+Same as Flow 1 — see "Rejection side effects" section above. Applied identically: Notion update + Calendar delete + optional Telegram notification.
+
 ### Error handling
 - IMAP connection failure: retry 3×, then Telegram alert.
 - Same Claude error handling as Gmail flow.
+- Notion/Calendar errors on rejection: non-blocking, logged to DB.
 
 ---
 
