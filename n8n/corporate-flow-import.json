@@ -1,1224 +1,1371 @@
 {
-  "name": "JobRadar -- Flow 2b: Corporate Career Pages",
-  "nodes": [
-    {
-      "id": "n_trigger",
-      "name": "Schedule: Daily 05:00",
-      "type": "n8n-nodes-base.scheduleTrigger",
-      "typeVersion": 1.1,
-      "position": [
-        200,
-        300
-      ],
-      "parameters": {
-        "rule": {
-          "interval": [
-            {
-              "field": "cronExpression",
-              "expression": "0 5 * * *"
-            }
-          ]
-        }
-      },
-      "notes": "Runs at 05:00 CET daily. After Flow 2 (04:00) to avoid DB contention."
-    },
-    {
-      "id": "n_gh_celonis",
-      "name": "GH: Celonis",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        420,
-        -300
-      ],
-      "notes": "Process Mining/Automation, Munich",
-      "onError": "continueErrorOutput",
-      "parameters": {
-        "method": "GET",
-        "url": "https://boards-api.greenhouse.io/v1/boards/celonis/jobs?content=true",
-        "options": {
-          "timeout": 15000
-        }
-      }
-    },
-    {
-      "id": "n_gh_flat_celonis",
-      "name": "Flatten: GH Celonis",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        640,
-        -300
-      ],
-      "parameters": {
-        "jsCode": "const resp = $input.first().json;\nconst jobs = Array.isArray(resp.jobs) ? resp.jobs : [];\nreturn jobs.map(j => ({ json: {\n  _source: 'greenhouse_api',\n  _company: 'Celonis',\n  _company_slug: 'celonis',\n  title: j.title || '',\n  location: (j.location && j.location.name) || 'Remote',\n  url: j.absolute_url || '',\n  published_at: j.updated_at || null,\n  departments: Array.isArray(j.departments) ? j.departments.map(d => d.name).join(', ') : '',\n  content: j.content ? j.content.replace(/<[^>]+>/g, ' ').substring(0, 3000) : ''\n} }));"
-      }
-    },
-    {
-      "id": "n_gh_hellofresh",
-      "name": "GH: HelloFresh",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        420,
-        -100
-      ],
-      "notes": "Tech/Operations, Berlin",
-      "onError": "continueErrorOutput",
-      "parameters": {
-        "method": "GET",
-        "url": "https://boards-api.greenhouse.io/v1/boards/hellofresh/jobs?content=true",
-        "options": {
-          "timeout": 15000
-        }
-      }
-    },
-    {
-      "id": "n_gh_flat_hellofresh",
-      "name": "Flatten: GH HelloFresh",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        640,
-        -100
-      ],
-      "parameters": {
-        "jsCode": "const resp = $input.first().json;\nconst jobs = Array.isArray(resp.jobs) ? resp.jobs : [];\nreturn jobs.map(j => ({ json: {\n  _source: 'greenhouse_api',\n  _company: 'HelloFresh',\n  _company_slug: 'hellofresh',\n  title: j.title || '',\n  location: (j.location && j.location.name) || 'Remote',\n  url: j.absolute_url || '',\n  published_at: j.updated_at || null,\n  departments: Array.isArray(j.departments) ? j.departments.map(d => d.name).join(', ') : '',\n  content: j.content ? j.content.replace(/<[^>]+>/g, ' ').substring(0, 3000) : ''\n} }));"
-      }
-    },
-    {
-      "id": "n_gh_n26",
-      "name": "GH: N26",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        420,
-        100
-      ],
-      "notes": "Fintech, Berlin",
-      "onError": "continueErrorOutput",
-      "parameters": {
-        "method": "GET",
-        "url": "https://boards-api.greenhouse.io/v1/boards/n26/jobs?content=true",
-        "options": {
-          "timeout": 15000
-        }
-      }
-    },
-    {
-      "id": "n_gh_flat_n26",
-      "name": "Flatten: GH N26",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        640,
-        100
-      ],
-      "parameters": {
-        "jsCode": "const resp = $input.first().json;\nconst jobs = Array.isArray(resp.jobs) ? resp.jobs : [];\nreturn jobs.map(j => ({ json: {\n  _source: 'greenhouse_api',\n  _company: 'N26',\n  _company_slug: 'n26',\n  title: j.title || '',\n  location: (j.location && j.location.name) || 'Remote',\n  url: j.absolute_url || '',\n  published_at: j.updated_at || null,\n  departments: Array.isArray(j.departments) ? j.departments.map(d => d.name).join(', ') : '',\n  content: j.content ? j.content.replace(/<[^>]+>/g, ' ').substring(0, 3000) : ''\n} }));"
-      }
-    },
-    {
-      "id": "n_gh_getyourguide",
-      "name": "GH: GetYourGuide",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        420,
-        300
-      ],
-      "notes": "Travel Tech, Berlin",
-      "onError": "continueErrorOutput",
-      "parameters": {
-        "method": "GET",
-        "url": "https://boards-api.greenhouse.io/v1/boards/getyourguide/jobs?content=true",
-        "options": {
-          "timeout": 15000
-        }
-      }
-    },
-    {
-      "id": "n_gh_flat_getyourguide",
-      "name": "Flatten: GH GetYourGuide",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        640,
-        300
-      ],
-      "parameters": {
-        "jsCode": "const resp = $input.first().json;\nconst jobs = Array.isArray(resp.jobs) ? resp.jobs : [];\nreturn jobs.map(j => ({ json: {\n  _source: 'greenhouse_api',\n  _company: 'GetYourGuide',\n  _company_slug: 'getyourguide',\n  title: j.title || '',\n  location: (j.location && j.location.name) || 'Remote',\n  url: j.absolute_url || '',\n  published_at: j.updated_at || null,\n  departments: Array.isArray(j.departments) ? j.departments.map(d => d.name).join(', ') : '',\n  content: j.content ? j.content.replace(/<[^>]+>/g, ' ').substring(0, 3000) : ''\n} }));"
-      }
-    },
-    {
-      "id": "n_gh_sumup",
-      "name": "GH: SumUp",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        420,
-        500
-      ],
-      "notes": "Fintech/Payments, Berlin",
-      "onError": "continueErrorOutput",
-      "parameters": {
-        "method": "GET",
-        "url": "https://boards-api.greenhouse.io/v1/boards/sumup/jobs?content=true",
-        "options": {
-          "timeout": 15000
-        }
-      }
-    },
-    {
-      "id": "n_gh_flat_sumup",
-      "name": "Flatten: GH SumUp",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        640,
-        500
-      ],
-      "parameters": {
-        "jsCode": "const resp = $input.first().json;\nconst jobs = Array.isArray(resp.jobs) ? resp.jobs : [];\nreturn jobs.map(j => ({ json: {\n  _source: 'greenhouse_api',\n  _company: 'SumUp',\n  _company_slug: 'sumup',\n  title: j.title || '',\n  location: (j.location && j.location.name) || 'Remote',\n  url: j.absolute_url || '',\n  published_at: j.updated_at || null,\n  departments: Array.isArray(j.departments) ? j.departments.map(d => d.name).join(', ') : '',\n  content: j.content ? j.content.replace(/<[^>]+>/g, ' ').substring(0, 3000) : ''\n} }));"
-      }
-    },
-    {
-      "id": "n_gh_babbel",
-      "name": "GH: Babbel STUB",
-      "type": "n8n-nodes-base.noOp",
-      "typeVersion": 1,
-      "position": [
-        420,
-        700
-      ],
-      "parameters": {},
-      "notes": "Babbel left Greenhouse. Now on jobs.babbel.com (Elastic App Search, CSRF-protected — not callable from n8n directly). Add as Firecrawl target when needed."
-    },
-    {
-      "id": "n_gh_flat_babbel",
-      "name": "Flatten: GH Babbel",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        640,
-        700
-      ],
-      "parameters": {
-        "jsCode": "const resp = $input.first().json;\nconst jobs = Array.isArray(resp.jobs) ? resp.jobs : [];\nreturn jobs.map(j => ({ json: {\n  _source: 'greenhouse_api',\n  _company: 'Babbel',\n  _company_slug: 'babbel',\n  title: j.title || '',\n  location: (j.location && j.location.name) || 'Remote',\n  url: j.absolute_url || '',\n  published_at: j.updated_at || null,\n  departments: Array.isArray(j.departments) ? j.departments.map(d => d.name).join(', ') : '',\n  content: j.content ? j.content.replace(/<[^>]+>/g, ' ').substring(0, 3000) : ''\n} }));"
-      }
-    },
-    {
-      "id": "n_gh_contentful",
-      "name": "GH: Contentful",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        420,
-        900
-      ],
-      "notes": "Headless CMS, Berlin",
-      "onError": "continueErrorOutput",
-      "parameters": {
-        "method": "GET",
-        "url": "https://boards-api.greenhouse.io/v1/boards/contentful/jobs?content=true",
-        "options": {
-          "timeout": 15000
-        }
-      }
-    },
-    {
-      "id": "n_gh_flat_contentful",
-      "name": "Flatten: GH Contentful",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        640,
-        900
-      ],
-      "parameters": {
-        "jsCode": "const resp = $input.first().json;\nconst jobs = Array.isArray(resp.jobs) ? resp.jobs : [];\nreturn jobs.map(j => ({ json: {\n  _source: 'greenhouse_api',\n  _company: 'Contentful',\n  _company_slug: 'contentful',\n  title: j.title || '',\n  location: (j.location && j.location.name) || 'Remote',\n  url: j.absolute_url || '',\n  published_at: j.updated_at || null,\n  departments: Array.isArray(j.departments) ? j.departments.map(d => d.name).join(', ') : '',\n  content: j.content ? j.content.replace(/<[^>]+>/g, ' ').substring(0, 3000) : ''\n} }));"
-      }
-    },
-    {
-      "id": "n_ab_aleph_alpha",
-      "name": "Ashby: Aleph Alpha",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        420,
-        900
-      ],
-      "notes": "AI Research, Heidelberg",
-      "onError": "continueErrorOutput",
-      "parameters": {
-        "method": "GET",
-        "url": "https://api.ashbyhq.com/posting-api/job-board/AlephAlpha",
-        "options": {
-          "timeout": 15000
-        }
-      }
-    },
-    {
-      "id": "n_ab_flat_aleph_alpha",
-      "name": "Flatten: Ashby Aleph Alpha",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        640,
-        900
-      ],
-      "parameters": {
-        "jsCode": "const raw = $input.first().json;\nconst jobs = Array.isArray(raw.jobs) ? raw.jobs : [];\nreturn jobs.map(j => ({ json: {\n  _source: 'ashby_api',\n  _company: 'Aleph Alpha',\n  _company_slug: 'aleph-alpha',\n  title: j.title || '',\n  location: j.location || (j.address && j.address.city) || '',\n  url: j.jobUrl || '',\n  published_at: j.publishedAt || null,\n  departments: j.department || j.team || '',\n  content: j.descriptionPlain ? j.descriptionPlain.substring(0, 3000) : ''\n} }));"
-      }
-    },
-    {
-      "id": "n_fc_stub_sap",
-      "name": "STUB: SAP Jobs",
-      "type": "n8n-nodes-base.noOp",
-      "typeVersion": 1,
-      "position": [
-        420,
-        1900
-      ],
-      "notes": "Activate: jobs.sap.com/search/?q=automation+engineer\nReplace with Firecrawl HTTP node when ready."
-    },
-    {
-      "id": "n_fc_stub_siemens",
-      "name": "STUB: Siemens Jobs",
-      "type": "n8n-nodes-base.noOp",
-      "typeVersion": 1,
-      "position": [
-        420,
-        2100
-      ],
-      "notes": "Activate: jobs.siemens.com/?keywords=automation\nReplace with Firecrawl HTTP node when ready."
-    },
-    {
-      "id": "n_fc_stub_deliveryhero",
-      "name": "STUB: Delivery Hero Jobs",
-      "type": "n8n-nodes-base.noOp",
-      "typeVersion": 1,
-      "position": [
-        420,
-        2300
-      ],
-      "notes": "Activate: careers.deliveryhero.com (custom ATS)\nReplace with Firecrawl HTTP node when ready."
-    },
-    {
-      "id": "n_fc_stub_teamviewer",
-      "name": "STUB: TeamViewer Jobs",
-      "type": "n8n-nodes-base.noOp",
-      "typeVersion": 1,
-      "position": [
-        420,
-        2500
-      ],
-      "notes": "Activate: teamviewer.com/en/company/careers (custom ATS)\nReplace with Firecrawl HTTP node when ready."
-    },
-    {
-      "id": "n_fc_stub_zalando",
-      "name": "STUB: Zalando Jobs",
-      "type": "n8n-nodes-base.noOp",
-      "typeVersion": 1,
-      "position": [
-        420,
-        2700
-      ],
-      "notes": "Activate: jobs.zalando.com -- no public API, needs Firecrawl\nReplace with Firecrawl HTTP node when ready."
-    },
-    {
-      "id": "n_merge",
-      "name": "Merge: All Corporate",
-      "type": "n8n-nodes-base.merge",
-      "typeVersion": 3,
-      "position": [
-        860,
-        300
-      ],
-      "parameters": {
-        "mode": "append",
-        "numberInputs": 8
-      }
-    },
-    {
-      "id": "n_kw_filter",
-      "name": "Keyword Filter",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1080,
-        300
-      ],
-      "notes": "Keeps AI/automation jobs. Discards: senior/lead/head roles; 5+ years experience requirements.",
-      "parameters": {
-        "jsCode": "const KEYWORDS = ['automation', 'automat', 'rpa', 'robotic process', 'process automation', 'workflow automation', 'low-code', 'no-code', 'machine learning', 'deep learning', 'neural network', 'artificial intelligence', 'ai engineer', 'ai developer', 'ai specialist', 'ai researcher', 'ai architect', 'llm', 'large language model', 'generative ai', 'genai', 'gen-ai', 'prompt engineer', 'vector search', 'rag ', 'künstliche intelligenz', 'ki engineer', 'ki developer', 'ki-', ' ki ', 'maschinelles lernen', 'automatisierung', 'mlops', 'dataops', 'data engineer', 'data pipeline', 'etl', 'n8n', 'zapier', 'airflow', 'prefect', 'dagster', 'make.com', 'integration engineer', 'integration developer', 'devops', 'platform engineer', 'process mining'];\nconst EXCLUDE_TITLE = ['senior ', 'sr. ', 'sr ', 'staff engineer', 'principal ', 'lead engineer', 'tech lead', 'engineering lead', 'head of', 'director', 'vp ', 'vice president', 'account executive', 'account manager', 'sales manager', 'marketing manager', 'product marketing'];\nconst EXP_REGEX = new RegExp('\\\\b([5-9]|\\\\d{2})\\\\+?\\\\s*(?:years?|jahre?)(?:\\\\s+of)?\\\\s*(?:experience|erfahrung|berufserfahrung)', 'i');\n\nreturn $input.all().filter(item => {\n  const job = item.json;\n  const title = (job.title || '').toLowerCase();\n  const fullText = [title, (job.departments || ''), (job.content || '')].join(' ').toLowerCase();\n\n  // Discard senior/lead/head/director titles\n  if (EXCLUDE_TITLE.some(ex => title.includes(ex))) return false;\n  // Discard postings requiring 5+ years of experience\n  if (EXP_REGEX.test(fullText)) return false;\n  // Keep only AI/automation-relevant roles\n  return KEYWORDS.some(kw => fullText.includes(kw));\n});"
-      }
-    },
-    {
-      "id": "n_normalize",
-      "name": "Normalize: Corporate Job",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1300,
-        300
-      ],
-      "parameters": {
-        "jsCode": "// UTF-8 sanitizer: replace malformed chars before processing\nfunction sanitizeText(s) {\n  if (!s) return s;\n  return String(s)\n    .replace(/\\uFFFD/g, '')   // replacement char\n    .replace(/\\u0000/g, '')   // null bytes\n    .trim();\n}\n\nconst now = new Date().toISOString();\nreturn $input.all().map(item => {\n  const j = item.json;\n  return { json: {\n    normalized_input: {\n      input_source: 'scraped',\n      source_detail: j._source || 'corporate_api',\n      email_account_id: null,\n      email_address: null,\n      email_provider: null,\n      subject: '[JOB POSTING] ' + (j.title || '') + ' @ ' + (j._company || ''),\n      date: now,\n      raw_text: [\n        '=== JOB POSTING FROM CORPORATE CAREER PAGE ===',\n        'Source: ' + (j._source || 'corporate_api'),\n        'Company: ' + (j._company || ''),\n        'Position: ' + (j.title || ''),\n        'Location: ' + (j.location || ''),\n        'Department: ' + (j.departments || ''),\n        'URL: ' + (j.url || ''),\n        '',\n        '=== JOB DESCRIPTION ===',\n        j.content || ''\n      ].join('\\n').substring(0, 8000),\n      raw_meta: {\n        company: j._company || null,\n        company_slug: j._company_slug || null,\n        job_url: j.url || null,\n        published_at: j.published_at || null,\n        source: j._source || null\n      }\n    }\n  } };\n});"
-      }
-    },
-    {
-      "id": "n_llm",
-      "name": "LLM Call (OpenRouter)",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        1960,
-        300
-      ],
-      "parameters": {
-        "method": "POST",
-        "url": "https://openrouter.ai/api/v1/chat/completions",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Authorization",
-              "value": "=Bearer {{ $env.OPENROUTER_API_KEY }}"
-            },
-            {
-              "name": "content-type",
-              "value": "application/json"
-            }
-          ]
-        },
-        "sendBody": true,
-        "contentType": "raw",
-        "rawContentType": "application/json",
-        "body": "={{ JSON.stringify({ model: 'qwen/qwen3-30b-a3b-instruct-2507', max_tokens: 1500, messages: [{ role: 'system', content: $env.JOBRADAR_SYSTEM_PROMPT }, { role: 'user', content: '/no_think\\n\\nCONTEXT: This is a job posting scraped from a corporate career page API (Greenhouse/Lever). Extract ALL available fields: company_name from raw_meta.company, job_title from subject or raw_text Position field, location, tech_stack, key_requirements, source_url from raw_meta.job_url. Set category=job_posting, is_job_related=true, action=create_job. Evaluate relevance_score per candidate profile. Output JSON only.\\n\\n' + JSON.stringify($json.normalized_input) }] }) }}",
-        "options": {
-          "timeout": 60000
-        }
-      }
-    },
-    {
-      "id": "n_parse",
-      "name": "Parse LLM Response",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        2180,
-        300
-      ],
-      "parameters": {
-        "jsCode": "const body = $input.item.json;\nlet jobEvent;\ntry {\n  let raw = (body.choices[0].message.content || '').trim();\n  raw = raw.replace(/<think>[\\s\\S]*?<\\/think>/gi, '').trim();\n  raw = raw.replace(/^```(?:json)?\\s*/i, '').replace(/\\s*```$/, '').trim();\n  jobEvent = JSON.parse(raw);\n} catch (err) {\n  throw new Error('LLM returned invalid JSON: ' + String(body?.choices?.[0]?.message?.content || '').substring(0, 300));\n}\n\nif (typeof jobEvent.is_job_related !== 'boolean') throw new Error('is_job_related must be boolean');\nif (typeof jobEvent.injection_suspected !== 'boolean') jobEvent.injection_suspected = false;\n\nconst ALLOWED_ACTIONS = ['create_job','update_stage','add_interview','add_deadline','log_only','flag_error','ignore'];\nif (!ALLOWED_ACTIONS.includes(jobEvent.action)) throw new Error('Invalid action: ' + String(jobEvent.action));\n\nif (!Array.isArray(jobEvent.tech_stack)) jobEvent.tech_stack = [];\nif (!Array.isArray(jobEvent.key_requirements)) jobEvent.key_requirements = [];\n\nconst JOB_RELATED_CATEGORIES = ['job_posting','hr_invite','interview_invite','test_task','offer','rejection','follow_up','platform_notification','manual_note'];\nif (JOB_RELATED_CATEGORIES.includes(jobEvent.category)) jobEvent.is_job_related = true;\n\njobEvent.is_job_related_str = jobEvent.is_job_related ? 'yes' : 'no';\n\nreturn [{ json: { job_event: jobEvent } }];"
-      }
-    },
-    {
-      "id": "n_if_related",
-      "name": "IF: is_job_related",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.2,
-      "position": [
-        2400,
-        300
-      ],
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict",
-            "version": 2
-          },
-          "conditions": [
-            {
-              "id": "cond_related",
-              "leftValue": "={{ $json.job_event.is_job_related_str }}",
-              "rightValue": "yes",
-              "operator": {
-                "type": "string",
-                "operation": "equals"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      }
-    },
-    {
-      "id": "n_prepare",
-      "name": "Prepare DB Params",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        2620,
-        300
-      ],
-      "parameters": {
-        "jsCode": "const e = $input.first().json.job_event;\nconst ni = $('Normalize: Corporate Job').first().json.normalized_input;\n\nfunction sql(v) { if (v===null||v===undefined) return 'NULL'; return \"'\"+ String(v).replace(/'/g,\"''\") +\"'\"; }\nfunction num(v) { if (v===null||v===undefined) return 'NULL'; const n=parseFloat(v); return isNaN(n)?'NULL':String(n); }\nfunction bool(v) { return v===true?'TRUE':'FALSE'; }\nfunction dt(v)   { return v?\"'\"+ String(v).replace(/'/g,\"''\") +\"'\":'NULL'; }\nfunction en(v,t) { return v?\"'\"+ String(v).replace(/'/g,\"''\") +\"'::\"+t:'NULL'; }\nfunction arr(vals) {\n  if (!vals||vals.length===0) return \"'{}'\";\n  const parts=vals.map(v=>'\"'+ String(v).replace(/\\\\/g,'\\\\\\\\').replace(/\"/g,'\\\\\"') +'\"');\n  return \"'\"+'{'+ parts.join(',') +'}'+\"'\";\n}\nfunction jsonb(v) { if (!v) return \"'{}'::jsonb\"; return \"'\"+ JSON.stringify(v).replace(/'/g,\"''\") +\"'::jsonb\"; }\n\nfunction normWorkMode(v) {\n  if (!v) return null;\n  const s = String(v).toLowerCase().replace(/[-\\s]/g, '_');\n  const map = {\n    on_site: 'onsite', onsite: 'onsite', in_office: 'onsite', office: 'onsite', vor_ort: 'onsite',\n    full_remote: 'remote', fully_remote: 'remote', remote: 'remote', homeoffice: 'remote', home_office: 'remote',\n    hybrid: 'hybrid', partially_remote: 'hybrid', teilweise_remote: 'hybrid'\n  };\n  return map[s] || null;\n}\nfunction normSeniority(v) {\n  if (!v) return null;\n  const s = String(v).toLowerCase().replace(/[-\\s]/g, '_');\n  const map = {\n    intern: 'intern', internship: 'intern', praktikum: 'intern',\n    junior: 'junior', jr: 'junior',\n    middle: 'middle', mid: 'middle', medior: 'middle', intermediate: 'middle',\n    senior: 'senior', sr: 'senior',\n    lead: 'lead', tech_lead: 'lead', team_lead: 'lead',\n    principal: 'principal', staff: 'principal', architect: 'principal'\n  };\n  return map[s] || null;\n}\n\nfunction slugify(s) { return (s||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,''); }\n\n// Fallbacks: use raw_meta structured data when LLM returns null\nconst titleFromSubject = (ni.subject||'').replace(/^\\[JOB POSTING\\]\\s*/i,'').split(' @ ')[0].trim() || null;\nconst companyId   = e.company_id   || ni.raw_meta.company_slug || slugify(ni.raw_meta.company) || 'unknown';\nconst companyName = e.company_name || ni.raw_meta.company      || 'Unknown Company';\nconst jobTitle    = e.job_title    || titleFromSubject          || null;\nconst sourceUrl   = e.source_url   || ni.raw_meta.job_url      || null;\nconst jobIdFuzzy  = e.job_id_fuzzy || [companyId, slugify(jobTitle||'unknown'), slugify(e.location||'unknown')].join('__');\n\nreturn [{ json: {\n  job_event: e,\n  resolved: {\n    company_id:   companyId,\n    company_name: companyName,\n    job_title:    jobTitle,\n    source_url:   sourceUrl,\n    job_id_fuzzy: jobIdFuzzy\n  },\n  db: {\n    company_id_sql:           sql(companyId),\n    company_name_sql:         sql(companyName),\n    employer_id_sql:          sql(e.employer_id),\n    employer_name_sql:        sql(e.employer_name),\n    job_id_fuzzy_sql:         sql(jobIdFuzzy),\n    job_title_sql:            sql(jobTitle),\n    location_sql:             sql(e.location),\n    job_thread_key_sql:       sql(e.job_thread_key),\n    seniority_sql:            en(normSeniority(e.seniority),'seniority_enum'),\n    work_mode_sql:            en(normWorkMode(e.work_mode),'work_mode_enum'),\n    work_mode_raw_sql:        sql(e.work_mode_raw),\n    working_hours_sql:        sql(e.working_hours),\n    salary_currency_sql:      sql(e.salary_currency),\n    salary_min_sql:           num(e.salary_min),\n    salary_max_sql:           num(e.salary_max),\n    salary_period_sql:        en(e.salary_period,'salary_period_enum'),\n    tech_stack_sql:           arr(e.tech_stack),\n    key_requirements_sql:     arr(e.key_requirements),\n    current_stage_sql:        en(e.stage||'discovered','job_stage_enum'),\n    priority_sql:             en(e.priority,'priority_enum'),\n    priority_level_sql:       num(e.priority_level),\n    interview_date_sql:       dt(e.interview_date),\n    response_deadline_sql:    dt(e.response_deadline),\n    application_deadline_sql: dt(e.application_deadline),\n    has_had_call_sql:         bool(e.has_had_call),\n    call_count_sql:           String(e.call_count||0),\n    last_call_date_sql:       dt(e.last_call_date),\n    source_url_sql:           sql(sourceUrl),\n    source_input_sql:         en('scraped','input_source_enum'),\n    summary_sql:              sql(e.summary),\n    category_sql:             en(e.category,'job_category_enum'),\n    action_sql:               sql(e.action),\n    is_job_related_sql:       bool(e.is_job_related),\n    call_platform_sql:        en(e.call_platform,'call_platform_enum'),\n    call_platform_raw_sql:    sql(e.call_platform_raw),\n    raw_text_sql:             sql(ni.raw_text),\n    parsed_json_sql:          jsonb(e),\n    email_account_id_sql:     sql(null),\n    raw_reference_sql:        sql(ni.raw_meta.job_url),\n    email_date_sql:           dt(ni.date),\n    sender_risk_level_sql:    sql('low'),\n    sender_risk_signals_sql:  arr([])\n  }\n} }];"
-      }
-    },
-    {
-      "id": "n_db_write",
-      "name": "DB: Write All",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        2840,
-        300
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "ZjjVGIqiRAUVlCk6",
-          "name": "radar"
-        }
-      },
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "WITH\nco AS (\n  INSERT INTO companies (company_id, name, meta)\n  VALUES ({{ $json.db.company_id_sql }}, {{ $json.db.company_name_sql }}, '{}')\n  ON CONFLICT (tenant_id, company_id) DO UPDATE SET updated_at = NOW()\n  RETURNING id\n),\nj AS (\n  INSERT INTO jobs (\n    job_id_fuzzy, company_id, employer_id,\n    job_title, location, seniority,\n    work_mode, work_mode_raw, working_hours,\n    salary_currency, salary_min, salary_max, salary_period,\n    tech_stack, key_requirements,\n    current_stage, priority, priority_level,\n    interview_date, response_deadline, application_deadline,\n    has_had_call, call_count, last_call_date,\n    source_url, source_input, summary\n  ) VALUES (\n    {{ $json.db.job_id_fuzzy_sql }}, {{ $json.db.company_id_sql }}, {{ $json.db.employer_id_sql }},\n    {{ $json.db.job_title_sql }}, {{ $json.db.location_sql }}, {{ $json.db.seniority_sql }},\n    {{ $json.db.work_mode_sql }}, {{ $json.db.work_mode_raw_sql }}, {{ $json.db.working_hours_sql }},\n    {{ $json.db.salary_currency_sql }}, {{ $json.db.salary_min_sql }}, {{ $json.db.salary_max_sql }}, {{ $json.db.salary_period_sql }},\n    {{ $json.db.tech_stack_sql }}, {{ $json.db.key_requirements_sql }},\n    {{ $json.db.current_stage_sql }}, {{ $json.db.priority_sql }}, {{ $json.db.priority_level_sql }},\n    {{ $json.db.interview_date_sql }}, {{ $json.db.response_deadline_sql }}, {{ $json.db.application_deadline_sql }},\n    {{ $json.db.has_had_call_sql }}, {{ $json.db.call_count_sql }}, {{ $json.db.last_call_date_sql }},\n    {{ $json.db.source_url_sql }}, {{ $json.db.source_input_sql }}, {{ $json.db.summary_sql }}\n  )\n  ON CONFLICT (tenant_id, job_id_fuzzy) DO UPDATE SET\n    current_stage = EXCLUDED.current_stage,\n    priority = EXCLUDED.priority,\n    summary = EXCLUDED.summary,\n    updated_at = NOW()\n  RETURNING id, job_id_fuzzy, current_stage::text, priority::text, summary\n),\nev AS (\n  INSERT INTO job_events (\n    job_id, job_id_fuzzy, input_source, source_detail,\n    category, is_job_related, action,\n    stage, priority, priority_level,\n    raw_text, parsed_json,\n    email_account_id, raw_reference, email_date,\n    sender_risk_level, sender_risk_signals\n  )\n  SELECT\n    (SELECT id FROM j), {{ $json.db.job_id_fuzzy_sql }},\n    {{ $json.db.source_input_sql }}, {{ $json.db.raw_reference_sql }},\n    {{ $json.db.category_sql }}, {{ $json.db.is_job_related_sql }}, {{ $json.db.action_sql }},\n    {{ $json.db.current_stage_sql }}, {{ $json.db.priority_sql }}, {{ $json.db.priority_level_sql }},\n    {{ $json.db.raw_text_sql }}, {{ $json.db.parsed_json_sql }},\n    {{ $json.db.email_account_id_sql }}, {{ $json.db.raw_reference_sql }}, {{ $json.db.email_date_sql }},\n    {{ $json.db.sender_risk_level_sql }}, {{ $json.db.sender_risk_signals_sql }}\n  RETURNING id\n)\nSELECT\n  (SELECT id FROM j) AS job_id,\n  (SELECT job_id_fuzzy FROM j) AS job_id_fuzzy,\n  (SELECT current_stage FROM j) AS stage,\n  (SELECT priority FROM j) AS priority,\n  (SELECT summary FROM j) AS summary,\n  (SELECT id FROM ev) AS event_id;",
-        "options": {}
-      }
-    },
-    {
-      "id": "n_if_interview",
-      "name": "IF: has interview_date",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.2,
-      "position": [
-        3060,
-        -100
-      ],
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "loose",
-            "version": 2
-          },
-          "conditions": [
-            {
-              "id": "cond_interview",
-              "leftValue": "={{ $('Prepare DB Params').first().json.job_event.interview_date }}",
-              "rightValue": "",
-              "operator": {
-                "type": "string",
-                "operation": "isNotEmpty"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      }
-    },
-    {
-      "id": "n_cal_interview",
-      "name": "Google Calendar: Interview",
-      "type": "n8n-nodes-base.googleCalendar",
-      "typeVersion": 1.3,
-      "position": [
-        3280,
-        -100
-      ],
-      "credentials": {
-        "googleCalendarOAuth2Api": {
-          "id": "eLQTxfMJ6kryO1Iy",
-          "name": "Google Calendar"
-        }
-      },
-      "parameters": {
-        "operation": "create",
-        "calendar": {
-          "__rl": true,
-          "value": "primary",
-          "mode": "list"
-        },
-        "title": "={{ '\\uDFAF Interview: ' + ($('Prepare DB Params').first().json.resolved.job_title || 'Position') + ' @ ' + ($('Prepare DB Params').first().json.resolved.company_name || 'Company') }}",
-        "start": "={{ ($('Prepare DB Params').first().json.job_event.interview_date || '').substring(0, 10) + 'T10:00:00' }}",
-        "end": "={{ ($('Prepare DB Params').first().json.job_event.interview_date || '').substring(0, 10) + 'T11:00:00' }}",
-        "additionalFields": {
-          "description": "={{ ($('Prepare DB Params').first().json.job_event.summary || '') + '\\n\\n' + ($('Prepare DB Params').first().json.resolved.source_url || '') }}"
-        }
-      }
-    },
-    {
-      "id": "n_enrich",
-      "name": "Enrich: Add Resolved Fields",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        3060,
-        700
-      ],
-      "parameters": {
-        "jsCode": "const allPrep = $('Prepare DB Params').all();\nreturn $input.all().map((item, i) => {\n  const prep = allPrep[i] ? allPrep[i].json : {};\n  const res = prep.resolved  || {};\n  const ev  = prep.job_event || {};\n  // Fallback: passed keyword filter = at least moderate relevance.\n  // LLM often returns null for relevance_score on scraped postings.\n  const score = ev.relevance_score || 50;\n  const prio  = ev.priority || (score >= 70 ? 'high' : score >= 40 ? 'medium' : 'low');\n  return { json: {\n    company_name:    res.company_name || null,\n    job_title:       res.job_title    || null,\n    source_url:      res.source_url   || null,\n    relevance_score: score,\n    priority:        prio,\n    location:        ev.location  || null,\n    work_mode:       ev.work_mode || null\n  }};\n});"
-      }
-    },
-    {
-      "id": "n_aggregate",
-      "name": "Aggregate: All Jobs",
-      "type": "n8n-nodes-base.aggregate",
-      "typeVersion": 1,
-      "position": [
-        3280,
-        700
-      ],
-      "parameters": {
-        "aggregate": "aggregateAllItemData",
-        "destinationFieldName": "jobs",
-        "options": {}
-      }
-    },
-    {
-      "id": "n_format_summary",
-      "name": "Format: Corporate Summary",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        3500,
-        700
-      ],
-      "parameters": {
-        "jsCode": "const jobs = ($json.jobs || []).map(j => j.json || j);\n\n// Sort by relevance DESC, nulls last\njobs.sort((a, b) => (b.relevance_score || 0) - (a.relevance_score || 0));\n\n// Filter: relevance >= 40\nconst relevant = jobs.filter(j => (j.relevance_score || 0) >= 40);\n\nif (relevant.length === 0) {\n  return [{ json: { skip: true, telegram_text: '', calendar_description: '', relevant_count: 0, total: jobs.length } }];\n}\n\nconst top  = relevant.filter(j => j.relevance_score >= 70);\nconst rest = relevant.filter(j => j.relevance_score >= 40 && j.relevance_score < 70);\n\n// Telegram message\nconst lines = ['\\u26A0\\uFE0F <b>[JobRadar Corporate] Neue Stellen</b>', ''];\n\nif (top.length > 0) {\n  lines.push('\\uDD25 <b>Top Matches (70+):</b>');\n  top.slice(0, 10).forEach(j => {\n    lines.push('\\u2022 <b>' + (j.job_title || '?') + '</b> @ ' + (j.company_name || '?') + ' <code>' + (j.relevance_score || '?') + '/100</code>');\n    if (j.location) lines.push('  \\uDCCD ' + j.location);\n    if (j.source_url) lines.push('  <a href=\"' + j.source_url + '\">Link</a>');\n  });\n  lines.push('');\n}\n\nif (rest.length > 0) {\n  lines.push('\\uDCCB <b>Weitere (40-69):</b>');\n  rest.slice(0, 15).forEach(j => {\n    lines.push('\\u2022 ' + (j.job_title || '?') + ' @ ' + (j.company_name || '?') + ' <code>' + (j.relevance_score || '?') + '/100</code>');\n    if (j.location) lines.push('  \\uDCCD ' + j.location);\n    if (j.source_url) lines.push('  <a href=\"' + j.source_url + '\">Link</a>');\n  });\n  lines.push('');\n}\n\nlines.push('Gesamt: ' + relevant.length + ' relevant von ' + jobs.length + ' gefunden');\n\n// Calendar description (Gmail-style HTML)\nconst calLines = relevant.slice(0, 30).map(j =>\n  '<b>' + (j.company_name || '?') + '</b> \\u2014 ' + (j.job_title || '?') +\n  ' (' + (j.relevance_score || '?') + '/100)' +\n  (j.location ? ' | ' + j.location : '')\n);\nconst calDesc = calLines.join('<br>');\n\nreturn [{ json: {\n  skip: false,\n  telegram_text: lines.join('\\n'),\n  calendar_description: calDesc,\n  relevant_count: relevant.length,\n  total: jobs.length\n}}];"
-      }
-    },
-    {
-      "id": "n_if_has_relevant",
-      "name": "IF: has relevant jobs",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.2,
-      "position": [
-        3720,
-        700
-      ],
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "loose",
-            "version": 2
-          },
-          "conditions": [
-            {
-              "id": "cond_has_relevant",
-              "leftValue": "={{ $json.relevant_count }}",
-              "rightValue": 0,
-              "operator": {
-                "type": "number",
-                "operation": "gt"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      }
-    },
-    {
-      "id": "n_telegram",
-      "name": "Telegram: Corporate Summary",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        3940,
-        300
-      ],
-      "parameters": {
-        "method": "POST",
-        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendMessage",
-        "sendBody": true,
-        "contentType": "raw",
-        "rawContentType": "application/json",
-        "body": "={{ JSON.stringify({ chat_id: $env.TELEGRAM_CHAT_ID, parse_mode: 'HTML', text: $json.telegram_text, disable_web_page_preview: true }) }}",
-        "options": {
-          "timeout": 10000
-        }
-      }
-    },
-    {
-      "id": "n_cal_list_today",
-      "name": "Google Calendar: List Today",
-      "type": "n8n-nodes-base.googleCalendar",
-      "typeVersion": 1.3,
-      "position": [
-        3940,
-        900
-      ],
-      "credentials": {
-        "googleCalendarOAuth2Api": {
-          "id": "eLQTxfMJ6kryO1Iy",
-          "name": "Google Calendar"
-        }
-      },
-      "parameters": {
-        "operation": "getAll",
-        "calendar": {
-          "__rl": true,
-          "value": "primary",
-          "mode": "list"
-        },
-        "returnAll": false,
-        "limit": 50,
-        "additionalFields": {
-          "timeMin": "={{ $now.toISODate() + 'T00:00:00Z' }}",
-          "timeMax": "={{ $now.toISODate() + 'T23:59:59Z' }}"
-        }
-      }
-    },
-    {
-      "id": "n_cal_find_corp",
-      "name": "Find [JobRadar Corporate] Event",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        4160,
-        900
-      ],
-      "parameters": {
-        "jsCode": "const items = $input.all().map(i => i.json);\nconst todayEvent = items.find(e => (e.summary || '').includes('[JobRadar Corporate]'));\nconst summary = $('Format: Corporate Summary').first().json;\n\nreturn [{ json: {\n  event_id:        todayEvent ? todayEvent.id : null,\n  event_found:     !!todayEvent,\n  new_description: summary.calendar_description,\n  event_title:     '[JobRadar Corporate] ' + $now.toISODate(),\n  existing_desc:   todayEvent ? (todayEvent.description || '') : ''\n}}];"
-      }
-    },
-    {
-      "id": "n_if_cal_exists",
-      "name": "IF: calendar event exists",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.2,
-      "position": [
-        4380,
-        900
-      ],
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "loose",
-            "version": 2
-          },
-          "conditions": [
-            {
-              "id": "cond_cal_exists",
-              "leftValue": "={{ $json.event_found }}",
-              "rightValue": true,
-              "operator": {
-                "type": "boolean",
-                "operation": "true"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      }
-    },
-    {
-      "id": "n_cal_update_corp",
-      "name": "Google Calendar: Update Corp Event",
-      "type": "n8n-nodes-base.googleCalendar",
-      "typeVersion": 1.3,
-      "position": [
-        4600,
-        700
-      ],
-      "credentials": {
-        "googleCalendarOAuth2Api": {
-          "id": "eLQTxfMJ6kryO1Iy",
-          "name": "Google Calendar"
-        }
-      },
-      "parameters": {
-        "operation": "update",
-        "calendar": {
-          "__rl": true,
-          "value": "primary",
-          "mode": "list"
-        },
-        "eventId": "={{ $json.event_id }}",
-        "updateFields": {
-          "description": "={{ $json.existing_desc ? $json.existing_desc + '<br><br>' + $json.new_description : $json.new_description }}"
-        }
-      }
-    },
-    {
-      "id": "n_cal_create_corp",
-      "name": "Google Calendar: Create Corp Event",
-      "type": "n8n-nodes-base.googleCalendar",
-      "typeVersion": 1.3,
-      "position": [
-        4600,
-        1100
-      ],
-      "credentials": {
-        "googleCalendarOAuth2Api": {
-          "id": "eLQTxfMJ6kryO1Iy",
-          "name": "Google Calendar"
-        }
-      },
-      "parameters": {
-        "operation": "create",
-        "calendar": {
-          "__rl": true,
-          "value": "primary",
-          "mode": "list"
-        },
-        "title": "={{ '[JobRadar Corporate] ' + $now.toISODate() }}",
-        "start": "={{ $now.toISODate() + 'T09:00:00' }}",
-        "end": "={{ $now.toISODate() + 'T09:30:00' }}",
-        "additionalFields": {
-          "description": "={{ $json.new_description }}"
-        }
-      }
-    },
-    {
-      "id": "n_filter_expired_2ZmgiT4I",
-      "name": "Filter: Skip Expired",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        2640,
-        300
-      ],
-      "parameters": {
-        "jsCode": "// Filter: Skip Expired\n// Drops jobs whose deadline has already passed.\n// No deadline → always pass through (we can't know → benefit of the doubt).\nconst e = $('Parse LLM Response').item.json.job_event;\nconst deadline = e.application_deadline || e.response_deadline || null;\n\nif (deadline) {\n  const deadlineDate = new Date(deadline);\n  // Guard: invalid date string → pass through\n  if (!isNaN(deadlineDate.getTime()) && deadlineDate < new Date()) {\n    // Expired — drop silently\n    return [];\n  }\n}\n\nreturn [$input.item];"
-      }
-    }
-  ],
-  "connections": {
-    "Schedule: Daily 05:00": {
-      "main": [
-        [
-          {
-            "node": "GH: Celonis",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "GH: HelloFresh",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "GH: N26",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "GH: GetYourGuide",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "GH: SumUp",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "GH: Babbel STUB",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "GH: Contentful",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Ashby: Aleph Alpha",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "GH: Celonis": {
-      "main": [
-        [
-          {
-            "node": "Flatten: GH Celonis",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "GH: HelloFresh": {
-      "main": [
-        [
-          {
-            "node": "Flatten: GH HelloFresh",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "GH: N26": {
-      "main": [
-        [
-          {
-            "node": "Flatten: GH N26",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "GH: GetYourGuide": {
-      "main": [
-        [
-          {
-            "node": "Flatten: GH GetYourGuide",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "GH: SumUp": {
-      "main": [
-        [
-          {
-            "node": "Flatten: GH SumUp",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "GH: Babbel STUB": {
-      "main": [
-        [
-          {
-            "node": "Flatten: GH Babbel",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "GH: Contentful": {
-      "main": [
-        [
-          {
-            "node": "Flatten: GH Contentful",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Ashby: Aleph Alpha": {
-      "main": [
-        [
-          {
-            "node": "Flatten: Ashby Aleph Alpha",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Flatten: GH Celonis": {
-      "main": [
-        [
-          {
-            "node": "Merge: All Corporate",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Flatten: GH HelloFresh": {
-      "main": [
-        [
-          {
-            "node": "Merge: All Corporate",
-            "type": "main",
-            "index": 1
-          }
-        ]
-      ]
-    },
-    "Flatten: GH N26": {
-      "main": [
-        [
-          {
-            "node": "Merge: All Corporate",
-            "type": "main",
-            "index": 2
-          }
-        ]
-      ]
-    },
-    "Flatten: GH GetYourGuide": {
-      "main": [
-        [
-          {
-            "node": "Merge: All Corporate",
-            "type": "main",
-            "index": 3
-          }
-        ]
-      ]
-    },
-    "Flatten: GH SumUp": {
-      "main": [
-        [
-          {
-            "node": "Merge: All Corporate",
-            "type": "main",
-            "index": 4
-          }
-        ]
-      ]
-    },
-    "Flatten: GH Babbel": {
-      "main": [
-        [
-          {
-            "node": "Merge: All Corporate",
-            "type": "main",
-            "index": 5
-          }
-        ]
-      ]
-    },
-    "Flatten: GH Contentful": {
-      "main": [
-        [
-          {
-            "node": "Merge: All Corporate",
-            "type": "main",
-            "index": 6
-          }
-        ]
-      ]
-    },
-    "Flatten: Ashby Aleph Alpha": {
-      "main": [
-        [
-          {
-            "node": "Merge: All Corporate",
-            "type": "main",
-            "index": 7
-          }
-        ]
-      ]
-    },
-    "Merge: All Corporate": {
-      "main": [
-        [
-          {
-            "node": "Keyword Filter",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Keyword Filter": {
-      "main": [
-        [
-          {
-            "node": "Normalize: Corporate Job",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Normalize: Corporate Job": {
-      "main": [
-        [
-          {
-            "node": "LLM Call (OpenRouter)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "LLM Call (OpenRouter)": {
-      "main": [
-        [
-          {
-            "node": "Parse LLM Response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse LLM Response": {
-      "main": [
-        [
-          {
-            "node": "IF: is_job_related",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "IF: is_job_related": {
-      "main": [
-        [
-          {
-            "node": "Filter: Skip Expired",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        []
-      ]
-    },
-    "Prepare DB Params": {
-      "main": [
-        [
-          {
-            "node": "DB: Write All",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "DB: Write All": {
-      "main": [
-        [
-          {
-            "node": "IF: has interview_date",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Enrich: Add Resolved Fields",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "IF: has interview_date": {
-      "main": [
-        [
-          {
-            "node": "Google Calendar: Interview",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        []
-      ]
-    },
-    "Enrich: Add Resolved Fields": {
-      "main": [
-        [
-          {
-            "node": "Aggregate: All Jobs",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Aggregate: All Jobs": {
-      "main": [
-        [
-          {
-            "node": "Format: Corporate Summary",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Format: Corporate Summary": {
-      "main": [
-        [
-          {
-            "node": "IF: has relevant jobs",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "IF: has relevant jobs": {
-      "main": [
-        [
-          {
-            "node": "Telegram: Corporate Summary",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Google Calendar: List Today",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        []
-      ]
-    },
-    "Google Calendar: List Today": {
-      "main": [
-        [
-          {
-            "node": "Find [JobRadar Corporate] Event",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Find [JobRadar Corporate] Event": {
-      "main": [
-        [
-          {
-            "node": "IF: calendar event exists",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "IF: calendar event exists": {
-      "main": [
-        [
-          {
-            "node": "Google Calendar: Update Corp Event",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Google Calendar: Create Corp Event",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Filter: Skip Expired": {
-      "main": [
-        [
-          {
-            "node": "Prepare DB Params",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    }
-  },
-  "settings": {
-    "executionOrder": "v1"
-  }
+    "name":  "JobRadar -- Flow 2b: Corporate Career Pages",
+    "nodes":  [
+                  {
+                      "parameters":  {
+                                         "rule":  {
+                                                      "interval":  [
+                                                                       {
+                                                                           "field":  "cronExpression",
+                                                                           "expression":  "0 5 * * *"
+                                                                       }
+                                                                   ]
+                                                  }
+                                     },
+                      "id":  "n_trigger",
+                      "name":  "Schedule: Daily 05:00",
+                      "type":  "n8n-nodes-base.scheduleTrigger",
+                      "typeVersion":  1.1,
+                      "position":  [
+                                       208,
+                                       304
+                                   ],
+                      "notes":  "Runs at 05:00 CET daily. After Flow 2 (04:00) to avoid DB contention."
+                  },
+                  {
+                      "parameters":  {
+                                         "url":  "https://boards-api.greenhouse.io/v1/boards/celonis/jobs?content=true",
+                                         "options":  {
+                                                         "timeout":  15000
+                                                     }
+                                     },
+                      "id":  "n_gh_celonis",
+                      "name":  "GH: Celonis",
+                      "type":  "n8n-nodes-base.httpRequest",
+                      "typeVersion":  4.2,
+                      "position":  [
+                                       432,
+                                       -304
+                                   ],
+                      "onError":  "continueErrorOutput",
+                      "notes":  "Process Mining/Automation, Munich"
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "const resp = $input.first().json;\nconst jobs = Array.isArray(resp.jobs) ? resp.jobs : [];\nreturn jobs.map(j =\u003e ({ json: {\n  _source: \u0027greenhouse_api\u0027,\n  _company: \u0027Celonis\u0027,\n  _company_slug: \u0027celonis\u0027,\n  title: j.title || \u0027\u0027,\n  location: (j.location \u0026\u0026 j.location.name) || \u0027Remote\u0027,\n  url: j.absolute_url || \u0027\u0027,\n  published_at: j.updated_at || null,\n  departments: Array.isArray(j.departments) ? j.departments.map(d =\u003e d.name).join(\u0027, \u0027) : \u0027\u0027,\n  content: j.content ? j.content.replace(/\u003c[^\u003e]+\u003e/g, \u0027 \u0027).substring(0, 3000) : \u0027\u0027\n} }));"
+                                     },
+                      "id":  "n_gh_flat_celonis",
+                      "name":  "Flatten: GH Celonis",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       640,
+                                       -304
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "url":  "https://boards-api.greenhouse.io/v1/boards/hellofresh/jobs?content=true",
+                                         "options":  {
+                                                         "timeout":  15000
+                                                     }
+                                     },
+                      "id":  "n_gh_hellofresh",
+                      "name":  "GH: HelloFresh",
+                      "type":  "n8n-nodes-base.httpRequest",
+                      "typeVersion":  4.2,
+                      "position":  [
+                                       432,
+                                       -96
+                                   ],
+                      "onError":  "continueErrorOutput",
+                      "notes":  "Tech/Operations, Berlin"
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "const resp = $input.first().json;\nconst jobs = Array.isArray(resp.jobs) ? resp.jobs : [];\nreturn jobs.map(j =\u003e ({ json: {\n  _source: \u0027greenhouse_api\u0027,\n  _company: \u0027HelloFresh\u0027,\n  _company_slug: \u0027hellofresh\u0027,\n  title: j.title || \u0027\u0027,\n  location: (j.location \u0026\u0026 j.location.name) || \u0027Remote\u0027,\n  url: j.absolute_url || \u0027\u0027,\n  published_at: j.updated_at || null,\n  departments: Array.isArray(j.departments) ? j.departments.map(d =\u003e d.name).join(\u0027, \u0027) : \u0027\u0027,\n  content: j.content ? j.content.replace(/\u003c[^\u003e]+\u003e/g, \u0027 \u0027).substring(0, 3000) : \u0027\u0027\n} }));"
+                                     },
+                      "id":  "n_gh_flat_hellofresh",
+                      "name":  "Flatten: GH HelloFresh",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       640,
+                                       -96
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "url":  "https://boards-api.greenhouse.io/v1/boards/n26/jobs?content=true",
+                                         "options":  {
+                                                         "timeout":  15000
+                                                     }
+                                     },
+                      "id":  "n_gh_n26",
+                      "name":  "GH: N26",
+                      "type":  "n8n-nodes-base.httpRequest",
+                      "typeVersion":  4.2,
+                      "position":  [
+                                       432,
+                                       112
+                                   ],
+                      "onError":  "continueErrorOutput",
+                      "notes":  "Fintech, Berlin"
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "const resp = $input.first().json;\nconst jobs = Array.isArray(resp.jobs) ? resp.jobs : [];\nreturn jobs.map(j =\u003e ({ json: {\n  _source: \u0027greenhouse_api\u0027,\n  _company: \u0027N26\u0027,\n  _company_slug: \u0027n26\u0027,\n  title: j.title || \u0027\u0027,\n  location: (j.location \u0026\u0026 j.location.name) || \u0027Remote\u0027,\n  url: j.absolute_url || \u0027\u0027,\n  published_at: j.updated_at || null,\n  departments: Array.isArray(j.departments) ? j.departments.map(d =\u003e d.name).join(\u0027, \u0027) : \u0027\u0027,\n  content: j.content ? j.content.replace(/\u003c[^\u003e]+\u003e/g, \u0027 \u0027).substring(0, 3000) : \u0027\u0027\n} }));"
+                                     },
+                      "id":  "n_gh_flat_n26",
+                      "name":  "Flatten: GH N26",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       640,
+                                       112
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "url":  "https://boards-api.greenhouse.io/v1/boards/getyourguide/jobs?content=true",
+                                         "options":  {
+                                                         "timeout":  15000
+                                                     }
+                                     },
+                      "id":  "n_gh_getyourguide",
+                      "name":  "GH: GetYourGuide",
+                      "type":  "n8n-nodes-base.httpRequest",
+                      "typeVersion":  4.2,
+                      "position":  [
+                                       432,
+                                       304
+                                   ],
+                      "onError":  "continueErrorOutput",
+                      "notes":  "Travel Tech, Berlin"
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "const resp = $input.first().json;\nconst jobs = Array.isArray(resp.jobs) ? resp.jobs : [];\nreturn jobs.map(j =\u003e ({ json: {\n  _source: \u0027greenhouse_api\u0027,\n  _company: \u0027GetYourGuide\u0027,\n  _company_slug: \u0027getyourguide\u0027,\n  title: j.title || \u0027\u0027,\n  location: (j.location \u0026\u0026 j.location.name) || \u0027Remote\u0027,\n  url: j.absolute_url || \u0027\u0027,\n  published_at: j.updated_at || null,\n  departments: Array.isArray(j.departments) ? j.departments.map(d =\u003e d.name).join(\u0027, \u0027) : \u0027\u0027,\n  content: j.content ? j.content.replace(/\u003c[^\u003e]+\u003e/g, \u0027 \u0027).substring(0, 3000) : \u0027\u0027\n} }));"
+                                     },
+                      "id":  "n_gh_flat_getyourguide",
+                      "name":  "Flatten: GH GetYourGuide",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       640,
+                                       304
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "url":  "https://boards-api.greenhouse.io/v1/boards/sumup/jobs?content=true",
+                                         "options":  {
+                                                         "timeout":  15000
+                                                     }
+                                     },
+                      "id":  "n_gh_sumup",
+                      "name":  "GH: SumUp",
+                      "type":  "n8n-nodes-base.httpRequest",
+                      "typeVersion":  4.2,
+                      "position":  [
+                                       432,
+                                       512
+                                   ],
+                      "onError":  "continueErrorOutput",
+                      "notes":  "Fintech/Payments, Berlin"
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "const resp = $input.first().json;\nconst jobs = Array.isArray(resp.jobs) ? resp.jobs : [];\nreturn jobs.map(j =\u003e ({ json: {\n  _source: \u0027greenhouse_api\u0027,\n  _company: \u0027SumUp\u0027,\n  _company_slug: \u0027sumup\u0027,\n  title: j.title || \u0027\u0027,\n  location: (j.location \u0026\u0026 j.location.name) || \u0027Remote\u0027,\n  url: j.absolute_url || \u0027\u0027,\n  published_at: j.updated_at || null,\n  departments: Array.isArray(j.departments) ? j.departments.map(d =\u003e d.name).join(\u0027, \u0027) : \u0027\u0027,\n  content: j.content ? j.content.replace(/\u003c[^\u003e]+\u003e/g, \u0027 \u0027).substring(0, 3000) : \u0027\u0027\n} }));"
+                                     },
+                      "id":  "n_gh_flat_sumup",
+                      "name":  "Flatten: GH SumUp",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       640,
+                                       512
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+
+                                     },
+                      "id":  "n_gh_babbel",
+                      "name":  "GH: Babbel STUB",
+                      "type":  "n8n-nodes-base.noOp",
+                      "typeVersion":  1,
+                      "position":  [
+                                       432,
+                                       704
+                                   ],
+                      "notes":  "Babbel left Greenhouse. Now on jobs.babbel.com (Elastic App Search, CSRF-protected - not callable from n8n directly). Add as Firecrawl target when needed."
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "const resp = $input.first().json;\nconst jobs = Array.isArray(resp.jobs) ? resp.jobs : [];\nreturn jobs.map(j =\u003e ({ json: {\n  _source: \u0027greenhouse_api\u0027,\n  _company: \u0027Babbel\u0027,\n  _company_slug: \u0027babbel\u0027,\n  title: j.title || \u0027\u0027,\n  location: (j.location \u0026\u0026 j.location.name) || \u0027Remote\u0027,\n  url: j.absolute_url || \u0027\u0027,\n  published_at: j.updated_at || null,\n  departments: Array.isArray(j.departments) ? j.departments.map(d =\u003e d.name).join(\u0027, \u0027) : \u0027\u0027,\n  content: j.content ? j.content.replace(/\u003c[^\u003e]+\u003e/g, \u0027 \u0027).substring(0, 3000) : \u0027\u0027\n} }));"
+                                     },
+                      "id":  "n_gh_flat_babbel",
+                      "name":  "Flatten: GH Babbel",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       640,
+                                       704
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "url":  "https://boards-api.greenhouse.io/v1/boards/contentful/jobs?content=true",
+                                         "options":  {
+                                                         "timeout":  15000
+                                                     }
+                                     },
+                      "id":  "n_gh_contentful",
+                      "name":  "GH: Contentful",
+                      "type":  "n8n-nodes-base.httpRequest",
+                      "typeVersion":  4.2,
+                      "position":  [
+                                       432,
+                                       912
+                                   ],
+                      "onError":  "continueErrorOutput",
+                      "notes":  "Headless CMS, Berlin"
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "const resp = $input.first().json;\nconst jobs = Array.isArray(resp.jobs) ? resp.jobs : [];\nreturn jobs.map(j =\u003e ({ json: {\n  _source: \u0027greenhouse_api\u0027,\n  _company: \u0027Contentful\u0027,\n  _company_slug: \u0027contentful\u0027,\n  title: j.title || \u0027\u0027,\n  location: (j.location \u0026\u0026 j.location.name) || \u0027Remote\u0027,\n  url: j.absolute_url || \u0027\u0027,\n  published_at: j.updated_at || null,\n  departments: Array.isArray(j.departments) ? j.departments.map(d =\u003e d.name).join(\u0027, \u0027) : \u0027\u0027,\n  content: j.content ? j.content.replace(/\u003c[^\u003e]+\u003e/g, \u0027 \u0027).substring(0, 3000) : \u0027\u0027\n} }));"
+                                     },
+                      "id":  "n_gh_flat_contentful",
+                      "name":  "Flatten: GH Contentful",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       640,
+                                       912
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "url":  "https://api.ashbyhq.com/posting-api/job-board/AlephAlpha",
+                                         "options":  {
+                                                         "timeout":  15000
+                                                     }
+                                     },
+                      "id":  "n_ab_aleph_alpha",
+                      "name":  "Ashby: Aleph Alpha",
+                      "type":  "n8n-nodes-base.httpRequest",
+                      "typeVersion":  4.2,
+                      "position":  [
+                                       432,
+                                       912
+                                   ],
+                      "onError":  "continueErrorOutput",
+                      "notes":  "AI Research, Heidelberg"
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "const raw = $input.first().json;\nconst jobs = Array.isArray(raw.jobs) ? raw.jobs : [];\nreturn jobs.map(j =\u003e ({ json: {\n  _source: \u0027ashby_api\u0027,\n  _company: \u0027Aleph Alpha\u0027,\n  _company_slug: \u0027aleph-alpha\u0027,\n  title: j.title || \u0027\u0027,\n  location: j.location || (j.address \u0026\u0026 j.address.city) || \u0027\u0027,\n  url: j.jobUrl || \u0027\u0027,\n  published_at: j.publishedAt || null,\n  departments: j.department || j.team || \u0027\u0027,\n  content: j.descriptionPlain ? j.descriptionPlain.substring(0, 3000) : \u0027\u0027\n} }));"
+                                     },
+                      "id":  "n_ab_flat_aleph_alpha",
+                      "name":  "Flatten: Ashby Aleph Alpha",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       640,
+                                       912
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+
+                                     },
+                      "id":  "n_fc_stub_sap",
+                      "name":  "STUB: SAP Jobs",
+                      "type":  "n8n-nodes-base.noOp",
+                      "typeVersion":  1,
+                      "position":  [
+                                       32,
+                                       736
+                                   ],
+                      "notes":  "Activate: jobs.sap.com/search/?q=automation+engineer\nReplace with Firecrawl HTTP node when ready."
+                  },
+                  {
+                      "parameters":  {
+
+                                     },
+                      "id":  "n_fc_stub_siemens",
+                      "name":  "STUB: Siemens Jobs",
+                      "type":  "n8n-nodes-base.noOp",
+                      "typeVersion":  1,
+                      "position":  [
+                                       -240,
+                                       656
+                                   ],
+                      "notes":  "Activate: jobs.siemens.com/?keywords=automation\nReplace with Firecrawl HTTP node when ready."
+                  },
+                  {
+                      "parameters":  {
+
+                                     },
+                      "id":  "n_fc_stub_deliveryhero",
+                      "name":  "STUB: Delivery Hero Jobs",
+                      "type":  "n8n-nodes-base.noOp",
+                      "typeVersion":  1,
+                      "position":  [
+                                       -512,
+                                       528
+                                   ],
+                      "notes":  "Activate: careers.deliveryhero.com (custom ATS)\nReplace with Firecrawl HTTP node when ready."
+                  },
+                  {
+                      "parameters":  {
+
+                                     },
+                      "id":  "n_fc_stub_teamviewer",
+                      "name":  "STUB: TeamViewer Jobs",
+                      "type":  "n8n-nodes-base.noOp",
+                      "typeVersion":  1,
+                      "position":  [
+                                       -240,
+                                       240
+                                   ],
+                      "notes":  "Activate: teamviewer.com/en/company/careers (custom ATS)\nReplace with Firecrawl HTTP node when ready."
+                  },
+                  {
+                      "parameters":  {
+
+                                     },
+                      "id":  "n_fc_stub_zalando",
+                      "name":  "STUB: Zalando Jobs",
+                      "type":  "n8n-nodes-base.noOp",
+                      "typeVersion":  1,
+                      "position":  [
+                                       16,
+                                       64
+                                   ],
+                      "notes":  "Activate: jobs.zalando.com -- no public API, needs Firecrawl\nReplace with Firecrawl HTTP node when ready."
+                  },
+                  {
+                      "parameters":  {
+                                         "numberInputs":  8
+                                     },
+                      "id":  "n_merge",
+                      "name":  "Merge: All Corporate",
+                      "type":  "n8n-nodes-base.merge",
+                      "typeVersion":  3,
+                      "position":  [
+                                       864,
+                                       304
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "const KEYWORDS = [\u0027automation\u0027, \u0027automat\u0027, \u0027rpa\u0027, \u0027robotic process\u0027, \u0027process automation\u0027, \u0027workflow automation\u0027, \u0027low-code\u0027, \u0027no-code\u0027, \u0027machine learning\u0027, \u0027deep learning\u0027, \u0027neural network\u0027, \u0027artificial intelligence\u0027, \u0027ai engineer\u0027, \u0027ai developer\u0027, \u0027ai specialist\u0027, \u0027ai researcher\u0027, \u0027ai architect\u0027, \u0027llm\u0027, \u0027large language model\u0027, \u0027generative ai\u0027, \u0027genai\u0027, \u0027gen-ai\u0027, \u0027prompt engineer\u0027, \u0027vector search\u0027, \u0027rag \u0027, \u0027k�nstliche intelligenz\u0027, \u0027ki engineer\u0027, \u0027ki developer\u0027, \u0027ki-\u0027, \u0027 ki \u0027, \u0027maschinelles lernen\u0027, \u0027automatisierung\u0027, \u0027mlops\u0027, \u0027dataops\u0027, \u0027data engineer\u0027, \u0027data pipeline\u0027, \u0027etl\u0027, \u0027n8n\u0027, \u0027zapier\u0027, \u0027airflow\u0027, \u0027prefect\u0027, \u0027dagster\u0027, \u0027make.com\u0027, \u0027integration engineer\u0027, \u0027integration developer\u0027, \u0027devops\u0027, \u0027platform engineer\u0027, \u0027process mining\u0027];\nconst EXCLUDE_TITLE = [\u0027senior \u0027, \u0027sr. \u0027, \u0027sr \u0027, \u0027staff engineer\u0027, \u0027principal \u0027, \u0027lead engineer\u0027, \u0027tech lead\u0027, \u0027engineering lead\u0027, \u0027head of\u0027, \u0027director\u0027, \u0027vp \u0027, \u0027vice president\u0027, \u0027account executive\u0027, \u0027account manager\u0027, \u0027sales manager\u0027, \u0027marketing manager\u0027, \u0027product marketing\u0027];\nconst EXP_REGEX = new RegExp(\u0027\\\\b([5-9]|\\\\d{2})\\\\+?\\\\s*(?:years?|jahre?)(?:\\\\s+of)?\\\\s*(?:experience|erfahrung|berufserfahrung)\u0027, \u0027i\u0027);\n\nreturn $input.all().filter(item =\u003e {\n  const job = item.json;\n  const title = (job.title || \u0027\u0027).toLowerCase();\n  const fullText = [title, (job.departments || \u0027\u0027), (job.content || \u0027\u0027)].join(\u0027 \u0027).toLowerCase();\n\n  // Discard senior/lead/head/director titles\n  if (EXCLUDE_TITLE.some(ex =\u003e title.includes(ex))) return false;\n  // Discard postings requiring 5+ years of experience\n  if (EXP_REGEX.test(fullText)) return false;\n  // Keep only AI/automation-relevant roles\n  return KEYWORDS.some(kw =\u003e fullText.includes(kw));\n});"
+                                     },
+                      "id":  "n_kw_filter",
+                      "name":  "Keyword Filter",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       1088,
+                                       304
+                                   ],
+                      "notes":  "Keeps AI/automation jobs. Discards: senior/lead/head roles; 5+ years experience requirements."
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "// UTF-8 sanitizer: replace malformed chars before processing\nfunction sanitizeText(s) {\n  if (!s) return s;\n  return String(s)\n    .replace(/\\uFFFD/g, \u0027\u0027)   // replacement char\n    .replace(/\\u0000/g, \u0027\u0027)   // null bytes\n    .trim();\n}\n\nconst now = new Date().toISOString();\nreturn $input.all().map(item =\u003e {\n  const j = item.json;\n  return { json: {\n    normalized_input: {\n      input_source: \u0027scraped\u0027,\n      source_detail: j._source || \u0027corporate_api\u0027,\n      email_account_id: null,\n      email_address: null,\n      email_provider: null,\n      subject: \u0027[JOB POSTING] \u0027 + (j.title || \u0027\u0027) + \u0027 @ \u0027 + (j._company || \u0027\u0027),\n      date: now,\n      raw_text: [\n        \u0027=== JOB POSTING FROM CORPORATE CAREER PAGE ===\u0027,\n        \u0027Source: \u0027 + (j._source || \u0027corporate_api\u0027),\n        \u0027Company: \u0027 + (j._company || \u0027\u0027),\n        \u0027Position: \u0027 + (j.title || \u0027\u0027),\n        \u0027Location: \u0027 + (j.location || \u0027\u0027),\n        \u0027Department: \u0027 + (j.departments || \u0027\u0027),\n        \u0027URL: \u0027 + (j.url || \u0027\u0027),\n        \u0027\u0027,\n        \u0027=== JOB DESCRIPTION ===\u0027,\n        j.content || \u0027\u0027\n      ].join(\u0027\\n\u0027).substring(0, 8000),\n      raw_meta: {\n        company: j._company || null,\n        company_slug: j._company_slug || null,\n        job_url: j.url || null,\n        published_at: j.published_at || null,\n        source: j._source || null\n      }\n    }\n  } };\n});"
+                                     },
+                      "id":  "n_normalize",
+                      "name":  "Normalize: Corporate Job",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       1312,
+                                       304
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "method":  "POST",
+                                         "url":  "https://openrouter.ai/api/v1/chat/completions",
+                                         "sendHeaders":  true,
+                                         "headerParameters":  {
+                                                                  "parameters":  [
+                                                                                     {
+                                                                                         "name":  "Authorization",
+                                                                                         "value":  "=Bearer {{ $env.OPENROUTER_API_KEY }}"
+                                                                                     },
+                                                                                     {
+                                                                                         "name":  "content-type",
+                                                                                         "value":  "application/json"
+                                                                                     }
+                                                                                 ]
+                                                              },
+                                         "sendBody":  true,
+                                         "contentType":  "raw",
+                                         "rawContentType":  "application/json",
+                                         "body":  "={{ JSON.stringify({ model: \u0027qwen/qwen3-30b-a3b-instruct-2507\u0027, max_tokens: 1500, messages: [{ role: \u0027system\u0027, content: $env.JOBRADAR_SYSTEM_PROMPT }, { role: \u0027user\u0027, content: \u0027/no_think\\n\\nCONTEXT: This is a job posting scraped from a corporate career page API (Greenhouse/Lever). Extract ALL available fields: company_name from raw_meta.company, job_title from subject or raw_text Position field, location, tech_stack, key_requirements, source_url from raw_meta.job_url. Set category=job_posting, is_job_related=true, action=create_job. Evaluate relevance_score per candidate profile. Output JSON only.\\n\\n\u0027 + JSON.stringify($json.normalized_input) }] }) }}",
+                                         "options":  {
+                                                         "timeout":  60000
+                                                     }
+                                     },
+                      "id":  "n_llm",
+                      "name":  "LLM Call (OpenRouter)",
+                      "type":  "n8n-nodes-base.httpRequest",
+                      "typeVersion":  4.2,
+                      "position":  [
+                                       1968,
+                                       304
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "const body = $input.item.json;\nlet jobEvent;\ntry {\n  let raw = (body.choices[0].message.content || \u0027\u0027).trim();\n  raw = raw.replace(/\u003cthink\u003e[\\s\\S]*?\u003c\\/think\u003e/gi, \u0027\u0027).trim();\n  raw = raw.replace(/^```(?:json)?\\s*/i, \u0027\u0027).replace(/\\s*```$/, \u0027\u0027).trim();\n  jobEvent = JSON.parse(raw);\n} catch (err) {\n  throw new Error(\u0027LLM returned invalid JSON: \u0027 + String(body?.choices?.[0]?.message?.content || \u0027\u0027).substring(0, 300));\n}\n\nif (typeof jobEvent.is_job_related !== \u0027boolean\u0027) throw new Error(\u0027is_job_related must be boolean\u0027);\nif (typeof jobEvent.injection_suspected !== \u0027boolean\u0027) jobEvent.injection_suspected = false;\n\nconst ALLOWED_ACTIONS = [\u0027create_job\u0027,\u0027update_stage\u0027,\u0027add_interview\u0027,\u0027add_deadline\u0027,\u0027log_only\u0027,\u0027flag_error\u0027,\u0027ignore\u0027];\nif (!ALLOWED_ACTIONS.includes(jobEvent.action)) throw new Error(\u0027Invalid action: \u0027 + String(jobEvent.action));\n\nif (!Array.isArray(jobEvent.tech_stack)) jobEvent.tech_stack = [];\nif (!Array.isArray(jobEvent.key_requirements)) jobEvent.key_requirements = [];\n\nconst JOB_RELATED_CATEGORIES = [\u0027job_posting\u0027,\u0027hr_invite\u0027,\u0027interview_invite\u0027,\u0027test_task\u0027,\u0027offer\u0027,\u0027rejection\u0027,\u0027follow_up\u0027,\u0027platform_notification\u0027,\u0027manual_note\u0027];\nif (JOB_RELATED_CATEGORIES.includes(jobEvent.category)) jobEvent.is_job_related = true;\n\njobEvent.is_job_related_str = jobEvent.is_job_related ? \u0027yes\u0027 : \u0027no\u0027;\n\nreturn [{ json: { job_event: jobEvent } }];"
+                                     },
+                      "id":  "n_parse",
+                      "name":  "Parse LLM Response",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       2192,
+                                       304
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "conditions":  {
+                                                            "options":  {
+                                                                            "caseSensitive":  true,
+                                                                            "leftValue":  "",
+                                                                            "typeValidation":  "strict",
+                                                                            "version":  2
+                                                                        },
+                                                            "conditions":  [
+                                                                               {
+                                                                                   "id":  "cond_related",
+                                                                                   "leftValue":  "={{ $json.job_event.is_job_related_str }}",
+                                                                                   "rightValue":  "yes",
+                                                                                   "operator":  {
+                                                                                                    "type":  "string",
+                                                                                                    "operation":  "equals"
+                                                                                                }
+                                                                               }
+                                                                           ],
+                                                            "combinator":  "and"
+                                                        },
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "n_if_related",
+                      "name":  "IF: is_job_related",
+                      "type":  "n8n-nodes-base.if",
+                      "typeVersion":  2.2,
+                      "position":  [
+                                       2400,
+                                       304
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "const e = $input.first().json.job_event;\nconst ni = $(\u0027Normalize: Corporate Job\u0027).first().json.normalized_input;\n\nfunction sql(v) { if (v===null||v===undefined) return \u0027NULL\u0027; return \"\u0027\"+ String(v).replace(/\u0027/g,\"\u0027\u0027\") +\"\u0027\"; }\nfunction num(v) { if (v===null||v===undefined) return \u0027NULL\u0027; const n=parseFloat(v); return isNaN(n)?\u0027NULL\u0027:String(n); }\nfunction bool(v) { return v===true?\u0027TRUE\u0027:\u0027FALSE\u0027; }\nfunction dt(v)   { return v?\"\u0027\"+ String(v).replace(/\u0027/g,\"\u0027\u0027\") +\"\u0027\":\u0027NULL\u0027; }\nfunction en(v,t) { return v?\"\u0027\"+ String(v).replace(/\u0027/g,\"\u0027\u0027\") +\"\u0027::\"+t:\u0027NULL\u0027; }\nconst VALID_PRIORITY=[\u0027high\u0027,\u0027medium\u0027,\u0027low\u0027];\nfunction normPriority(v){if(!v)return null;const s=String(v).toLowerCase().trim();return VALID_PRIORITY.includes(s)?s:null;}\nfunction arr(vals) {\n  if (!vals||vals.length===0) return \"\u0027{}\u0027\";\n  const parts=vals.map(v=\u003e\u0027\"\u0027+ String(v).replace(/\\\\/g,\u0027\\\\\\\\\u0027).replace(/\"/g,\u0027\\\\\"\u0027) +\u0027\"\u0027);\n  return \"\u0027\"+\u0027{\u0027+ parts.join(\u0027,\u0027) +\u0027}\u0027+\"\u0027\";\n}\nfunction jsonb(v) { if (!v) return \"\u0027{}\u0027::jsonb\"; return \"\u0027\"+ JSON.stringify(v).replace(/\u0027/g,\"\u0027\u0027\") +\"\u0027::jsonb\"; }\n\nfunction normWorkMode(v) {\n  if (!v) return null;\n  const s = String(v).toLowerCase().replace(/[-\\s]/g, \u0027_\u0027);\n  const map = {\n    on_site: \u0027onsite\u0027, onsite: \u0027onsite\u0027, in_office: \u0027onsite\u0027, office: \u0027onsite\u0027, vor_ort: \u0027onsite\u0027,\n    full_remote: \u0027remote\u0027, fully_remote: \u0027remote\u0027, remote: \u0027remote\u0027, homeoffice: \u0027remote\u0027, home_office: \u0027remote\u0027,\n    hybrid: \u0027hybrid\u0027, partially_remote: \u0027hybrid\u0027, teilweise_remote: \u0027hybrid\u0027\n  };\n  return map[s] || null;\n}\nfunction normSeniority(v) {\n  if (!v) return null;\n  const s = String(v).toLowerCase().replace(/[-\\s]/g, \u0027_\u0027);\n  const map = {\n    intern: \u0027intern\u0027, internship: \u0027intern\u0027, praktikum: \u0027intern\u0027,\n    junior: \u0027junior\u0027, jr: \u0027junior\u0027,\n    middle: \u0027middle\u0027, mid: \u0027middle\u0027, medior: \u0027middle\u0027, intermediate: \u0027middle\u0027,\n    senior: \u0027senior\u0027, sr: \u0027senior\u0027,\n    lead: \u0027lead\u0027, tech_lead: \u0027lead\u0027, team_lead: \u0027lead\u0027,\n    principal: \u0027principal\u0027, staff: \u0027principal\u0027, architect: \u0027principal\u0027\n  };\n  return map[s] || null;\n}\n\nfunction slugify(s) { return (s||\u0027\u0027).toLowerCase().replace(/[^a-z0-9]+/g,\u0027-\u0027).replace(/^-|-$/g,\u0027\u0027); }\n\n// Fallbacks: use raw_meta structured data when LLM returns null\nconst titleFromSubject = (ni.subject||\u0027\u0027).replace(/^\\[JOB POSTING\\]\\s*/i,\u0027\u0027).split(\u0027 @ \u0027)[0].trim() || null;\nconst companyId   = e.company_id   || ni.raw_meta.company_slug || slugify(ni.raw_meta.company) || \u0027unknown\u0027;\nconst companyName = e.company_name || ni.raw_meta.company      || \u0027Unknown Company\u0027;\nconst jobTitle    = e.job_title    || titleFromSubject          || null;\nconst sourceUrl   = e.source_url   || ni.raw_meta.job_url      || null;\nconst jobIdFuzzy  = e.job_id_fuzzy || [companyId, slugify(jobTitle||\u0027unknown\u0027), slugify(e.location||\u0027unknown\u0027)].join(\u0027__\u0027);\n\nreturn [{ json: {\n  job_event: e,\n  resolved: {\n    company_id:   companyId,\n    company_name: companyName,\n    job_title:    jobTitle,\n    source_url:   sourceUrl,\n    job_id_fuzzy: jobIdFuzzy\n  },\n  db: {\n    company_id_sql:           sql(companyId),\n    company_name_sql:         sql(companyName),\n    employer_id_sql:          sql(e.employer_id),\n    employer_name_sql:        sql(e.employer_name),\n    job_id_fuzzy_sql:         sql(jobIdFuzzy),\n    job_title_sql:            sql(jobTitle),\n    location_sql:             sql(e.location),\n    job_thread_key_sql:       sql(e.job_thread_key),\n    seniority_sql:            en(normSeniority(e.seniority),\u0027seniority_enum\u0027),\n    work_mode_sql:            en(normWorkMode(e.work_mode),\u0027work_mode_enum\u0027),\n    work_mode_raw_sql:        sql(e.work_mode_raw),\n    working_hours_sql:        sql(e.working_hours),\n    salary_currency_sql:      sql(e.salary_currency),\n    salary_min_sql:           num(e.salary_min),\n    salary_max_sql:           num(e.salary_max),\n    salary_period_sql:        en(e.salary_period,\u0027salary_period_enum\u0027),\n    tech_stack_sql:           arr(e.tech_stack),\n    key_requirements_sql:     arr(e.key_requirements),\n    current_stage_sql:        en(e.stage||\u0027discovered\u0027,\u0027job_stage_enum\u0027),\n    priority_sql:             en(normPriority(e.priority),\u0027priority_enum\u0027),\n    priority_level_sql:       num(e.priority_level),\n    interview_date_sql:       dt(e.interview_date),\n    response_deadline_sql:    dt(e.response_deadline),\n    application_deadline_sql: dt(e.application_deadline),\n    has_had_call_sql:         bool(e.has_had_call),\n    call_count_sql:           String(e.call_count||0),\n    last_call_date_sql:       dt(e.last_call_date),\n    source_url_sql:           sql(sourceUrl),\n    source_input_sql:         en(\u0027scraped\u0027,\u0027input_source_enum\u0027),\n    summary_sql:              sql(e.summary),\n    category_sql:             en(e.category,\u0027job_category_enum\u0027),\n    action_sql:               sql(e.action),\n    is_job_related_sql:       bool(e.is_job_related),\n    call_platform_sql:        en(e.call_platform,\u0027call_platform_enum\u0027),\n    call_platform_raw_sql:    sql(e.call_platform_raw),\n    raw_text_sql:             sql(ni.raw_text),\n    parsed_json_sql:          jsonb(e),\n    email_account_id_sql:     sql(null),\n    raw_reference_sql:        sql(ni.raw_meta.job_url),\n    email_date_sql:           dt(ni.date),\n    sender_risk_level_sql:    sql(\u0027low\u0027),\n    sender_risk_signals_sql:  arr([])\n  }\n} }];"
+                                     },
+                      "id":  "n_prepare",
+                      "name":  "Prepare DB Params",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       2624,
+                                       304
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "operation":  "executeQuery",
+                                         "query":  "WITH\nco AS (\n  INSERT INTO companies (company_id, name, meta)\n  VALUES ({{ $json.db.company_id_sql }}, {{ $json.db.company_name_sql }}, \u0027{}\u0027)\n  ON CONFLICT (tenant_id, company_id) DO UPDATE SET updated_at = NOW()\n  RETURNING id\n),\nj AS (\n  INSERT INTO jobs (\n    job_id_fuzzy, company_id, employer_id,\n    job_title, location, seniority,\n    work_mode, work_mode_raw, working_hours,\n    salary_currency, salary_min, salary_max, salary_period,\n    tech_stack, key_requirements,\n    current_stage, priority, priority_level,\n    interview_date, response_deadline, application_deadline,\n    has_had_call, call_count, last_call_date,\n    source_url, source_input, summary\n  ) VALUES (\n    {{ $json.db.job_id_fuzzy_sql }}, {{ $json.db.company_id_sql }}, {{ $json.db.employer_id_sql }},\n    {{ $json.db.job_title_sql }}, {{ $json.db.location_sql }}, {{ $json.db.seniority_sql }},\n    {{ $json.db.work_mode_sql }}, {{ $json.db.work_mode_raw_sql }}, {{ $json.db.working_hours_sql }},\n    {{ $json.db.salary_currency_sql }}, {{ $json.db.salary_min_sql }}, {{ $json.db.salary_max_sql }}, {{ $json.db.salary_period_sql }},\n    {{ $json.db.tech_stack_sql }}, {{ $json.db.key_requirements_sql }},\n    {{ $json.db.current_stage_sql }}, {{ $json.db.priority_sql }}, {{ $json.db.priority_level_sql }},\n    {{ $json.db.interview_date_sql }}, {{ $json.db.response_deadline_sql }}, {{ $json.db.application_deadline_sql }},\n    {{ $json.db.has_had_call_sql }}, {{ $json.db.call_count_sql }}, {{ $json.db.last_call_date_sql }},\n    {{ $json.db.source_url_sql }}, {{ $json.db.source_input_sql }}, {{ $json.db.summary_sql }}\n  )\n  ON CONFLICT (tenant_id, job_id_fuzzy) DO UPDATE SET\n    current_stage = EXCLUDED.current_stage,\n    priority = EXCLUDED.priority,\n    summary = EXCLUDED.summary,\n    updated_at = NOW()\n  RETURNING id, job_id_fuzzy, current_stage::text, priority::text, summary\n),\nev AS (\n  INSERT INTO job_events (\n    job_id, job_id_fuzzy, input_source, source_detail,\n    category, is_job_related, action,\n    stage, priority, priority_level,\n    raw_text, parsed_json,\n    email_account_id, raw_reference, email_date,\n    sender_risk_level, sender_risk_signals\n  )\n  SELECT\n    (SELECT id FROM j), {{ $json.db.job_id_fuzzy_sql }},\n    {{ $json.db.source_input_sql }}, {{ $json.db.raw_reference_sql }},\n    {{ $json.db.category_sql }}, {{ $json.db.is_job_related_sql }}, {{ $json.db.action_sql }},\n    {{ $json.db.current_stage_sql }}, {{ $json.db.priority_sql }}, {{ $json.db.priority_level_sql }},\n    {{ $json.db.raw_text_sql }}, {{ $json.db.parsed_json_sql }},\n    {{ $json.db.email_account_id_sql }}, {{ $json.db.raw_reference_sql }}, {{ $json.db.email_date_sql }},\n    {{ $json.db.sender_risk_level_sql }}, {{ $json.db.sender_risk_signals_sql }}\n  RETURNING id\n)\nSELECT\n  (SELECT id FROM j) AS job_id,\n  (SELECT job_id_fuzzy FROM j) AS job_id_fuzzy,\n  (SELECT current_stage FROM j) AS stage,\n  (SELECT priority FROM j) AS priority,\n  (SELECT summary FROM j) AS summary,\n  (SELECT id FROM ev) AS event_id;",
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "n_db_write",
+                      "name":  "DB: Write All",
+                      "type":  "n8n-nodes-base.postgres",
+                      "typeVersion":  2.5,
+                      "position":  [
+                                       2848,
+                                       304
+                                   ],
+                      "credentials":  {
+                                          "postgres":  {
+                                                           "id":  "ZjjVGIqiRAUVlCk6",
+                                                           "name":  "JobRadar Postgres"
+                                                       }
+                                      }
+                  },
+                  {
+                      "parameters":  {
+                                         "conditions":  {
+                                                            "options":  {
+                                                                            "caseSensitive":  true,
+                                                                            "leftValue":  "",
+                                                                            "typeValidation":  "loose",
+                                                                            "version":  2
+                                                                        },
+                                                            "conditions":  [
+                                                                               {
+                                                                                   "id":  "cond_interview",
+                                                                                   "leftValue":  "={{ $(\u0027Prepare DB Params\u0027).first().json.job_event.interview_date }}",
+                                                                                   "rightValue":  "",
+                                                                                   "operator":  {
+                                                                                                    "type":  "string",
+                                                                                                    "operation":  "isNotEmpty"
+                                                                                                }
+                                                                               }
+                                                                           ],
+                                                            "combinator":  "and"
+                                                        },
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "n_if_interview",
+                      "name":  "IF: has interview_date",
+                      "type":  "n8n-nodes-base.if",
+                      "typeVersion":  2.2,
+                      "position":  [
+                                       3072,
+                                       -96
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "calendar":  {
+                                                          "__rl":  true,
+                                                          "value":  "primary",
+                                                          "mode":  "list"
+                                                      },
+                                         "start":  "={{ ($(\u0027Prepare DB Params\u0027).first().json.job_event.interview_date || \u0027\u0027).substring(0, 10) + \u0027T10:00:00\u0027 }}",
+                                         "end":  "={{ ($(\u0027Prepare DB Params\u0027).first().json.job_event.interview_date || \u0027\u0027).substring(0, 10) + \u0027T11:00:00\u0027 }}",
+                                         "additionalFields":  {
+                                                                  "description":  "={{ ($(\u0027Prepare DB Params\u0027).first().json.job_event.summary || \u0027\u0027) + \u0027\\n\\n\u0027 + ($(\u0027Prepare DB Params\u0027).first().json.resolved.source_url || \u0027\u0027) }}"
+                                                              }
+                                     },
+                      "id":  "n_cal_interview",
+                      "name":  "Google Calendar: Interview",
+                      "type":  "n8n-nodes-base.googleCalendar",
+                      "typeVersion":  1.3,
+                      "position":  [
+                                       3312,
+                                       -208
+                                   ],
+                      "credentials":  {
+                                          "googleCalendarOAuth2Api":  {
+                                                                          "id":  "eLQTxfMJ6kryO1Iy",
+                                                                          "name":  "Google Calendar account"
+                                                                      }
+                                      }
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "const allPrep = $(\u0027Prepare DB Params\u0027).all();\nreturn $input.all().map((item, i) =\u003e {\n  const prep = allPrep[i] ? allPrep[i].json : {};\n  const res = prep.resolved  || {};\n  const ev  = prep.job_event || {};\n  // Fallback: passed keyword filter = at least moderate relevance.\n  // LLM often returns null for relevance_score on scraped postings.\n  const score = ev.relevance_score || 50;\n  const prio  = ev.priority || (score \u003e= 70 ? \u0027high\u0027 : score \u003e= 40 ? \u0027medium\u0027 : \u0027low\u0027);\n  return { json: {\n    company_name:    res.company_name || null,\n    job_title:       res.job_title    || null,\n    source_url:      res.source_url   || null,\n    relevance_score: score,\n    priority:        prio,\n    location:        ev.location  || null,\n    work_mode:       ev.work_mode || null\n  }};\n});"
+                                     },
+                      "id":  "n_enrich",
+                      "name":  "Enrich: Add Resolved Fields",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       3072,
+                                       704
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "aggregate":  "aggregateAllItemData",
+                                         "destinationFieldName":  "jobs",
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "n_aggregate",
+                      "name":  "Aggregate: All Jobs",
+                      "type":  "n8n-nodes-base.aggregate",
+                      "typeVersion":  1,
+                      "position":  [
+                                       3280,
+                                       704
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "const jobs = ($json.jobs || []).map(j =\u003e j.json || j);\n\n// Sort by relevance DESC, nulls last\njobs.sort((a, b) =\u003e (b.relevance_score || 0) - (a.relevance_score || 0));\n\n// Filter: relevance \u003e= 40\nconst relevant = jobs.filter(j =\u003e (j.relevance_score || 0) \u003e= 40);\n\nif (relevant.length === 0) {\n  return [{ json: { skip: true, telegram_text: \u0027\u0027, calendar_description: \u0027\u0027, relevant_count: 0, total: jobs.length } }];\n}\n\nconst top  = relevant.filter(j =\u003e j.relevance_score \u003e= 70);\nconst rest = relevant.filter(j =\u003e j.relevance_score \u003e= 40 \u0026\u0026 j.relevance_score \u003c 70);\n\n// Telegram message\nconst lines = [\u0027\\u26A0\\uFE0F \u003cb\u003e[JobRadar Corporate] Neue Stellen\u003c/b\u003e\u0027, \u0027\u0027];\n\nif (top.length \u003e 0) {\n  lines.push(\u0027🔥 \u003cb\u003eTop Matches (70+):\u003c/b\u003e\u0027);\n  top.slice(0, 10).forEach(j =\u003e {\n    lines.push(\u0027\\u2022 \u003cb\u003e\u0027 + (j.job_title || \u0027?\u0027) + \u0027\u003c/b\u003e @ \u0027 + (j.company_name || \u0027?\u0027) + \u0027 \u003ccode\u003e\u0027 + (j.relevance_score || \u0027?\u0027) + \u0027/100\u003c/code\u003e\u0027);\n    if (j.location) lines.push(\u0027  📍 \u0027 + j.location);\n    if (j.source_url) lines.push(\u0027  \u003ca href=\"\u0027 + j.source_url + \u0027\"\u003eLink\u003c/a\u003e\u0027);\n  });\n  lines.push(\u0027\u0027);\n}\n\nif (rest.length \u003e 0) {\n  lines.push(\u0027📋 \u003cb\u003eWeitere (40-69):\u003c/b\u003e\u0027);\n  rest.slice(0, 15).forEach(j =\u003e {\n    lines.push(\u0027\\u2022 \u0027 + (j.job_title || \u0027?\u0027) + \u0027 @ \u0027 + (j.company_name || \u0027?\u0027) + \u0027 \u003ccode\u003e\u0027 + (j.relevance_score || \u0027?\u0027) + \u0027/100\u003c/code\u003e\u0027);\n    if (j.location) lines.push(\u0027  📍 \u0027 + j.location);\n    if (j.source_url) lines.push(\u0027  \u003ca href=\"\u0027 + j.source_url + \u0027\"\u003eLink\u003c/a\u003e\u0027);\n  });\n  lines.push(\u0027\u0027);\n}\n\nlines.push(\u0027Gesamt: \u0027 + relevant.length + \u0027 relevant von \u0027 + jobs.length + \u0027 gefunden\u0027);\n\n// Calendar description (Gmail-style HTML)\nconst calLines = relevant.slice(0, 30).map(j =\u003e\n  \u0027\u003cb\u003e\u0027 + (j.company_name || \u0027?\u0027) + \u0027\u003c/b\u003e \\u2014 \u0027 + (j.job_title || \u0027?\u0027) +\n  \u0027 (\u0027 + (j.relevance_score || \u0027?\u0027) + \u0027/100)\u0027 +\n  (j.location ? \u0027 | \u0027 + j.location : \u0027\u0027)\n);\nconst calDesc = calLines.join(\u0027\u003cbr\u003e\u0027);\n\nreturn [{ json: {\n  skip: false,\n  telegram_text: lines.join(\u0027\\n\u0027),\n  calendar_description: calDesc,\n  relevant_count: relevant.length,\n  total: jobs.length\n}}];"
+                                     },
+                      "id":  "n_format_summary",
+                      "name":  "Format: Corporate Summary",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       3504,
+                                       704
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "conditions":  {
+                                                            "options":  {
+                                                                            "caseSensitive":  true,
+                                                                            "leftValue":  "",
+                                                                            "typeValidation":  "loose",
+                                                                            "version":  2
+                                                                        },
+                                                            "conditions":  [
+                                                                               {
+                                                                                   "id":  "cond_has_relevant",
+                                                                                   "leftValue":  "={{ $json.relevant_count }}",
+                                                                                   "rightValue":  0,
+                                                                                   "operator":  {
+                                                                                                    "type":  "number",
+                                                                                                    "operation":  "gt"
+                                                                                                }
+                                                                               }
+                                                                           ],
+                                                            "combinator":  "and"
+                                                        },
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "n_if_has_relevant",
+                      "name":  "IF: has relevant jobs",
+                      "type":  "n8n-nodes-base.if",
+                      "typeVersion":  2.2,
+                      "position":  [
+                                       3728,
+                                       704
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "method":  "POST",
+                                         "url":  "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendMessage",
+                                         "sendBody":  true,
+                                         "contentType":  "raw",
+                                         "rawContentType":  "application/json",
+                                         "body":  "={{ JSON.stringify({ chat_id: $env.TELEGRAM_CHAT_ID, parse_mode: \u0027HTML\u0027, text: $json.telegram_text, disable_web_page_preview: true }) }}",
+                                         "options":  {
+                                                         "timeout":  10000
+                                                     }
+                                     },
+                      "id":  "n_telegram",
+                      "name":  "Telegram: Corporate Summary",
+                      "type":  "n8n-nodes-base.httpRequest",
+                      "typeVersion":  4.2,
+                      "position":  [
+                                       3952,
+                                       304
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "operation":  "getAll",
+                                         "calendar":  {
+                                                          "__rl":  true,
+                                                          "value":  "primary",
+                                                          "mode":  "list"
+                                                      },
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "n_cal_list_today",
+                      "name":  "Google Calendar: List Today",
+                      "type":  "n8n-nodes-base.googleCalendar",
+                      "typeVersion":  1.3,
+                      "position":  [
+                                       3952,
+                                       912
+                                   ],
+                      "credentials":  {
+                                          "googleCalendarOAuth2Api":  {
+                                                                          "id":  "eLQTxfMJ6kryO1Iy",
+                                                                          "name":  "Google Calendar account"
+                                                                      }
+                                      }
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "const items = $input.all().map(i =\u003e i.json);\nconst todayEvent = items.find(e =\u003e (e.summary || \u0027\u0027).includes(\u0027[JobRadar Corporate]\u0027));\nconst summary = $(\u0027Format: Corporate Summary\u0027).first().json;\n\nreturn [{ json: {\n  event_id:        todayEvent ? todayEvent.id : null,\n  event_found:     !!todayEvent,\n  new_description: summary.calendar_description,\n  event_title:     \u0027[JobRadar Corporate] \u0027 + $now.toISODate(),\n  existing_desc:   todayEvent ? (todayEvent.description || \u0027\u0027) : \u0027\u0027\n}}];"
+                                     },
+                      "id":  "n_cal_find_corp",
+                      "name":  "Find [JobRadar Corporate] Event",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       4160,
+                                       912
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "conditions":  {
+                                                            "options":  {
+                                                                            "caseSensitive":  true,
+                                                                            "leftValue":  "",
+                                                                            "typeValidation":  "strict",
+                                                                            "version":  2
+                                                                        },
+                                                            "conditions":  [
+                                                                               {
+                                                                                   "id":  "cond_cal_exists",
+                                                                                   "leftValue":  "={{ $json.event_found }}",
+                                                                                   "rightValue":  true,
+                                                                                   "operator":  {
+                                                                                                    "type":  "boolean",
+                                                                                                    "operation":  "true",
+                                                                                                    "singleValue":  true
+                                                                                                }
+                                                                               }
+                                                                           ],
+                                                            "combinator":  "and"
+                                                        },
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "n_if_cal_exists",
+                      "name":  "IF: calendar event exists",
+                      "type":  "n8n-nodes-base.if",
+                      "typeVersion":  2.2,
+                      "position":  [
+                                       4384,
+                                       912
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "operation":  "update",
+                                         "calendar":  {
+                                                          "__rl":  true,
+                                                          "value":  "primary",
+                                                          "mode":  "list"
+                                                      },
+                                         "eventId":  "={{ $json.event_id }}",
+                                         "updateFields":  {
+                                                              "description":  "={{ $json.existing_desc ? $json.existing_desc + \u0027\u003cbr\u003e\u003cbr\u003e\u0027 + $json.new_description : $json.new_description }}"
+                                                          }
+                                     },
+                      "id":  "n_cal_update_corp",
+                      "name":  "Google Calendar: Update Corp Event",
+                      "type":  "n8n-nodes-base.googleCalendar",
+                      "typeVersion":  1.3,
+                      "position":  [
+                                       4608,
+                                       704
+                                   ],
+                      "credentials":  {
+                                          "googleCalendarOAuth2Api":  {
+                                                                          "id":  "eLQTxfMJ6kryO1Iy",
+                                                                          "name":  "Google Calendar account"
+                                                                      }
+                                      }
+                  },
+                  {
+                      "parameters":  {
+                                         "calendar":  {
+                                                          "__rl":  true,
+                                                          "value":  "primary",
+                                                          "mode":  "list"
+                                                      },
+                                         "start":  "={{ $now.toISODate() + \u0027T09:00:00\u0027 }}",
+                                         "end":  "={{ $now.toISODate() + \u0027T09:30:00\u0027 }}",
+                                         "additionalFields":  {
+                                                                  "description":  "={{ $json.new_description }}"
+                                                              }
+                                     },
+                      "id":  "n_cal_create_corp",
+                      "name":  "Google Calendar: Create Corp Event",
+                      "type":  "n8n-nodes-base.googleCalendar",
+                      "typeVersion":  1.3,
+                      "position":  [
+                                       4608,
+                                       1104
+                                   ],
+                      "credentials":  {
+                                          "googleCalendarOAuth2Api":  {
+                                                                          "id":  "eLQTxfMJ6kryO1Iy",
+                                                                          "name":  "Google Calendar account"
+                                                                      }
+                                      }
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "// Filter: Skip Expired\n// Drops jobs whose deadline has already passed.\n// No deadline ? always pass through (we can\u0027t know ? benefit of the doubt).\nconst e = $(\u0027Parse LLM Response\u0027).item.json.job_event;\nconst deadline = e.application_deadline || e.response_deadline || null;\n\nif (deadline) {\n  const deadlineDate = new Date(deadline);\n  // Guard: invalid date string ? pass through\n  if (!isNaN(deadlineDate.getTime()) \u0026\u0026 deadlineDate \u003c new Date()) {\n    // Expired - drop silently\n    return [];\n  }\n}\n\nreturn [$input.item];"
+                                     },
+                      "id":  "n_filter_expired_2ZmgiT4I",
+                      "name":  "Filter: Skip Expired",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       2608,
+                                       96
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "method":  "POST",
+                                         "url":  "https://api.notion.com/v1/pages",
+                                         "sendHeaders":  true,
+                                         "headerParameters":  {
+                                                                  "parameters":  [
+                                                                                     {
+                                                                                         "name":  "Authorization",
+                                                                                         "value":  "=Bearer {{ $env.NOTION_TOKEN }}"
+                                                                                     },
+                                                                                     {
+                                                                                         "name":  "Notion-Version",
+                                                                                         "value":  "2022-06-28"
+                                                                                     }
+                                                                                 ]
+                                                              },
+                                         "sendBody":  true,
+                                         "contentType":  "raw",
+                                         "rawContentType":  "application/json",
+                                         "body":  "={{ JSON.stringify({ parent: { database_id: \"387e9707-d991-8182-ab7c-d83e9d147dba\" }, properties: { Unternehmen: { title: [{ text: { content: ($(\u0027Parse LLM Response\u0027).item.json.job_event.company_name || \"Unknown\") } }] }, Status: { select: { name: \"Neu\" } }, Stelle: { rich_text: [{ text: { content: ($(\u0027Parse LLM Response\u0027).item.json.job_event.job_title || \"\") } }] }, Gehalt: { rich_text: [{ text: { content: (String($(\u0027Parse LLM Response\u0027).item.json.job_event.salary_min || \"\") + ($(\u0027Parse LLM Response\u0027).item.json.job_event.salary_max ? \"-\" + $(\u0027Parse LLM Response\u0027).item.json.job_event.salary_max : \"\") + ($(\u0027Parse LLM Response\u0027).item.json.job_event.salary_currency ? \" \" + $(\u0027Parse LLM Response\u0027).item.json.job_event.salary_currency : \"\")).trim() } }] }, Standort: { rich_text: [{ text: { content: ($(\u0027Parse LLM Response\u0027).item.json.job_event.location || \"\") } }] }, Link: { url: ($(\u0027Parse LLM Response\u0027).item.json.job_event.source_url || null) }, Notizen: { rich_text: [{ text: { content: ($(\u0027Parse LLM Response\u0027).item.json.job_event.summary || \"\").substring(0, 2000) } }] } } }) }}",
+                                         "options":  {
+                                                         "timeout":  10000
+                                                     }
+                                     },
+                      "id":  "90b3831e-41bc-4dfe-b9ca-88d407b23423",
+                      "name":  "Notion: Create Card",
+                      "type":  "n8n-nodes-base.httpRequest",
+                      "typeVersion":  4.2,
+                      "position":  [
+                                       3792,
+                                       0
+                                   ],
+                      "onError":  "continueRegularOutput"
+                  },
+                  {
+                      "id":  "ffabc5ec-b8c8-4f1c-8b59-e173e4cda250",
+                      "name":  "Batch: Aggregate",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       1520,
+                                       304
+                                   ],
+                      "parameters":  {
+                                         "jsCode":  "const items = $input.all();\nreturn [{ json: { batch: items.map(i =\u003e i.json.normalized_input) } }];"
+                                     },
+                      "notes":  "Collects all items into one batch for single-query DB dedup."
+                  },
+                  {
+                      "id":  "09617487-5c25-4aec-95ea-efe4b35bca85",
+                      "name":  "DB: Dedup New Only",
+                      "type":  "n8n-nodes-base.postgres",
+                      "typeVersion":  2.5,
+                      "position":  [
+                                       1728,
+                                       304
+                                   ],
+                      "parameters":  {
+                                         "operation":  "executeQuery",
+                                         "query":  "SELECT item AS normalized_input\nFROM jsonb_array_elements($1::jsonb) AS item\nWHERE (item-\u003e\u0027raw_meta\u0027-\u003e\u003e\u0027job_url\u0027) IS NULL\n   OR NOT EXISTS (\n     SELECT 1 FROM jobs\n     WHERE source_url = item-\u003e\u0027raw_meta\u0027-\u003e\u003e\u0027job_url\u0027\n   );",
+                                         "options":  {
+                                                         "queryReplacement":  "={{ JSON.stringify($json.batch) }}"
+                                                     }
+                                     },
+                      "credentials":  {
+                                          "postgres":  {
+                                                           "id":  "ZjjVGIqiRAUVlCk6",
+                                                           "name":  "JobRadar Postgres"
+                                                       }
+                                      },
+                      "notes":  "COST SAVER: drops jobs already in DB (by source_url) BEFORE the LLM call. Previously all ~250 keyword-filtered jobs were re-sent to the LLM every day."
+                  }
+              ],
+    "connections":  {
+                        "Schedule: Daily 05:00":  {
+                                                      "main":  [
+                                                                   [
+                                                                       {
+                                                                           "node":  "GH: Celonis",
+                                                                           "type":  "main",
+                                                                           "index":  0
+                                                                       },
+                                                                       {
+                                                                           "node":  "GH: HelloFresh",
+                                                                           "type":  "main",
+                                                                           "index":  0
+                                                                       },
+                                                                       {
+                                                                           "node":  "GH: N26",
+                                                                           "type":  "main",
+                                                                           "index":  0
+                                                                       },
+                                                                       {
+                                                                           "node":  "GH: GetYourGuide",
+                                                                           "type":  "main",
+                                                                           "index":  0
+                                                                       },
+                                                                       {
+                                                                           "node":  "GH: SumUp",
+                                                                           "type":  "main",
+                                                                           "index":  0
+                                                                       },
+                                                                       {
+                                                                           "node":  "GH: Babbel STUB",
+                                                                           "type":  "main",
+                                                                           "index":  0
+                                                                       },
+                                                                       {
+                                                                           "node":  "GH: Contentful",
+                                                                           "type":  "main",
+                                                                           "index":  0
+                                                                       },
+                                                                       {
+                                                                           "node":  "Ashby: Aleph Alpha",
+                                                                           "type":  "main",
+                                                                           "index":  0
+                                                                       },
+                                                                       {
+                                                                           "node":  "STUB: SAP Jobs",
+                                                                           "type":  "main",
+                                                                           "index":  0
+                                                                       },
+                                                                       {
+                                                                           "node":  "STUB: Siemens Jobs",
+                                                                           "type":  "main",
+                                                                           "index":  0
+                                                                       },
+                                                                       {
+                                                                           "node":  "STUB: Delivery Hero Jobs",
+                                                                           "type":  "main",
+                                                                           "index":  0
+                                                                       },
+                                                                       {
+                                                                           "node":  "STUB: TeamViewer Jobs",
+                                                                           "type":  "main",
+                                                                           "index":  0
+                                                                       },
+                                                                       {
+                                                                           "node":  "STUB: Zalando Jobs",
+                                                                           "type":  "main",
+                                                                           "index":  0
+                                                                       }
+                                                                   ]
+                                                               ]
+                                                  },
+                        "GH: Celonis":  {
+                                            "main":  [
+                                                         [
+                                                             {
+                                                                 "node":  "Flatten: GH Celonis",
+                                                                 "type":  "main",
+                                                                 "index":  0
+                                                             }
+                                                         ]
+                                                     ]
+                                        },
+                        "GH: HelloFresh":  {
+                                               "main":  [
+                                                            [
+                                                                {
+                                                                    "node":  "Flatten: GH HelloFresh",
+                                                                    "type":  "main",
+                                                                    "index":  0
+                                                                }
+                                                            ]
+                                                        ]
+                                           },
+                        "GH: N26":  {
+                                        "main":  [
+                                                     [
+                                                         {
+                                                             "node":  "Flatten: GH N26",
+                                                             "type":  "main",
+                                                             "index":  0
+                                                         }
+                                                     ]
+                                                 ]
+                                    },
+                        "GH: GetYourGuide":  {
+                                                 "main":  [
+                                                              [
+                                                                  {
+                                                                      "node":  "Flatten: GH GetYourGuide",
+                                                                      "type":  "main",
+                                                                      "index":  0
+                                                                  }
+                                                              ]
+                                                          ]
+                                             },
+                        "GH: SumUp":  {
+                                          "main":  [
+                                                       [
+                                                           {
+                                                               "node":  "Flatten: GH SumUp",
+                                                               "type":  "main",
+                                                               "index":  0
+                                                           }
+                                                       ]
+                                                   ]
+                                      },
+                        "GH: Babbel STUB":  {
+                                                "main":  [
+                                                             [
+                                                                 {
+                                                                     "node":  "Flatten: GH Babbel",
+                                                                     "type":  "main",
+                                                                     "index":  0
+                                                                 }
+                                                             ]
+                                                         ]
+                                            },
+                        "GH: Contentful":  {
+                                               "main":  [
+                                                            [
+                                                                {
+                                                                    "node":  "Flatten: GH Contentful",
+                                                                    "type":  "main",
+                                                                    "index":  0
+                                                                }
+                                                            ]
+                                                        ]
+                                           },
+                        "Ashby: Aleph Alpha":  {
+                                                   "main":  [
+                                                                [
+                                                                    {
+                                                                        "node":  "Flatten: Ashby Aleph Alpha",
+                                                                        "type":  "main",
+                                                                        "index":  0
+                                                                    }
+                                                                ]
+                                                            ]
+                                               },
+                        "Flatten: GH Celonis":  {
+                                                    "main":  [
+                                                                 [
+                                                                     {
+                                                                         "node":  "Merge: All Corporate",
+                                                                         "type":  "main",
+                                                                         "index":  0
+                                                                     }
+                                                                 ]
+                                                             ]
+                                                },
+                        "Flatten: GH HelloFresh":  {
+                                                       "main":  [
+                                                                    [
+                                                                        {
+                                                                            "node":  "Merge: All Corporate",
+                                                                            "type":  "main",
+                                                                            "index":  1
+                                                                        }
+                                                                    ]
+                                                                ]
+                                                   },
+                        "Flatten: GH N26":  {
+                                                "main":  [
+                                                             [
+                                                                 {
+                                                                     "node":  "Merge: All Corporate",
+                                                                     "type":  "main",
+                                                                     "index":  2
+                                                                 }
+                                                             ]
+                                                         ]
+                                            },
+                        "Flatten: GH GetYourGuide":  {
+                                                         "main":  [
+                                                                      [
+                                                                          {
+                                                                              "node":  "Merge: All Corporate",
+                                                                              "type":  "main",
+                                                                              "index":  3
+                                                                          }
+                                                                      ]
+                                                                  ]
+                                                     },
+                        "Flatten: GH SumUp":  {
+                                                  "main":  [
+                                                               [
+                                                                   {
+                                                                       "node":  "Merge: All Corporate",
+                                                                       "type":  "main",
+                                                                       "index":  4
+                                                                   }
+                                                               ]
+                                                           ]
+                                              },
+                        "Flatten: GH Babbel":  {
+                                                   "main":  [
+                                                                [
+                                                                    {
+                                                                        "node":  "Merge: All Corporate",
+                                                                        "type":  "main",
+                                                                        "index":  5
+                                                                    }
+                                                                ]
+                                                            ]
+                                               },
+                        "Flatten: GH Contentful":  {
+                                                       "main":  [
+                                                                    [
+                                                                        {
+                                                                            "node":  "Merge: All Corporate",
+                                                                            "type":  "main",
+                                                                            "index":  6
+                                                                        }
+                                                                    ]
+                                                                ]
+                                                   },
+                        "Flatten: Ashby Aleph Alpha":  {
+                                                           "main":  [
+                                                                        [
+                                                                            {
+                                                                                "node":  "Merge: All Corporate",
+                                                                                "type":  "main",
+                                                                                "index":  7
+                                                                            }
+                                                                        ]
+                                                                    ]
+                                                       },
+                        "Merge: All Corporate":  {
+                                                     "main":  [
+                                                                  [
+                                                                      {
+                                                                          "node":  "Keyword Filter",
+                                                                          "type":  "main",
+                                                                          "index":  0
+                                                                      }
+                                                                  ]
+                                                              ]
+                                                 },
+                        "Keyword Filter":  {
+                                               "main":  [
+                                                            [
+                                                                {
+                                                                    "node":  "Normalize: Corporate Job",
+                                                                    "type":  "main",
+                                                                    "index":  0
+                                                                }
+                                                            ]
+                                                        ]
+                                           },
+                        "LLM Call (OpenRouter)":  {
+                                                      "main":  [
+                                                                   [
+                                                                       {
+                                                                           "node":  "Parse LLM Response",
+                                                                           "type":  "main",
+                                                                           "index":  0
+                                                                       }
+                                                                   ]
+                                                               ]
+                                                  },
+                        "Parse LLM Response":  {
+                                                   "main":  [
+                                                                [
+                                                                    {
+                                                                        "node":  "IF: is_job_related",
+                                                                        "type":  "main",
+                                                                        "index":  0
+                                                                    }
+                                                                ]
+                                                            ]
+                                               },
+                        "IF: is_job_related":  {
+                                                   "main":  [
+                                                                [
+                                                                    {
+                                                                        "node":  "Filter: Skip Expired",
+                                                                        "type":  "main",
+                                                                        "index":  0
+                                                                    }
+                                                                ],
+                                                                [
+
+                                                                ]
+                                                            ]
+                                               },
+                        "Prepare DB Params":  {
+                                                  "main":  [
+                                                               [
+                                                                   {
+                                                                       "node":  "DB: Write All",
+                                                                       "type":  "main",
+                                                                       "index":  0
+                                                                   }
+                                                               ]
+                                                           ]
+                                              },
+                        "DB: Write All":  {
+                                              "main":  [
+                                                           [
+                                                               {
+                                                                   "node":  "IF: has interview_date",
+                                                                   "type":  "main",
+                                                                   "index":  0
+                                                               },
+                                                               {
+                                                                   "node":  "Enrich: Add Resolved Fields",
+                                                                   "type":  "main",
+                                                                   "index":  0
+                                                               },
+                                                               {
+                                                                   "node":  "Notion: Create Card",
+                                                                   "type":  "main",
+                                                                   "index":  0
+                                                               }
+                                                           ]
+                                                       ]
+                                          },
+                        "IF: has interview_date":  {
+                                                       "main":  [
+                                                                    [
+                                                                        {
+                                                                            "node":  "Google Calendar: Interview",
+                                                                            "type":  "main",
+                                                                            "index":  0
+                                                                        }
+                                                                    ],
+                                                                    [
+
+                                                                    ]
+                                                                ]
+                                                   },
+                        "Enrich: Add Resolved Fields":  {
+                                                            "main":  [
+                                                                         [
+                                                                             {
+                                                                                 "node":  "Aggregate: All Jobs",
+                                                                                 "type":  "main",
+                                                                                 "index":  0
+                                                                             }
+                                                                         ]
+                                                                     ]
+                                                        },
+                        "Aggregate: All Jobs":  {
+                                                    "main":  [
+                                                                 [
+                                                                     {
+                                                                         "node":  "Format: Corporate Summary",
+                                                                         "type":  "main",
+                                                                         "index":  0
+                                                                     }
+                                                                 ]
+                                                             ]
+                                                },
+                        "Format: Corporate Summary":  {
+                                                          "main":  [
+                                                                       [
+                                                                           {
+                                                                               "node":  "IF: has relevant jobs",
+                                                                               "type":  "main",
+                                                                               "index":  0
+                                                                           }
+                                                                       ]
+                                                                   ]
+                                                      },
+                        "IF: has relevant jobs":  {
+                                                      "main":  [
+                                                                   [
+                                                                       {
+                                                                           "node":  "Telegram: Corporate Summary",
+                                                                           "type":  "main",
+                                                                           "index":  0
+                                                                       },
+                                                                       {
+                                                                           "node":  "Google Calendar: List Today",
+                                                                           "type":  "main",
+                                                                           "index":  0
+                                                                       }
+                                                                   ],
+                                                                   [
+
+                                                                   ]
+                                                               ]
+                                                  },
+                        "Google Calendar: List Today":  {
+                                                            "main":  [
+                                                                         [
+                                                                             {
+                                                                                 "node":  "Find [JobRadar Corporate] Event",
+                                                                                 "type":  "main",
+                                                                                 "index":  0
+                                                                             }
+                                                                         ]
+                                                                     ]
+                                                        },
+                        "Find [JobRadar Corporate] Event":  {
+                                                                "main":  [
+                                                                             [
+                                                                                 {
+                                                                                     "node":  "IF: calendar event exists",
+                                                                                     "type":  "main",
+                                                                                     "index":  0
+                                                                                 }
+                                                                             ]
+                                                                         ]
+                                                            },
+                        "IF: calendar event exists":  {
+                                                          "main":  [
+                                                                       [
+                                                                           {
+                                                                               "node":  "Google Calendar: Update Corp Event",
+                                                                               "type":  "main",
+                                                                               "index":  0
+                                                                           }
+                                                                       ],
+                                                                       [
+                                                                           {
+                                                                               "node":  "Google Calendar: Create Corp Event",
+                                                                               "type":  "main",
+                                                                               "index":  0
+                                                                           }
+                                                                       ]
+                                                                   ]
+                                                      },
+                        "Filter: Skip Expired":  {
+                                                     "main":  [
+                                                                  [
+                                                                      {
+                                                                          "node":  "Prepare DB Params",
+                                                                          "type":  "main",
+                                                                          "index":  0
+                                                                      }
+                                                                  ]
+                                                              ]
+                                                 },
+                        "Normalize: Corporate Job":  {
+                                                         "main":  [
+                                                                      [
+                                                                          {
+                                                                              "node":  "Batch: Aggregate",
+                                                                              "type":  "main",
+                                                                              "index":  0
+                                                                          }
+                                                                      ]
+                                                                  ]
+                                                     },
+                        "Batch: Aggregate":  {
+                                                 "main":  [
+                                                              [
+                                                                  {
+                                                                      "node":  "DB: Dedup New Only",
+                                                                      "type":  "main",
+                                                                      "index":  0
+                                                                  }
+                                                              ]
+                                                          ]
+                                             },
+                        "DB: Dedup New Only":  {
+                                                   "main":  [
+                                                                [
+                                                                    {
+                                                                        "node":  "LLM Call (OpenRouter)",
+                                                                        "type":  "main",
+                                                                        "index":  0
+                                                                    }
+                                                                ]
+                                                            ]
+                                               }
+                    },
+    "settings":  {
+                     "executionOrder":  "v1",
+                     "binaryMode":  "separate"
+                 }
 }
