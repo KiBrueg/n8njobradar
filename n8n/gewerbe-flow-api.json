@@ -94,7 +94,8 @@
                   },
                   {
                       "parameters":  {
-                                         "jsCode":  "const resp = $input.item.json;\nconst label = $(\u0027Search Queries\u0027).item.json.label;\nreturn [{ json: { ...resp, label } }];"
+                                         "jsCode":  "const resp = $input.item.json;\nconst label = $(\u0027Search Queries\u0027).item.json.label;\nreturn { json: { ...resp, label } };",
+                                         "mode":  "runOnceForEachItem"
                                      },
                       "id":  "n_jina_format",
                       "name":  "Add Label",
@@ -143,7 +144,7 @@
                   },
                   {
                       "parameters":  {
-                                         "jsCode":  "const results = $input.item.json.organic_results || [];\nconst label = $input.item.json.label || \u0027serp\u0027;\n\n// Keep only project links, filter out profiles/freelancer pages\nconst projectLinks = results.filter(r =\u003e {\n  const url = r.link || \u0027\u0027;\n  return !url.includes(\u0027/profil/\u0027) \u0026\u0026 !url.includes(\u0027/freelancer/\u0027) \u0026\u0026 !url.includes(\u0027/profil\u0027);\n});\n\nreturn projectLinks.slice(0, 15).map(r =\u003e ({\n  json: { result: r, label }\n}));"
+                                         "jsCode":  "const out = [];\nfor (const inputItem of $input.all()) {\n  const results = inputItem.json.organic_results || [];\n  const label = inputItem.json.label || \u0027serp\u0027;\n  const projectLinks = results.filter(r =\u003e {\n    const url = r.link || \u0027\u0027;\n    return !url.includes(\u0027/profil/\u0027) \u0026\u0026 !url.includes(\u0027/freelancer/\u0027);\n  });\n  for (const r of projectLinks.slice(0, 15)) {\n    out.push({ json: { result: r, label } });\n  }\n}\nreturn out;"
                                      },
                       "id":  "n_split",
                       "name":  "Expand: Job Results",
@@ -157,7 +158,8 @@
                   },
                   {
                       "parameters":  {
-                                         "jsCode":  "const item = $input.item.json;\nconst r = item.result || {};\nconst label = item.label || \u0027serp\u0027;\n\n// employment job boards vs freelance platforms — label prefix decides job_type\nconst EMPLOYMENT_LABELS = [\u0027jisw-\u0027, \u0027studysmart-\u0027, \u0027hokify-\u0027, \u0027remote3-\u0027];\nconst jobType = EMPLOYMENT_LABELS.some(p =\u003e label.startsWith(p)) ? \u0027employment\u0027 : \u0027freelance\u0027;\n\nconst title = r.title || \u0027\u0027;\nconst sourceUrl = r.link || \u0027\u0027;\nconst snippet = r.snippet || \u0027\u0027;\nconst richSnippet = (r.rich_snippet \u0026\u0026 JSON.stringify(r.rich_snippet)) || \u0027\u0027;\n\nconst rawText = [\n  `Titel: ${title}`,\n  `URL: ${sourceUrl}`,\n  \u0027\u0027,\n  snippet,\n  richSnippet\n].filter(Boolean).join(\u0027\\n\u0027).substring(0, 8000);\n\nreturn [{\n  json: {\n    normalized_input: {\n      input_source: \u0027scraped\u0027,\n      source_detail: \u0027gewerbe_scraped\u0027,\n      job_type: jobType,\n      email_account_id: null,\n      email_address: null,\n      email_provider: null,\n      subject: title,\n      date: null,\n      raw_text: rawText,\n      raw_meta: {\n        url: sourceUrl,\n        label,\n        platform: \u0027google-serp\u0027\n      },\n      filter_context: \u0027GEWERBE FILTER: Set is_job_related=FALSE unless project requires Python, n8n, AI, LLM, FastAPI, Docker, or Automation. EXCLUDE: SAP, Golang, Java, Kotlin, Android, iOS, C#, .NET, PHP, Ruby, Payroll, Buchhaltung, HR/Recruiting, pure PM roles without tech. Priority: Python+n8n+AI=high, Python+automation=medium.\u0027\n    }\n  }\n}];"
+                                         "jsCode":  "const item = $input.item.json;\nconst r = item.result || {};\nconst label = item.label || \u0027serp\u0027;\n\n// employment job boards vs freelance platforms — label prefix decides job_type\nconst EMPLOYMENT_LABELS = [\u0027jisw-\u0027, \u0027studysmart-\u0027, \u0027hokify-\u0027, \u0027remote3-\u0027, \u0027ba-\u0027, \u0027gjobs-\u0027];\nconst jobType = EMPLOYMENT_LABELS.some(p =\u003e label.startsWith(p)) ? \u0027employment\u0027 : \u0027freelance\u0027;\nconst isPraktikum = label.includes(\u0027praktikum\u0027) || label.includes(\u0027junior\u0027) || label.startsWith(\u0027ba-\u0027);\n\nconst title = r.title || \u0027\u0027;\nconst sourceUrl = r.link || \u0027\u0027;\nconst snippet = r.snippet || \u0027\u0027;\nconst richSnippet = (r.rich_snippet \u0026\u0026 JSON.stringify(r.rich_snippet)) || \u0027\u0027;\n\nconst rawText = [\n  `Titel: ${title}`,\n  `URL: ${sourceUrl}`,\n  \u0027\u0027,\n  snippet,\n  richSnippet\n].filter(Boolean).join(\u0027\\n\u0027).substring(0, 8000);\n\nreturn {\n  json: {\n    normalized_input: {\n      input_source: \u0027scraped\u0027,\n      source_detail: \u0027gewerbe_scraped\u0027,\n      job_type: jobType,\n      email_account_id: null,\n      email_address: null,\n      email_provider: null,\n      subject: title,\n      date: null,\n      raw_text: rawText,\n      raw_meta: {\n        url: sourceUrl,\n        label,\n        platform: \u0027google-serp\u0027\n      },\n      filter_context: isPraktikum\n        ? \u0027PRAKTIKUM/JUNIOR FILTER: This listing comes from a Praktikum/Werkstudent/Junior search. Set is_job_related=TRUE and action=create_job for ANY internship, working-student, trainee or junior role in IT, Software, Data, AI, KI, Digitalisierung or Automatisierung. Only set is_job_related=FALSE for clearly non-tech roles (Pflege, Bau, Gastro, Logistik, pure Marketing/Sales). Seniority intern/junior is EXPECTED here - do NOT apply the senior-exclusion or 5-years-experience red flags, do NOT cap relevance_score for onsite (Praktikum may be local).\u0027\n        : \u0027GEWERBE FILTER: Set is_job_related=FALSE unless project requires Python, n8n, AI, LLM, FastAPI, Docker, or Automation. EXCLUDE: SAP, Golang, Java, Kotlin, Android, iOS, C#, .NET, PHP, Ruby, Payroll, Buchhaltung, HR/Recruiting, pure PM roles without tech. Priority: Python+n8n+AI=high, Python+automation=medium.\u0027\n    }\n  }\n};",
+                                         "mode":  "runOnceForEachItem"
                                      },
                       "id":  "n_normalize",
                       "name":  "Normalize Item",
@@ -171,7 +173,8 @@
                   },
                   {
                       "parameters":  {
-                                         "jsCode":  "const ni = $(\u0027Normalize Item\u0027).item.json.normalized_input;\nreturn [{ json: { normalized_input: ni, hard_injection_detected: \u0027no\u0027 } }];"
+                                         "jsCode":  "const ni = $(\u0027Normalize Item\u0027).item.json.normalized_input;\nreturn { json: { normalized_input: ni, hard_injection_detected: \u0027no\u0027 } };",
+                                         "mode":  "runOnceForEachItem"
                                      },
                       "id":  "n_security",
                       "name":  "Skip Security Checks",
@@ -219,7 +222,8 @@
                   },
                   {
                       "parameters":  {
-                                         "jsCode":  "const body = $input.item.json;\nlet jobEvent;\ntry {\n  let raw = (body.choices[0].message.content || \u0027\u0027).trim();\n  raw = raw.replace(/\u003cthink\u003e[\\s\\S]*?\u003c\\/think\u003e/gi, \u0027\u0027).trim();\n  raw = raw.replace(/^```(?:json)?\\s*/i, \u0027\u0027).replace(/\\s*```$/, \u0027\u0027).trim();\n  jobEvent = JSON.parse(raw);\n} catch (err) {\n  throw new Error(\u0027LLM returned invalid JSON: \u0027 + String(body?.choices?.[0]?.message?.content || \u0027\u0027).substring(0, 300));\n}\n\nif (typeof jobEvent.is_job_related !== \u0027boolean\u0027) {\n  throw new Error(\u0027Parse error: is_job_related must be boolean, got: \u0027 + typeof jobEvent.is_job_related);\n}\nif (typeof jobEvent.injection_suspected !== \u0027boolean\u0027) jobEvent.injection_suspected = false;\n\nconst ALLOWED_ACTIONS = [\u0027create_job\u0027,\u0027update_stage\u0027,\u0027add_interview\u0027,\u0027add_deadline\u0027,\u0027log_only\u0027,\u0027flag_error\u0027,\u0027ignore\u0027];\nif (!ALLOWED_ACTIONS.includes(jobEvent.action)) {\n  throw new Error(\u0027Parse error: invalid action value: \u0027 + String(jobEvent.action));\n}\n\nif (jobEvent.company_id \u0026\u0026 !/^[a-z0-9][a-z0-9-]*[a-z0-9]$/.test(jobEvent.company_id)) {\n  jobEvent.company_id = jobEvent.company_id.toLowerCase().replace(/[^a-z0-9-]/g, \u0027-\u0027).replace(/--+/g, \u0027-\u0027).replace(/^-|-$/g, \u0027\u0027);\n}\n\nif (!Array.isArray(jobEvent.tech_stack))      jobEvent.tech_stack = [];\nif (!Array.isArray(jobEvent.key_requirements)) jobEvent.key_requirements = [];\n\nconst JOB_RELATED_CATEGORIES = [\u0027job_posting\u0027,\u0027hr_invite\u0027,\u0027interview_invite\u0027,\u0027test_task\u0027,\u0027offer\u0027,\u0027rejection\u0027,\u0027follow_up\u0027,\u0027platform_notification\u0027,\u0027manual_note\u0027];\nif (JOB_RELATED_CATEGORIES.includes(jobEvent.category)) jobEvent.is_job_related = true;\n\njobEvent.is_job_related_str = jobEvent.is_job_related ? \u0027yes\u0027 : \u0027no\u0027;\n\nreturn [{ json: { job_event: jobEvent } }];"
+                                         "jsCode":  "const body = $input.item.json;\nlet jobEvent;\ntry {\n  let raw = (body.choices[0].message.content || \u0027\u0027).trim();\n  raw = raw.replace(/\u003cthink\u003e[\\s\\S]*?\u003c\\/think\u003e/gi, \u0027\u0027).trim();\n  raw = raw.replace(/^```(?:json)?\\s*/i, \u0027\u0027).replace(/\\s*```$/, \u0027\u0027).trim();\n  jobEvent = JSON.parse(raw);\n} catch (err) {\n  throw new Error(\u0027LLM returned invalid JSON: \u0027 + String(body?.choices?.[0]?.message?.content || \u0027\u0027).substring(0, 300));\n}\n\nif (typeof jobEvent.is_job_related !== \u0027boolean\u0027) {\n  throw new Error(\u0027Parse error: is_job_related must be boolean, got: \u0027 + typeof jobEvent.is_job_related);\n}\nif (typeof jobEvent.injection_suspected !== \u0027boolean\u0027) jobEvent.injection_suspected = false;\n\nconst ALLOWED_ACTIONS = [\u0027create_job\u0027,\u0027update_stage\u0027,\u0027add_interview\u0027,\u0027add_deadline\u0027,\u0027log_only\u0027,\u0027flag_error\u0027,\u0027ignore\u0027];\nif (!ALLOWED_ACTIONS.includes(jobEvent.action)) {\n  throw new Error(\u0027Parse error: invalid action value: \u0027 + String(jobEvent.action));\n}\n\nif (jobEvent.company_id \u0026\u0026 !/^[a-z0-9][a-z0-9-]*[a-z0-9]$/.test(jobEvent.company_id)) {\n  jobEvent.company_id = jobEvent.company_id.toLowerCase().replace(/[^a-z0-9-]/g, \u0027-\u0027).replace(/--+/g, \u0027-\u0027).replace(/^-|-$/g, \u0027\u0027);\n}\n\nif (!Array.isArray(jobEvent.tech_stack))      jobEvent.tech_stack = [];\nif (!Array.isArray(jobEvent.key_requirements)) jobEvent.key_requirements = [];\n\nconst JOB_RELATED_CATEGORIES = [\u0027job_posting\u0027,\u0027hr_invite\u0027,\u0027interview_invite\u0027,\u0027test_task\u0027,\u0027offer\u0027,\u0027rejection\u0027,\u0027follow_up\u0027,\u0027platform_notification\u0027,\u0027manual_note\u0027];\nif (JOB_RELATED_CATEGORIES.includes(jobEvent.category)) jobEvent.is_job_related = true;\n\njobEvent.is_job_related_str = jobEvent.is_job_related ? \u0027yes\u0027 : \u0027no\u0027;\n\nreturn { json: { job_event: jobEvent } };",
+                                         "mode":  "runOnceForEachItem"
                                      },
                       "id":  "n_parse",
                       "name":  "Parse LLM Response",
@@ -228,7 +232,8 @@
                       "position":  [
                                        2304,
                                        304
-                                   ]
+                                   ],
+                      "onError":  "continueRegularOutput"
                   },
                   {
                       "parameters":  {
@@ -267,7 +272,8 @@
                   },
                   {
                       "parameters":  {
-                                         "jsCode":  "/* ============================================================\n   Prepare DB Params -- Gewerbe Flow\n   job_type = \u0027freelance\u0027\n   input_source: scraped, no email fields\n   ============================================================ */\n\nconst e  = $input.item.json.job_event;\nconst ni = $(\u0027Normalize Item\u0027).item.json.normalized_input;\nconst rawText  = ni.raw_text;\nconst sourceUrl = (ni.raw_meta \u0026\u0026 ni.raw_meta.url) || null;\n\nfunction sql(v)  { if (v === null || v === undefined) return \u0027NULL\u0027; return \"\u0027\" + String(v).replace(/\u0027/g, \"\u0027\u0027\") + \"\u0027\"; }\nfunction num(v)  { if (v === null || v === undefined) return \u0027NULL\u0027; const n = parseFloat(v); return isNaN(n) ? \u0027NULL\u0027 : String(n); }\nfunction bool(v) { return v === true ? \u0027TRUE\u0027 : \u0027FALSE\u0027; }\nfunction dt(v)   { return v ? \"\u0027\" + String(v).replace(/\u0027/g, \"\u0027\u0027\") + \"\u0027\" : \u0027NULL\u0027; }\nfunction en(v,t) { return v ? \"\u0027\" + String(v).replace(/\u0027/g, \"\u0027\u0027\") + \"\u0027::\" + t : \u0027NULL\u0027; }\nfunction arr(vals) {\n  if (!vals || vals.length === 0) return \"\u0027{}\u0027\";\n  const parts = vals.map(v =\u003e \u0027\"\u0027 + String(v).replace(/\\\\/g,\u0027\\\\\\\\\u0027).replace(/\"/g,\u0027\\\\\"\u0027) + \u0027\"\u0027);\n  return \"\u0027\" + \u0027{\u0027 + parts.join(\u0027,\u0027) + \u0027}\u0027 + \"\u0027\";\n}\nfunction jsonb(v) {\n  if (!v) return \"\u0027{}\u0027::jsonb\";\n  return \"\u0027\" + JSON.stringify(v).replace(/\u0027/g, \"\u0027\u0027\") + \"\u0027::jsonb\";\n}\n\nfunction normWorkMode(v) {\n  if (!v) return null;\n  const s = String(v).toLowerCase().replace(/[-\\s]/g, \u0027_\u0027);\n  const map = {\n    on_site: \u0027onsite\u0027, onsite: \u0027onsite\u0027, in_office: \u0027onsite\u0027, office: \u0027onsite\u0027, vor_ort: \u0027onsite\u0027,\n    full_remote: \u0027remote\u0027, fully_remote: \u0027remote\u0027, remote: \u0027remote\u0027, homeoffice: \u0027remote\u0027, home_office: \u0027remote\u0027,\n    hybrid: \u0027hybrid\u0027, partially_remote: \u0027hybrid\u0027, teilweise_remote: \u0027hybrid\u0027\n  };\n  return map[s] || null;\n}\nfunction normSeniority(v) {\n  if (!v) return null;\n  const s = String(v).toLowerCase().replace(/[-\\s]/g, \u0027_\u0027);\n  const map = {\n    intern: \u0027intern\u0027, internship: \u0027intern\u0027, praktikum: \u0027intern\u0027,\n    junior: \u0027junior\u0027, jr: \u0027junior\u0027,\n    middle: \u0027middle\u0027, mid: \u0027middle\u0027, medior: \u0027middle\u0027, intermediate: \u0027middle\u0027,\n    senior: \u0027senior\u0027, sr: \u0027senior\u0027,\n    lead: \u0027lead\u0027, tech_lead: \u0027lead\u0027, team_lead: \u0027lead\u0027,\n    principal: \u0027principal\u0027, staff: \u0027principal\u0027, architect: \u0027principal\u0027\n  };\n  return map[s] || null;\n}\n\n\nconst finalSourceUrl = sourceUrl || e.source_url || null;\n\nreturn [{\n  json: {\n    job_event: e,\n    db: {\n      company_id_sql:           sql(e.company_id           || \u0027unknown\u0027),\n      company_name_sql:         sql(e.company_name         || \u0027Unknown Company\u0027),\n      employer_id_sql:          sql(e.employer_id),\n      employer_name_sql:        sql(e.employer_name),\n      job_id_fuzzy_sql:         sql(e.job_id_fuzzy         || \u0027unknown__unknown__unknown\u0027),\n      job_title_sql:            sql(e.job_title),\n      location_sql:             sql(e.location),\n      job_thread_key_sql:       sql(e.job_thread_key),\n      seniority_sql:            en(normSeniority(e.seniority),             \u0027seniority_enum\u0027),\n      work_mode_sql:            en(normWorkMode(e.work_mode),             \u0027work_mode_enum\u0027),\n      work_mode_raw_sql:        sql(e.work_mode_raw),\n      working_hours_sql:        sql(e.working_hours),\n      salary_currency_sql:      sql(e.salary_currency),\n      salary_min_sql:           num(e.salary_min),\n      salary_max_sql:           num(e.salary_max),\n      salary_period_sql:        en(e.salary_period,         \u0027salary_period_enum\u0027),\n      tech_stack_sql:           arr(e.tech_stack),\n      key_requirements_sql:     arr(e.key_requirements),\n      current_stage_sql:        en(e.stage || \u0027discovered\u0027, \u0027job_stage_enum\u0027),\n      priority_sql:             (()=\u003e{const vp=[\u0027high\u0027,\u0027medium\u0027,\u0027low\u0027];const s=e.priority?String(e.priority).toLowerCase().trim():null;return s\u0026\u0026vp.includes(s)?en(s,\u0027priority_enum\u0027):\u0027NULL\u0027;})(),\n      priority_level_sql:       num(e.priority_level),\n      interview_date_sql:       dt(e.interview_date),\n      response_deadline_sql:    dt(e.response_deadline),\n      application_deadline_sql: dt(e.application_deadline),\n      has_had_call_sql:         bool(e.has_had_call),\n      call_count_sql:           String(e.call_count || 0),\n      last_call_date_sql:       dt(e.last_call_date),\n      source_url_sql:           sql(finalSourceUrl),\n      source_input_sql:         en(\u0027scraped\u0027,               \u0027input_source_enum\u0027),\n      job_type_sql:             sql(\u0027freelance\u0027),\n      summary_sql:              sql(e.summary),\n      category_sql:             en(e.category,              \u0027job_category_enum\u0027),\n      action_sql:               sql(e.action),\n      is_job_related_sql:       bool(e.is_job_related),\n      call_platform_sql:        en(e.call_platform,         \u0027call_platform_enum\u0027),\n      call_platform_raw_sql:    sql(e.call_platform_raw),\n      raw_text_sql:             sql(rawText),\n      parsed_json_sql:          jsonb(e),\n      sender_risk_level_sql:    sql(\u0027unknown\u0027),\n      sender_risk_signals_sql:  arr([]),\n      contact_email_sql:        sql((() =\u003e { const EMAIL_REGEX = /[\\w\\.\\-\\+]+@[\\w\\.\\-]+\\.[a-zA-Z]{2,}/g; const NOREPLY_RE = /noreply|no[-_]reply|donotreply|mailer|bounce|unsubscribe|newsletter|notification|info@|hallo@|kontakt@|support@|service@|hello@/i; const allEmails = (rawText || \u0027\u0027).match(EMAIL_REGEX) || []; return allEmails.find(em =\u003e !NOREPLY_RE.test(em)) || null; })())\n    }\n  }\n}];"
+                                         "jsCode":  "/* ============================================================\n   Prepare DB Params -- Gewerbe Flow\n   job_type = \u0027freelance\u0027\n   input_source: scraped, no email fields\n   ============================================================ */\n\nconst e  = $input.item.json.job_event;\nconst ni = $(\u0027Normalize Item\u0027).item.json.normalized_input;\nconst rawText  = ni.raw_text;\nconst sourceUrl = (ni.raw_meta \u0026\u0026 ni.raw_meta.url) || null;\n\nfunction sql(v)  { if (v === null || v === undefined) return \u0027NULL\u0027; return \"\u0027\" + String(v).replace(/\u0027/g, \"\u0027\u0027\") + \"\u0027\"; }\nfunction num(v)  { if (v === null || v === undefined) return \u0027NULL\u0027; const n = parseFloat(v); return isNaN(n) ? \u0027NULL\u0027 : String(n); }\nfunction bool(v) { return v === true ? \u0027TRUE\u0027 : \u0027FALSE\u0027; }\nfunction dt(v)   { return v ? \"\u0027\" + String(v).replace(/\u0027/g, \"\u0027\u0027\") + \"\u0027\" : \u0027NULL\u0027; }\nfunction en(v,t) { return v ? \"\u0027\" + String(v).replace(/\u0027/g, \"\u0027\u0027\") + \"\u0027::\" + t : \u0027NULL\u0027; }\nfunction arr(vals) {\n  if (!vals || vals.length === 0) return \"\u0027{}\u0027\";\n  const parts = vals.map(v =\u003e \u0027\"\u0027 + String(v).replace(/\\\\/g,\u0027\\\\\\\\\u0027).replace(/\"/g,\u0027\\\\\"\u0027) + \u0027\"\u0027);\n  return \"\u0027\" + \u0027{\u0027 + parts.join(\u0027,\u0027) + \u0027}\u0027 + \"\u0027\";\n}\nfunction jsonb(v) {\n  if (!v) return \"\u0027{}\u0027::jsonb\";\n  return \"\u0027\" + JSON.stringify(v).replace(/\u0027/g, \"\u0027\u0027\") + \"\u0027::jsonb\";\n}\n\nfunction normWorkMode(v) {\n  if (!v) return null;\n  const s = String(v).toLowerCase().replace(/[-\\s]/g, \u0027_\u0027);\n  const map = {\n    on_site: \u0027onsite\u0027, onsite: \u0027onsite\u0027, in_office: \u0027onsite\u0027, office: \u0027onsite\u0027, vor_ort: \u0027onsite\u0027,\n    full_remote: \u0027remote\u0027, fully_remote: \u0027remote\u0027, remote: \u0027remote\u0027, homeoffice: \u0027remote\u0027, home_office: \u0027remote\u0027,\n    hybrid: \u0027hybrid\u0027, partially_remote: \u0027hybrid\u0027, teilweise_remote: \u0027hybrid\u0027\n  };\n  return map[s] || null;\n}\nfunction normSeniority(v) {\n  if (!v) return null;\n  const s = String(v).toLowerCase().replace(/[-\\s]/g, \u0027_\u0027);\n  const map = {\n    intern: \u0027intern\u0027, internship: \u0027intern\u0027, praktikum: \u0027intern\u0027,\n    junior: \u0027junior\u0027, jr: \u0027junior\u0027,\n    middle: \u0027middle\u0027, mid: \u0027middle\u0027, medior: \u0027middle\u0027, intermediate: \u0027middle\u0027,\n    senior: \u0027senior\u0027, sr: \u0027senior\u0027,\n    lead: \u0027lead\u0027, tech_lead: \u0027lead\u0027, team_lead: \u0027lead\u0027,\n    principal: \u0027principal\u0027, staff: \u0027principal\u0027, architect: \u0027principal\u0027\n  };\n  return map[s] || null;\n}\n\n\nconst finalSourceUrl = sourceUrl || e.source_url || null;\n\nreturn {\n  json: {\n    job_event: e,\n    db: {\n      company_id_sql:           sql(e.company_id           || \u0027unknown\u0027),\n      company_name_sql:         sql(e.company_name         || \u0027Unknown Company\u0027),\n      employer_id_sql:          sql(e.employer_id),\n      employer_name_sql:        sql(e.employer_name),\n      job_id_fuzzy_sql:         sql(e.job_id_fuzzy         || \u0027unknown__unknown__unknown\u0027),\n      job_title_sql:            sql(e.job_title),\n      location_sql:             sql(e.location),\n      job_thread_key_sql:       sql(e.job_thread_key),\n      seniority_sql:            en(normSeniority(e.seniority),             \u0027seniority_enum\u0027),\n      work_mode_sql:            en(normWorkMode(e.work_mode),             \u0027work_mode_enum\u0027),\n      work_mode_raw_sql:        sql(e.work_mode_raw),\n      working_hours_sql:        sql(e.working_hours),\n      salary_currency_sql:      sql(e.salary_currency),\n      salary_min_sql:           num(e.salary_min),\n      salary_max_sql:           num(e.salary_max),\n      salary_period_sql:        (()=\u003e{const m={monthly:\u0027monthly\u0027,annual:\u0027annual\u0027,yearly:\u0027annual\u0027,hourly:\u0027hourly\u0027};const s=e.salary_period?m[String(e.salary_period).toLowerCase()]:null;return s?en(s,\u0027salary_period_enum\u0027):\u0027NULL\u0027;})(),\n      tech_stack_sql:           arr(e.tech_stack),\n      key_requirements_sql:     arr(e.key_requirements),\n      current_stage_sql:        en(e.stage || \u0027discovered\u0027, \u0027job_stage_enum\u0027),\n      priority_sql:             (()=\u003e{const vp=[\u0027high\u0027,\u0027medium\u0027,\u0027low\u0027];const s=e.priority?String(e.priority).toLowerCase().trim():null;return s\u0026\u0026vp.includes(s)?en(s,\u0027priority_enum\u0027):\u0027NULL\u0027;})(),\n      priority_level_sql:       num(e.priority_level),\n      interview_date_sql:       dt(e.interview_date),\n      response_deadline_sql:    dt(e.response_deadline),\n      application_deadline_sql: dt(e.application_deadline),\n      has_had_call_sql:         bool(e.has_had_call),\n      call_count_sql:           String(e.call_count || 0),\n      last_call_date_sql:       dt(e.last_call_date),\n      source_url_sql:           sql(finalSourceUrl),\n      source_input_sql:         en(\u0027scraped\u0027,               \u0027input_source_enum\u0027),\n      job_type_sql:             sql(ni.job_type === \u0027employment\u0027 ? \u0027employment\u0027 : \u0027freelance\u0027),\n      summary_sql:              sql(e.summary),\n      category_sql:             (()=\u003e{const V=[\u0027hr_invite\u0027,\u0027interview_invite\u0027,\u0027test_task\u0027,\u0027offer\u0027,\u0027rejection\u0027,\u0027follow_up\u0027,\u0027job_posting\u0027,\u0027newsletter\u0027,\u0027platform_notification\u0027,\u0027manual_note\u0027,\u0027other\u0027];const s=e.category?String(e.category).toLowerCase():null;return V.includes(s)?en(s,\u0027job_category_enum\u0027):en(\u0027other\u0027,\u0027job_category_enum\u0027);})(),\n      action_sql:               sql(e.action),\n      is_job_related_sql:       bool(e.is_job_related),\n      call_platform_sql:        (()=\u003e{const V=[\u0027zoom\u0027,\u0027teams\u0027,\u0027google_meet\u0027,\u0027phone\u0027,\u0027in_person\u0027,\u0027other\u0027];const s=e.call_platform?String(e.call_platform).toLowerCase():null;return V.includes(s)?en(s,\u0027call_platform_enum\u0027):\u0027NULL\u0027;})(),\n      call_platform_raw_sql:    sql(e.call_platform_raw),\n      raw_text_sql:             sql(rawText),\n      parsed_json_sql:          jsonb(e),\n      sender_risk_level_sql:    sql(\u0027unknown\u0027),\n      sender_risk_signals_sql:  arr([]),\n      contact_email_sql:        sql((() =\u003e { const EMAIL_REGEX = /[\\w\\.\\-\\+]+@[\\w\\.\\-]+\\.[a-zA-Z]{2,}/g; const NOREPLY_RE = /noreply|no[-_]reply|donotreply|mailer|bounce|unsubscribe|newsletter|notification|info@|hallo@|kontakt@|support@|service@|hello@/i; const allEmails = (rawText || \u0027\u0027).match(EMAIL_REGEX) || []; return allEmails.find(em =\u003e !NOREPLY_RE.test(em)) || null; })())\n    }\n  }\n};",
+                                         "mode":  "runOnceForEachItem"
                                      },
                       "id":  "n_prepare",
                       "name":  "Prepare DB Params",
@@ -300,11 +306,13 @@
                                                            "name":  "Postgres account"
                                                        }
                                       },
-                      "notes":  "Idempotent upsert. job_type=\u0027freelance\u0027 stored permanently.\nsource_detail=\u0027gewerbe_scraped\u0027 in job_events for audit."
+                      "notes":  "Idempotent upsert. job_type=\u0027freelance\u0027 stored permanently.\nsource_detail=\u0027gewerbe_scraped\u0027 in job_events for audit.",
+                      "onError":  "continueRegularOutput"
                   },
                   {
                       "parameters":  {
-                                         "jsCode":  "// ============================================================\n// Prepare Calendar Data - Gewerbe / KI Automation\n// Builds a structured project card for Google Calendar.\n// Color = relevance tier: green (hot) / yellow (medium) / graphite (low)\n// ============================================================\n\nconst e  = $(\u0027Parse LLM Response\u0027).item.json.job_event;\nconst ni = $(\u0027Normalize Item\u0027).item.json.normalized_input;\nconst db = $input.item.json;\n\nconst relevance = parseInt(e.relevance_score || 0);\n\n// --- Color tier ---\n// 2 = Sage (green)   ? hot lead ?80\n// 5 = Banana (yellow)? interesting 50-79\n// 8 = Graphite (grey)? low \u003c50\nconst colorId = relevance \u003e= 80 ? \u00272\u0027 : relevance \u003e= 50 ? \u00275\u0027 : \u00278\u0027;\n\n// --- Rate / budget ---\nlet rateStr = \u0027\u0027;\nif (e.salary_min) {\n  const period = e.salary_period === \u0027hourly\u0027  ? \u0027/h\u0027\n               : e.salary_period === \u0027daily\u0027   ? \u0027/d\u0027\n               : e.salary_period === \u0027monthly\u0027 ? \u0027/mo\u0027\n               : e.salary_period === \u0027project\u0027 ? \u0027 Projekt\u0027\n               : \u0027\u0027;\n  const cur = e.salary_currency || \u0027EUR\u0027;\n  rateStr = ` | ${e.salary_min}${e.salary_max ? \u0027-\u0027 + e.salary_max : \u0027\u0027}${cur}${period}`;\n}\n\n// --- Event title ---\nconst calSummary = \u0027\\uDD27 \u0027\n  + (e.job_title || \u0027Projekt\u0027)\n  + \u0027 @ \u0027\n  + (e.company_name || \u0027?\u0027)\n  + rateStr;\n\n// --- Dates ---\nconst todayISO = new Date().toISOString().split(\u0027T\u0027)[0];\nconst calStart = e.application_deadline\n  ? e.application_deadline.substring(0, 10)\n  : e.response_deadline\n  ? e.response_deadline.substring(0, 10)\n  : todayISO;\nconst calEnd = calStart; // all-day event\n\n// --- Tech stack ---\nconst techStr = Array.isArray(e.tech_stack) \u0026\u0026 e.tech_stack.length\n  ? e.tech_stack.slice(0, 8).join(\u0027 � \u0027)\n  : null;\n\n// --- Location ---\nconst locParts = [e.location, e.work_mode ? e.work_mode.replace(\u0027_\u0027, \u0027 \u0027) : null].filter(Boolean);\nconst locStr = locParts.length ? locParts.join(\u0027 | \u0027) : null;\n\n// --- Salary ---\nlet salaryStr = null;\nif (e.salary_min) {\n  const period = e.salary_period === \u0027hourly\u0027  ? \u0027pro Stunde\u0027\n               : e.salary_period === \u0027daily\u0027   ? \u0027pro Tag\u0027\n               : e.salary_period === \u0027monthly\u0027 ? \u0027pro Monat\u0027\n               : e.salary_period === \u0027project\u0027 ? \u0027Projektbudget\u0027\n               : \u0027\u0027;\n  const cur = e.salary_currency || \u0027EUR\u0027;\n  salaryStr = `${e.salary_min}${e.salary_max ? \u0027-\u0027 + e.salary_max : \u0027\u0027} ${cur} ${period}`.trim();\n}\n\n// --- Key requirements ---\nconst reqStr = Array.isArray(e.key_requirements) \u0026\u0026 e.key_requirements.length\n  ? e.key_requirements.slice(0, 4).join(\u0027 � \u0027)\n  : null;\n\n// --- Deadline label ---\nconst deadlineLabel = e.application_deadline\n  ? e.application_deadline.substring(0, 10)\n  : e.response_deadline\n  ? e.response_deadline.substring(0, 10)\n  : \u0027-\u0027;\n\n// --- Source URL ---\nconst sourceUrl = (ni.raw_meta \u0026\u0026 ni.raw_meta.url) || \u0027\u0027;\nconst platform  = (ni.raw_meta \u0026\u0026 ni.raw_meta.platform) || ni.raw_meta \u0026\u0026 ni.raw_meta.label || \u0027?\u0027;\n\n// --- Today label ---\nconst today = new Date().toLocaleDateString(\u0027de-DE\u0027, {\n  day: \u00272-digit\u0027, month: \u00272-digit\u0027, year: \u0027numeric\u0027\n});\n\n// --- Stage label ---\nconst stageLabel = (db.stage || \u0027discovered\u0027).toUpperCase();\n\n// --- Relevance bar (10 blocks) ---\nconst filledBlocks = Math.round(relevance / 10);\nconst bar = \u0027\\u2588\u0027.repeat(filledBlocks) + \u0027\\u2591\u0027.repeat(10 - filledBlocks);\n\n// --- Build description ---\nconst lines = [\n  \u0027\\u2550\u0027.repeat(30),\n  \u0027\\uDF10 KI AUTOMATION GEWERBE-RADAR\u0027,\n  \u0027\\u2550\u0027.repeat(30),\n  \u0027\u0027,\n  \u0027\\uDFE2 Auftraggeber:  \u0027 + (e.company_name || \u0027?\u0027),\n];\nif (techStr)    lines.push(\u0027\\uDD27 Stack:         \u0027 + techStr);\nif (reqStr)     lines.push(\u0027\\uDCCB Anforderungen: \u0027 + reqStr);\nif (locStr)     lines.push(\u0027\\uDCCD Ort:           \u0027 + locStr);\nif (salaryStr)  lines.push(\u0027\\uDCB0 Verg\\u00FCtung:    \u0027 + salaryStr);\nlines.push(\u0027\u0027);\nlines.push(\u0027\\uDCC8 Relevanz: [\u0027 + bar + \u0027] \u0027 + relevance + \u0027/100\u0027);\nlines.push(\u0027\u0027);\nif (e.summary) {\n  lines.push(\u0027\\uDCAC ZUSAMMENFASSUNG\u0027);\n  lines.push(e.summary);\n  lines.push(\u0027\u0027);\n}\nlines.push(\u0027\\u2500\u0027.repeat(30));\nif (sourceUrl)      lines.push(\u0027\\uDD17 Quelle:        \u0027 + sourceUrl);\nlines.push(\u0027\\uDFF7\\uFE0F Plattform:     \u0027 + platform);\nlines.push(\u0027\\uDCC5 Erfasst:       \u0027 + today);\nlines.push(\u0027\\u23F0 Deadline:      \u0027 + deadlineLabel);\nlines.push(\u0027\\uDEA6 Status:        \u0027 + stageLabel);\nlines.push(\u0027\u0027);\nlines.push(\u0027\\u2500\u0027.repeat(30));\nlines.push(\u0027JobRadar Gewerbe - KI Automation Intelligence Hub\u0027);\n\nconst calDescription = lines.join(\u0027\\n\u0027);\n\nreturn [{\n  json: {\n    // pass through DB fields for IF: priority node\n    job_id:      db.job_id,\n    stage:       db.stage,\n    priority:    db.priority,\n    summary:     db.summary,\n    // calendar params\n    calSummary,\n    calStart,\n    calEnd,\n    calColorId:  colorId,\n    calDescription\n  }\n}];\n"
+                                         "jsCode":  "// ============================================================\n// Prepare Calendar Data - Gewerbe / KI Automation\n// Builds a structured project card for Google Calendar.\n// Color = relevance tier: green (hot) / yellow (medium) / graphite (low)\n// ============================================================\n\nconst e  = $(\u0027Parse LLM Response\u0027).item.json.job_event;\nconst ni = $(\u0027Normalize Item\u0027).item.json.normalized_input;\nconst db = $input.item.json;\n\nconst relevance = parseInt(e.relevance_score || 0);\n\n// --- Color tier ---\n// 2 = Sage (green)   ? hot lead ?80\n// 5 = Banana (yellow)? interesting 50-79\n// 8 = Graphite (grey)? low \u003c50\nconst colorId = relevance \u003e= 80 ? \u00272\u0027 : relevance \u003e= 50 ? \u00275\u0027 : \u00278\u0027;\n\n// --- Rate / budget ---\nlet rateStr = \u0027\u0027;\nif (e.salary_min) {\n  const period = e.salary_period === \u0027hourly\u0027  ? \u0027/h\u0027\n               : e.salary_period === \u0027daily\u0027   ? \u0027/d\u0027\n               : e.salary_period === \u0027monthly\u0027 ? \u0027/mo\u0027\n               : e.salary_period === \u0027project\u0027 ? \u0027 Projekt\u0027\n               : \u0027\u0027;\n  const cur = e.salary_currency || \u0027EUR\u0027;\n  rateStr = ` | ${e.salary_min}${e.salary_max ? \u0027-\u0027 + e.salary_max : \u0027\u0027}${cur}${period}`;\n}\n\n// --- Event title ---\nconst calSummary = \u0027\\uDD27 \u0027\n  + (e.job_title || \u0027Projekt\u0027)\n  + \u0027 @ \u0027\n  + (e.company_name || \u0027?\u0027)\n  + rateStr;\n\n// --- Dates ---\nconst todayISO = new Date().toISOString().split(\u0027T\u0027)[0];\nconst calStart = e.application_deadline\n  ? e.application_deadline.substring(0, 10)\n  : e.response_deadline\n  ? e.response_deadline.substring(0, 10)\n  : todayISO;\nconst calEnd = calStart; // all-day event\n\n// --- Tech stack ---\nconst techStr = Array.isArray(e.tech_stack) \u0026\u0026 e.tech_stack.length\n  ? e.tech_stack.slice(0, 8).join(\u0027 � \u0027)\n  : null;\n\n// --- Location ---\nconst locParts = [e.location, e.work_mode ? e.work_mode.replace(\u0027_\u0027, \u0027 \u0027) : null].filter(Boolean);\nconst locStr = locParts.length ? locParts.join(\u0027 | \u0027) : null;\n\n// --- Salary ---\nlet salaryStr = null;\nif (e.salary_min) {\n  const period = e.salary_period === \u0027hourly\u0027  ? \u0027pro Stunde\u0027\n               : e.salary_period === \u0027daily\u0027   ? \u0027pro Tag\u0027\n               : e.salary_period === \u0027monthly\u0027 ? \u0027pro Monat\u0027\n               : e.salary_period === \u0027project\u0027 ? \u0027Projektbudget\u0027\n               : \u0027\u0027;\n  const cur = e.salary_currency || \u0027EUR\u0027;\n  salaryStr = `${e.salary_min}${e.salary_max ? \u0027-\u0027 + e.salary_max : \u0027\u0027} ${cur} ${period}`.trim();\n}\n\n// --- Key requirements ---\nconst reqStr = Array.isArray(e.key_requirements) \u0026\u0026 e.key_requirements.length\n  ? e.key_requirements.slice(0, 4).join(\u0027 � \u0027)\n  : null;\n\n// --- Deadline label ---\nconst deadlineLabel = e.application_deadline\n  ? e.application_deadline.substring(0, 10)\n  : e.response_deadline\n  ? e.response_deadline.substring(0, 10)\n  : \u0027-\u0027;\n\n// --- Source URL ---\nconst sourceUrl = (ni.raw_meta \u0026\u0026 ni.raw_meta.url) || \u0027\u0027;\nconst platform  = (ni.raw_meta \u0026\u0026 ni.raw_meta.platform) || ni.raw_meta \u0026\u0026 ni.raw_meta.label || \u0027?\u0027;\n\n// --- Today label ---\nconst today = new Date().toLocaleDateString(\u0027de-DE\u0027, {\n  day: \u00272-digit\u0027, month: \u00272-digit\u0027, year: \u0027numeric\u0027\n});\n\n// --- Stage label ---\nconst stageLabel = (db.stage || \u0027discovered\u0027).toUpperCase();\n\n// --- Relevance bar (10 blocks) ---\nconst filledBlocks = Math.round(relevance / 10);\nconst bar = \u0027\\u2588\u0027.repeat(filledBlocks) + \u0027\\u2591\u0027.repeat(10 - filledBlocks);\n\n// --- Build description ---\nconst lines = [\n  \u0027\\u2550\u0027.repeat(30),\n  \u0027\\uDF10 KI AUTOMATION GEWERBE-RADAR\u0027,\n  \u0027\\u2550\u0027.repeat(30),\n  \u0027\u0027,\n  \u0027\\uDFE2 Auftraggeber:  \u0027 + (e.company_name || \u0027?\u0027),\n];\nif (techStr)    lines.push(\u0027\\uDD27 Stack:         \u0027 + techStr);\nif (reqStr)     lines.push(\u0027\\uDCCB Anforderungen: \u0027 + reqStr);\nif (locStr)     lines.push(\u0027\\uDCCD Ort:           \u0027 + locStr);\nif (salaryStr)  lines.push(\u0027\\uDCB0 Verg\\u00FCtung:    \u0027 + salaryStr);\nlines.push(\u0027\u0027);\nlines.push(\u0027\\uDCC8 Relevanz: [\u0027 + bar + \u0027] \u0027 + relevance + \u0027/100\u0027);\nlines.push(\u0027\u0027);\nif (e.summary) {\n  lines.push(\u0027\\uDCAC ZUSAMMENFASSUNG\u0027);\n  lines.push(e.summary);\n  lines.push(\u0027\u0027);\n}\nlines.push(\u0027\\u2500\u0027.repeat(30));\nif (sourceUrl)      lines.push(\u0027\\uDD17 Quelle:        \u0027 + sourceUrl);\nlines.push(\u0027\\uDFF7\\uFE0F Plattform:     \u0027 + platform);\nlines.push(\u0027\\uDCC5 Erfasst:       \u0027 + today);\nlines.push(\u0027\\u23F0 Deadline:      \u0027 + deadlineLabel);\nlines.push(\u0027\\uDEA6 Status:        \u0027 + stageLabel);\nlines.push(\u0027\u0027);\nlines.push(\u0027\\u2500\u0027.repeat(30));\nlines.push(\u0027JobRadar Gewerbe - KI Automation Intelligence Hub\u0027);\n\nconst calDescription = lines.join(\u0027\\n\u0027);\n\nreturn {\n  json: {\n    // pass through DB fields for IF: priority node\n    job_id:      db.job_id,\n    stage:       db.stage,\n    priority:    db.priority,\n    summary:     db.summary,\n    // calendar params\n    calSummary,\n    calStart,\n    calEnd,\n    calColorId:  colorId,\n    calDescription\n  }\n};\n",
+                                         "mode":  "runOnceForEachItem"
                                      },
                       "id":  "n_cal_prep",
                       "name":  "Prepare Calendar Data",
@@ -391,7 +399,13 @@
                                          "rawContentType":  "application/json",
                                          "body":  "={{ JSON.stringify({ chat_id: $env.TELEGRAM_GEWERBE_CHAT_ID, parse_mode: \u0027HTML\u0027, text: [\u0027\\u{1F4BC} \u003cb\u003eGewerbe-Radar: \u0027 + ($(\u0027Parse LLM Response\u0027).item.json.job_event.company_name || \u0027Unknown\u0027) + \u0027\u003c/b\u003e\u0027, ($(\u0027Parse LLM Response\u0027).item.json.job_event.job_title || \u0027\\u2014\u0027), \u0027\u0027, \u0027Stage: \u003ccode\u003e\u0027 + ($(\u0027Prepare Calendar Data\u0027).item.json.stage || \u0027\u0027) + \u0027\u003c/code\u003e  Priority: \u003cb\u003e\u0027 + ($(\u0027Prepare Calendar Data\u0027).item.json.priority || \u0027\u0027) + \u0027\u003c/b\u003e\u0027, \u0027\u0027, ($json.summary || \u0027\u0027)].join(\u0027\\n\u0027), disable_web_page_preview: true }) }}",
                                          "options":  {
-                                                         "timeout":  10000
+                                                         "timeout":  10000,
+                                                         "batching":  {
+                                                                          "batch":  {
+                                                                                        "batchSize":  1,
+                                                                                        "batchInterval":  3500
+                                                                                    }
+                                                                      }
                                                      }
                                      },
                       "id":  "n_telegram_gewerbe",
@@ -402,7 +416,8 @@
                                        4080,
                                        160
                                    ],
-                      "notes":  "?? Needs TELEGRAM_GEWERBE_CHAT_ID in VPS .env\nCreate Telegram channel -\u003e forward any message to @userinfobot to get chat_id.\nAdd bot as admin to the channel first."
+                      "notes":  "?? Needs TELEGRAM_GEWERBE_CHAT_ID in VPS .env\nCreate Telegram channel -\u003e forward any message to @userinfobot to get chat_id.\nAdd bot as admin to the channel first.",
+                      "onError":  "continueRegularOutput"
                   },
                   {
                       "parameters":  {
@@ -419,7 +434,7 @@
                   },
                   {
                       "parameters":  {
-                                         "jsCode":  "// Filter: Skip Expired\n// Drops jobs whose deadline has already passed.\n// No deadline ? always pass through (we can\u0027t know ? benefit of the doubt).\nconst e = $(\u0027Parse LLM Response\u0027).item.json.job_event;\nconst deadline = e.application_deadline || e.response_deadline || null;\n\nif (deadline) {\n  const deadlineDate = new Date(deadline);\n  // Guard: invalid date string ? pass through\n  if (!isNaN(deadlineDate.getTime()) \u0026\u0026 deadlineDate \u003c new Date()) {\n    // Expired - drop silently\n    return [];\n  }\n}\n\nreturn [$input.item];"
+                                         "jsCode":  "const out = [];\nfor (const item of $input.all()) {\n  const e = item.json.job_event;\n  const deadline = (e \u0026\u0026 (e.application_deadline || e.response_deadline)) || null;\n  if (deadline) {\n    const d = new Date(deadline);\n    if (!isNaN(d.getTime()) \u0026\u0026 d \u003c new Date()) continue;\n  }\n  out.push(item);\n}\nreturn out;"
                                      },
                       "id":  "n_filter_expired_VBfS8H71",
                       "name":  "Filter: Skip Expired",
@@ -568,6 +583,214 @@
                                          "jsCode":  "const jobs = $input.item.json.jobs || [];\nconst stripHtml = s =\u003e (s || \u0027\u0027).replace(/\u003c[^\u003e]+\u003e/g, \u0027 \u0027).replace(/\\s+/g, \u0027 \u0027).trim();\n\nconst listed = jobs\n  .filter(j =\u003e j.isListed !== false)\n  .sort((a, b) =\u003e new Date(b.publishedAt) - new Date(a.publishedAt))\n  .slice(0, 30);\n\nreturn listed.map(j =\u003e {\n  const comp = j.compensation?.compensationTierSummary || \u0027\u0027;\n  const snippet = [\n    `Ort: ${j.location || \u0027unbekannt\u0027}${j.isRemote ? \u0027 (Remote)\u0027 : \u0027\u0027}`,\n    `Typ: ${j.employmentType || \u0027\u0027}`,\n    comp ? `Verguetung: ${comp}` : \u0027\u0027,\n    stripHtml(j.descriptionHtml).substring(0, 1500)\n  ].filter(Boolean).join(\u0027\\n\u0027);\n\n  return { json: { result: { title: `${j.title} @ 10x.team`, link: j.jobUrl, snippet }, label: \u0027ashby-10xteam\u0027 } };\n});"
                                      },
                       "notes":  "Maps Ashby jobs to SerpAPI result shape {result:{title,link,snippet},label} → reuses Normalize Item + full downstream pipeline. Cap 30 newest to limit LLM calls."
+                  },
+                  {
+                      "id":  "4fa705e0-3c93-415e-aacf-7b8b05e1a093",
+                      "name":  "BA: Suchanfragen",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       432,
+                                       640
+                                   ],
+                      "parameters":  {
+                                         "jsCode":  "const BASE = \u0027https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v4/jobs\u0027;\nconst QUERIES = [\n  { url: BASE + \u0027?was=\u0027 + encodeURIComponent(\u0027KI Automatisierung\u0027) + \u0027\u0026angebotsart=34\u0026size=25\u0027, label: \u0027ba-praktikum\u0027 },\n  { url: BASE + \u0027?was=\u0027 + encodeURIComponent(\u0027Automatisierung Python\u0027) + \u0027\u0026angebotsart=1\u0026arbeitszeit=ho\u0026size=25\u0027, label: \u0027ba-remote\u0027 },\n  { url: BASE + \u0027?was=\u0027 + encodeURIComponent(\u0027KI Automatisierung\u0027) + \u0027\u0026angebotsart=1\u0026arbeitszeit=ho\u0026size=25\u0027, label: \u0027ba-remote\u0027 },\n];\nreturn QUERIES.map(q =\u003e ({ json: q }));"
+                                     },
+                      "notes":  "Arbeitsagentur Jobsuche API. angebotsart=34 Praktikum/Trainee, =1 Arbeit; arbeitszeit=ho Homeoffice."
+                  },
+                  {
+                      "id":  "97cf42ab-3a16-45b9-bf2e-c1b13f033cbf",
+                      "name":  "BA: Suche",
+                      "type":  "n8n-nodes-base.httpRequest",
+                      "typeVersion":  4.2,
+                      "position":  [
+                                       640,
+                                       640
+                                   ],
+                      "parameters":  {
+                                         "method":  "GET",
+                                         "url":  "={{ $json.url }}",
+                                         "sendHeaders":  true,
+                                         "headerParameters":  {
+                                                                  "parameters":  [
+                                                                                     {
+                                                                                         "name":  "X-API-Key",
+                                                                                         "value":  "jobboerse-jobsuche"
+                                                                                     }
+                                                                                 ]
+                                                              },
+                                         "options":  {
+                                                         "timeout":  30000
+                                                     }
+                                     },
+                      "notes":  "Public static clientId per bund.dev docs — not a secret.",
+                      "onError":  "continueRegularOutput"
+                  },
+                  {
+                      "id":  "f081d020-5434-477b-8567-0f97e70b9a59",
+                      "name":  "BA: Flatten",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       864,
+                                       640
+                                   ],
+                      "parameters":  {
+                                         "jsCode":  "const queries = $(\u0027BA: Suchanfragen\u0027).all();\nconst out = [];\nconst inputs = $input.all();\nfor (let idx = 0; idx \u003c inputs.length; idx++) {\n  const item = inputs[idx];\n  const p = item.pairedItem;\n  const qIdx = (typeof p === \u0027number\u0027) ? p : (p \u0026\u0026 typeof p.item === \u0027number\u0027 ? p.item : idx);\n  const label = (queries[qIdx] \u0026\u0026 queries[qIdx].json.label) || \u0027ba\u0027;\n  const jobs = item.json.stellenangebote || [];\n  for (const j of jobs.slice(0, 25)) {\n    if (!j.refnr) continue;\n    out.push({ json: {\n      refnr: j.refnr,\n      refnr_b64: Buffer.from(String(j.refnr)).toString(\u0027base64\u0027),\n      titel: j.titel || \u0027\u0027,\n      arbeitgeber: j.arbeitgeber || \u0027\u0027,\n      ort: (j.arbeitsort \u0026\u0026 (j.arbeitsort.ort || j.arbeitsort.region)) || \u0027\u0027,\n      label\n    }});\n  }\n}\nreturn out;"
+                                     }
+                  },
+                  {
+                      "id":  "6226f5c2-88fd-4b15-83d4-1f644e5d2121",
+                      "name":  "BA: Details",
+                      "type":  "n8n-nodes-base.httpRequest",
+                      "typeVersion":  4.2,
+                      "position":  [
+                                       1056,
+                                       640
+                                   ],
+                      "parameters":  {
+                                         "method":  "GET",
+                                         "url":  "=https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v4/jobdetails/{{ $json.refnr_b64 }}",
+                                         "sendHeaders":  true,
+                                         "headerParameters":  {
+                                                                  "parameters":  [
+                                                                                     {
+                                                                                         "name":  "X-API-Key",
+                                                                                         "value":  "jobboerse-jobsuche"
+                                                                                     }
+                                                                                 ]
+                                                              },
+                                         "options":  {
+                                                         "timeout":  30000
+                                                     }
+                                     },
+                      "onError":  "continueRegularOutput"
+                  },
+                  {
+                      "id":  "715a17d9-3abf-4c77-acc9-4d2abd62b8cc",
+                      "name":  "BA: Map Result",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       1248,
+                                       640
+                                   ],
+                      "parameters":  {
+                                         "mode":  "runOnceForEachItem",
+                                         "jsCode":  "const d = $input.item.json || {};\nconst meta = $(\u0027BA: Flatten\u0027).item.json;\nconst link = \u0027https://www.arbeitsagentur.de/jobsuche/jobdetail/\u0027 + meta.refnr;\n\nconst blob = JSON.stringify(d);\nconst mails = blob.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9-]+(\\.[a-zA-Z0-9-]+)*\\.[a-zA-Z]{2,}/g) || [];\nconst BAD = /(arbeitsagentur|noreply|no-reply|example\\.)/i;\nconst email = [...new Set(mails.map(m =\u003e m.toLowerCase()))].filter(m =\u003e !BAD.test(m))[0] || null;\n\nconst beschreibung = (d.stellenbeschreibung || \u0027\u0027).replace(/\u003c[^\u003e]+\u003e/g, \u0027 \u0027).replace(/\\s+/g, \u0027 \u0027).trim();\nconst snippet = [\n  \u0027Arbeitgeber: \u0027 + (meta.arbeitgeber || d.arbeitgeber || \u0027unbekannt\u0027),\n  \u0027Ort: \u0027 + (meta.ort || \u0027unbekannt\u0027),\n  meta.label === \u0027ba-praktikum\u0027 ? \u0027Art: Praktikum/Trainee/Werkstudent\u0027 : \u0027Art: Festanstellung (Homeoffice-Filter)\u0027,\n  email ? \u0027Bewerbung per E-Mail: \u0027 + email : \u0027\u0027,\n  beschreibung.substring(0, 2500)\n].filter(Boolean).join(\u0027\\n\u0027);\n\nreturn { json: { result: { title: (meta.titel || \u0027Unbekannt\u0027) + (meta.arbeitgeber ? \u0027 @ \u0027 + meta.arbeitgeber : \u0027\u0027), link, snippet }, label: meta.label } };"
+                                     },
+                      "notes":  "Email regex over the whole details JSON — the \u0027Bewerbung per E-Mail:\u0027 line is picked up downstream by Prepare DB Params contact_email extraction."
+                  },
+                  {
+                      "id":  "60bc27fa-4d80-4544-a6e5-3a0bdcd8e143",
+                      "name":  "BA: Batch",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       1440,
+                                       640
+                                   ],
+                      "parameters":  {
+                                         "jsCode":  "return [{ json: { batch: $input.all().map(i =\u003e i.json) } }];"
+                                     }
+                  },
+                  {
+                      "id":  "78921380-0fd7-4d4e-a7ff-a986908b7306",
+                      "name":  "BA: Dedup New Only",
+                      "type":  "n8n-nodes-base.postgres",
+                      "typeVersion":  2.5,
+                      "position":  [
+                                       1632,
+                                       640
+                                   ],
+                      "parameters":  {
+                                         "operation":  "executeQuery",
+                                         "query":  "SELECT item-\u003e\u0027result\u0027 AS result, item-\u003e\u003e\u0027label\u0027 AS label\nFROM jsonb_array_elements($1::jsonb) AS item\nWHERE NOT EXISTS (\n  SELECT 1 FROM jobs WHERE source_url = item-\u003e\u0027result\u0027-\u003e\u003e\u0027link\u0027\n);",
+                                         "options":  {
+                                                         "queryReplacement":  "={{ JSON.stringify($json.batch) }}"
+                                                     }
+                                     },
+                      "credentials":  {
+                                          "postgres":  {
+                                                           "id":  "Tvuhat51UDCzKwnE",
+                                                           "name":  "Postgres account"
+                                                       }
+                                      },
+                      "notes":  "COST SAVER: drops already-ingested BA jobs before LLM (dedup by jobdetail URL)."
+                  },
+                  {
+                      "id":  "f9445478-f88f-4a14-8ceb-6c955fd70b65",
+                      "name":  "GJobs: Suchanfragen",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       432,
+                                       820
+                                   ],
+                      "parameters":  {
+                                         "jsCode":  "const QUERIES = [\n  { q: \u0027Praktikum KI\u0027, label: \u0027gjobs-praktikum\u0027 },\n  { q: \u0027Praktikum Automatisierung Python\u0027, label: \u0027gjobs-praktikum\u0027 },\n  { q: \u0027Junior KI Automatisierung remote\u0027, label: \u0027gjobs-junior\u0027 },\n];\nreturn QUERIES.map(q =\u003e ({ json: q }));"
+                                     },
+                      "notes":  "SerpAPI engine=google_jobs — indexes Praktikum.info, corporate career pages, StepStone etc. location=Germany required (query alone returns 0)."
+                  },
+                  {
+                      "id":  "7af6b10a-ab55-408f-9838-77cfdd0bab72",
+                      "name":  "GJobs: Suche",
+                      "type":  "n8n-nodes-base.httpRequest",
+                      "typeVersion":  4.2,
+                      "position":  [
+                                       640,
+                                       820
+                                   ],
+                      "parameters":  {
+                                         "method":  "GET",
+                                         "url":  "https://serpapi.com/search.json",
+                                         "sendQuery":  true,
+                                         "queryParameters":  {
+                                                                 "parameters":  [
+                                                                                    {
+                                                                                        "name":  "engine",
+                                                                                        "value":  "google_jobs"
+                                                                                    },
+                                                                                    {
+                                                                                        "name":  "q",
+                                                                                        "value":  "={{ $json.q }}"
+                                                                                    },
+                                                                                    {
+                                                                                        "name":  "location",
+                                                                                        "value":  "Germany"
+                                                                                    },
+                                                                                    {
+                                                                                        "name":  "hl",
+                                                                                        "value":  "de"
+                                                                                    },
+                                                                                    {
+                                                                                        "name":  "gl",
+                                                                                        "value":  "de"
+                                                                                    },
+                                                                                    {
+                                                                                        "name":  "api_key",
+                                                                                        "value":  "={{ $env.SERPAPI_KEY }}"
+                                                                                    }
+                                                                                ]
+                                                             },
+                                         "options":  {
+                                                         "timeout":  30000
+                                                     }
+                                     },
+                      "onError":  "continueRegularOutput"
+                  },
+                  {
+                      "id":  "7c2a4cf8-32f5-47a2-b33b-886fae6dbdb2",
+                      "name":  "GJobs: Flatten",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       864,
+                                       820
+                                   ],
+                      "parameters":  {
+                                         "jsCode":  "const queries = $(\u0027GJobs: Suchanfragen\u0027).all();\nconst out = [];\nconst inputs = $input.all();\nfor (let idx = 0; idx \u003c inputs.length; idx++) {\n  const item = inputs[idx];\n  const p = item.pairedItem;\n  const qIdx = (typeof p === \u0027number\u0027) ? p : (p \u0026\u0026 typeof p.item === \u0027number\u0027 ? p.item : idx);\n  const label = (queries[qIdx] \u0026\u0026 queries[qIdx].json.label) || \u0027gjobs\u0027;\n  const jobs = item.json.jobs_results || [];\n  for (const j of jobs.slice(0, 15)) {\n    const applyLink = (j.apply_options \u0026\u0026 j.apply_options[0] \u0026\u0026 j.apply_options[0].link) || j.share_link || null;\n    if (!applyLink) continue;\n    const ext = j.detected_extensions || {};\n    const snippet = [\n      \u0027Arbeitgeber: \u0027 + (j.company_name || \u0027unbekannt\u0027),\n      \u0027Ort: \u0027 + (j.location || \u0027unbekannt\u0027),\n      ext.schedule_type ? \u0027Art: \u0027 + ext.schedule_type : \u0027\u0027,\n      j.via ? \u0027Via: \u0027 + j.via : \u0027\u0027,\n      (j.description || \u0027\u0027).substring(0, 2500)\n    ].filter(Boolean).join(\u0027\\n\u0027);\n    out.push({ json: { result: { title: (j.title || \u0027\u0027) + (j.company_name ? \u0027 @ \u0027 + j.company_name : \u0027\u0027), link: applyLink, snippet }, label } });\n  }\n}\nreturn out;"
+                                     }
                   }
               ],
     "connections":  {
@@ -581,6 +804,16 @@
                                                                        },
                                                                        {
                                                                            "node":  "Ashby: 10x.team",
+                                                                           "type":  "main",
+                                                                           "index":  0
+                                                                       },
+                                                                       {
+                                                                           "node":  "BA: Suchanfragen",
+                                                                           "type":  "main",
+                                                                           "index":  0
+                                                                       },
+                                                                       {
+                                                                           "node":  "GJobs: Suchanfragen",
                                                                            "type":  "main",
                                                                            "index":  0
                                                                        }
@@ -634,17 +867,6 @@
                                                                 ]
                                                             ]
                                                },
-                        "Expand: Job Results":  {
-                                                    "main":  [
-                                                                 [
-                                                                     {
-                                                                         "node":  "Normalize Item",
-                                                                         "type":  "main",
-                                                                         "index":  0
-                                                                     }
-                                                                 ]
-                                                             ]
-                                                },
                         "Normalize Item":  {
                                                "main":  [
                                                             [
@@ -772,6 +994,16 @@
                                                                     "node":  "Ashby: 10x.team",
                                                                     "type":  "main",
                                                                     "index":  0
+                                                                },
+                                                                {
+                                                                    "node":  "BA: Suchanfragen",
+                                                                    "type":  "main",
+                                                                    "index":  0
+                                                                },
+                                                                {
+                                                                    "node":  "GJobs: Suchanfragen",
+                                                                    "type":  "main",
+                                                                    "index":  0
                                                                 }
                                                             ]
                                                         ]
@@ -820,17 +1052,138 @@
                                                              ]
                                                          ]
                                             },
+                        "BA: Suchanfragen":  {
+                                                 "main":  [
+                                                              [
+                                                                  {
+                                                                      "node":  "BA: Suche",
+                                                                      "type":  "main",
+                                                                      "index":  0
+                                                                  }
+                                                              ]
+                                                          ]
+                                             },
+                        "BA: Suche":  {
+                                          "main":  [
+                                                       [
+                                                           {
+                                                               "node":  "BA: Flatten",
+                                                               "type":  "main",
+                                                               "index":  0
+                                                           }
+                                                       ]
+                                                   ]
+                                      },
+                        "BA: Flatten":  {
+                                            "main":  [
+                                                         [
+                                                             {
+                                                                 "node":  "BA: Details",
+                                                                 "type":  "main",
+                                                                 "index":  0
+                                                             }
+                                                         ]
+                                                     ]
+                                        },
+                        "BA: Details":  {
+                                            "main":  [
+                                                         [
+                                                             {
+                                                                 "node":  "BA: Map Result",
+                                                                 "type":  "main",
+                                                                 "index":  0
+                                                             }
+                                                         ]
+                                                     ]
+                                        },
+                        "BA: Map Result":  {
+                                               "main":  [
+                                                            [
+                                                                {
+                                                                    "node":  "BA: Batch",
+                                                                    "type":  "main",
+                                                                    "index":  0
+                                                                }
+                                                            ]
+                                                        ]
+                                           },
+                        "BA: Batch":  {
+                                          "main":  [
+                                                       [
+                                                           {
+                                                               "node":  "BA: Dedup New Only",
+                                                               "type":  "main",
+                                                               "index":  0
+                                                           }
+                                                       ]
+                                                   ]
+                                      },
+                        "BA: Dedup New Only":  {
+                                                   "main":  [
+                                                                [
+                                                                    {
+                                                                        "node":  "Normalize Item",
+                                                                        "type":  "main",
+                                                                        "index":  0
+                                                                    }
+                                                                ]
+                                                            ]
+                                               },
                         "Flatten: Ashby 10xteam":  {
                                                        "main":  [
                                                                     [
                                                                         {
-                                                                            "node":  "Normalize Item",
+                                                                            "node":  "BA: Batch",
                                                                             "type":  "main",
                                                                             "index":  0
                                                                         }
                                                                     ]
                                                                 ]
-                                                   }
+                                                   },
+                        "Expand: Job Results":  {
+                                                    "main":  [
+                                                                 [
+                                                                     {
+                                                                         "node":  "BA: Batch",
+                                                                         "type":  "main",
+                                                                         "index":  0
+                                                                     }
+                                                                 ]
+                                                             ]
+                                                },
+                        "GJobs: Suchanfragen":  {
+                                                    "main":  [
+                                                                 [
+                                                                     {
+                                                                         "node":  "GJobs: Suche",
+                                                                         "type":  "main",
+                                                                         "index":  0
+                                                                     }
+                                                                 ]
+                                                             ]
+                                                },
+                        "GJobs: Suche":  {
+                                             "main":  [
+                                                          [
+                                                              {
+                                                                  "node":  "GJobs: Flatten",
+                                                                  "type":  "main",
+                                                                  "index":  0
+                                                              }
+                                                          ]
+                                                      ]
+                                         },
+                        "GJobs: Flatten":  {
+                                               "main":  [
+                                                            [
+                                                                {
+                                                                    "node":  "BA: Batch",
+                                                                    "type":  "main",
+                                                                    "index":  0
+                                                                }
+                                                            ]
+                                                        ]
+                                           }
                     },
     "settings":  {
                      "executionOrder":  "v1",
