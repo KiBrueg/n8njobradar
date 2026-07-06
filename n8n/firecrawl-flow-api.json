@@ -1,630 +1,766 @@
 {
-  "name": "JobRadar -- Flow 2: Web Scraper (Crawl4AI + Jina)",
-  "nodes": [
-    {
-      "parameters": {
-        "rule": {
-          "interval": [
-            {
-              "field": "hours",
-              "hoursInterval": 24,
-              "triggerAtHour": 4,
-              "triggerAtMinute": 0
-            }
-          ]
-        }
-      },
-      "id": "n_trigger",
-      "name": "Schedule: Daily 04:00",
-      "type": "n8n-nodes-base.scheduleTrigger",
-      "typeVersion": 1.1,
-      "position": [
-        200,
-        300
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "// Job board search pages — scraped once daily.\n// scraper='jina'    -> Jina AI (free, handles Cloudflare-protected sites)\n// scraper='crawl4ai' -> self-hosted Crawl4AI on VPS (free, no limits)\n//\n// Cloudflare-blocked sites confirmed: indeed.de, devjobs.de\n// XING requires Jina (JS-heavy + Cloudflare)\n\nconst TARGETS = [\n  { url: 'https://berlinstartupjobs.com/engineering/', label: 'berlinstartupjobs-engineering', scraper: 'crawl4ai' },\n  { url: 'https://www.remotely.de/jobs/ai-automation', label: 'remotely-ai-automation', scraper: 'crawl4ai' },\n  { url: 'https://en.devjobs.de/jobs?q=automation+engineer+remote', label: 'devjobs-automation', scraper: 'jina' },\n  { url: 'https://weworkremotely.com/remote-jobs/search?term=automation+engineer', label: 'wwr-automation', scraper: 'crawl4ai' },\n  { url: 'https://www.xing.com/jobs/search?keywords=automation+engineer+n8n+KI&location=Deutschland&sort=date', label: 'xing-automation', scraper: 'jina' },\n];\n\nreturn TARGETS.map(t => ({ json: t }));\n"
-      },
-      "id": "n_targets",
-      "name": "Scrape Targets",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        440,
-        300
-      ],
-      "notes": "Add your scrape targets here.\nXING (label: xing-automation) is routed to Jina AI (free).\nOthers go to Firecrawl."
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "conditions": [
-            {
-              "id": "cond_is_jina",
-              "leftValue": "={{ $json.scraper }}",
-              "rightValue": "jina",
-              "operator": {
-                "type": "string",
-                "operation": "equals"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "id": "n_route_scraper",
-      "name": "IF: use Jina",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.2,
-      "position": [
-        660,
-        300
-      ],
-      "notes": "TRUE (scraper=jina) -> Jina AI: XING + Cloudflare-protected sites\nFALSE (scraper=crawl4ai) -> Crawl4AI self-hosted"
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "http://crawl4ai:11235/md",
-        "sendBody": true,
-        "contentType": "raw",
-        "rawContentType": "application/json",
-        "body": "={{ JSON.stringify({ url: $json.url }) }}",
-        "options": {
-          "timeout": 60000
-        }
-      },
-      "id": "n_scrape",
-      "name": "Crawl4AI: Scrape",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "continueOnFail": true,
-      "position": [
-        880,
-        160
-      ],
-      "notes": "Self-hosted Crawl4AI (free, no limits).\nPOST /md -> {url, markdown}.\nRuns in Docker on same hub network as n8n.\ncontinueOnFail=true: blocked sites are skipped, others continue."
-    },
-    {
-      "parameters": {
-        "jsCode": "// Wrap Crawl4AI response into Firecrawl-compatible format.\n// Handles both success and continueOnFail error objects gracefully.\n\nconst raw = $input.item.json;\nconst target = $('Scrape Targets').item.json;\n\n// continueOnFail error: raw has { error, statusCode } — treat as failed scrape\nif (raw.error || raw.statusCode >= 400) {\n  return [{ json: { success: false, data: { markdown: '', metadata: { sourceURL: target.url, scraper: 'crawl4ai', error: raw.error || raw.statusCode } } } }];\n}\n\nconst markdown = (typeof raw.markdown === 'string' && raw.markdown.length > 50)\n  ? raw.markdown\n  : '';\n\nreturn [{\n  json: {\n    success: markdown.length > 0,\n    data: {\n      markdown: markdown,\n      metadata: {\n        sourceURL: raw.url || target.url,\n        title: target.label || 'Crawl4AI',\n        scraper: 'crawl4ai'\n      }\n    }\n  }\n}];\n"
-      },
-      "id": "n_crawl4ai_format",
-      "name": "Crawl4AI: Format",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1100,
-        160
-      ],
-      "notes": "Normalises Crawl4AI response to Firecrawl JSON shape {success, data.markdown, data.metadata}.\nAllows Crawl4AI and Jina paths to share one downstream pipeline."
-    },
-    {
-      "parameters": {
-        "method": "GET",
-        "url": "=https://r.jina.ai/{{ $json.url }}",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Accept",
-              "value": "text/plain"
-            },
-            {
-              "name": "X-Return-Format",
-              "value": "markdown"
-            }
-          ]
-        },
-        "options": {
-          "response": {
-            "response": {
-              "responseFormat": "text"
-            }
-          },
-          "timeout": 30000
-        }
-      },
-      "id": "n_jina_scrape",
-      "name": "Jina AI: Scrape",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "continueOnFail": true,
-      "position": [
-        880,
-        440
-      ],
-      "notes": "FREE — no API key required, no credit limit.\nr.jina.ai/URL -> JS-rendered markdown of target page.\nReturns plain text (wrapped in $json.data by n8n)."
-    },
-    {
-      "parameters": {
-        "jsCode": "// Wrap Jina AI plain-text response into Firecrawl-compatible format\n// so the downstream pipeline (IF: scrape success -> Split -> Normalize) works unchanged.\n\nconst raw = $input.item.json;\nconst target = $('Scrape Targets').item.json;\n\n// n8n HTTP node with responseFormat:text puts body in raw.data\nconst jinaMarkdown = (typeof raw.data === 'string' && raw.data.length > 0)\n  ? raw.data\n  : (typeof raw === 'string' ? raw : JSON.stringify(raw));\n\nreturn [{\n  json: {\n    success: true,\n    data: {\n      markdown: jinaMarkdown,\n      metadata: {\n        sourceURL: target.url,\n        title: 'XING Search — Jina AI',\n        scraper: 'jina'\n      }\n    }\n  }\n}];\n"
-      },
-      "id": "n_jina_format",
-      "name": "Jina: Format as Firecrawl",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1100,
-        440
-      ],
-      "notes": "Normalises Jina plain-text response to Firecrawl JSON shape {success, data.markdown, data.metadata}.\nAllows Firecrawl and Jina paths to share one downstream pipeline."
-    },
-    {
-      "parameters": {},
-      "id": "n_stub_scrapingbee",
-      "name": "ScrapingBee XING [STUB]",
-      "type": "n8n-nodes-base.noOp",
-      "typeVersion": 1,
-      "disabled": true,
-      "position": [
-        1100,
-        620
-      ],
-      "notes": "ПЛАТНЫЙ ЗАПАСНОЙ: ScrapingBee ($49/mo)\nReal browser + residential proxies.\nАктивировать если Jina блокируется XING.\n\nПодключить: Jina AI: Scrape -> ScrapingBee -> Jina: Format as Firecrawl\nAPI ключ: SCRAPINGBEE_API_KEY в .env VPS\nURL: https://app.scrapingbee.com/api/v1/?api_key=$env.SCRAPINGBEE_API_KEY&url={{ urlencode($json.url) }}&render_js=true"
-    },
-    {
-      "parameters": {},
-      "id": "n_stub_apify",
-      "name": "Apify XING [STUB]",
-      "type": "n8n-nodes-base.noOp",
-      "typeVersion": 1,
-      "disabled": true,
-      "position": [
-        1100,
-        780
-      ],
-      "notes": "ПЛАТНЫЙ ЗАПАСНОЙ: Apify (pay-per-use)\nHeadless Chrome + proxy rotation.\nАктивировать если и Jina и ScrapingBee заблокированы.\n\nActor: apify/web-scraper (universal) или xing-specific на apify.com/store\nAPI ключ: APIFY_API_TOKEN в .env VPS\nСм. также: n8n/flows.md -> Flow 4b"
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "conditions": [
-            {
-              "id": "cond_ok",
-              "leftValue": "={{ $json.success }}",
-              "rightValue": true,
-              "operator": {
-                "type": "boolean",
-                "operation": "equals"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "id": "n_if_ok",
-      "name": "IF: scrape success",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.2,
-      "position": [
-        1320,
-        300
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "// ============================================================\n// Split: XING / Listing Page Parser (v2 — URL-based)\n//\n// Finds all job hyperlinks in the Firecrawl/Jina markdown by URL\n// pattern — does NOT depend on numbered list format.\n// Each unique xing.com/jobs/ URL becomes a separate item.\n// ============================================================\n\nconst LISTING_LABELS = ['xing-automation'];\n\nconst scrape = $input.item.json;\nconst target = $('Scrape Targets').item.json;\nconst label = target.label || '';\n\nif (!LISTING_LABELS.includes(label)) {\n  return [{ json: scrape }];\n}\n\nconst markdown = (scrape.data && scrape.data.markdown) || scrape.markdown || '';\nconst searchPageUrl = target.url;\nconst lines = markdown.split('\\n');\n\n// Find all [text](url) links in the markdown\nconst linkPattern = /\\[([^\\]\\n]+)\\]\\((https?:\\/\\/[^\\)\\s\\n]{10,})\\)/g;\nconst seen = new Set();\nconst jobLinks = [];\nlet m;\n\nwhile ((m = linkPattern.exec(markdown)) !== null) {\n  const linkText = m[1].trim();\n  const url = m[2].trim();\n  if (seen.has(url)) continue;\n  if (url === searchPageUrl) continue;\n  // Only XING job detail pages (not search, not image/nav links)\n  const isXingJob = url.includes('xing.com/jobs/') && !url.includes('/search') && !url.includes('?keywords');\n  if (!isXingJob) continue;\n  seen.add(url);\n  jobLinks.push({ linkText, url, pos: m.index });\n}\n\nif (jobLinks.length === 0) {\n  // DEBUG: analyze what's actually in the markdown\n  const rawUrlPat = /https?:\\/\\/[^\\s\\n\"'<>]{10,}/g;\n  const xingUrls = [];\n  let ru;\n  while ((ru = rawUrlPat.exec(markdown)) !== null) {\n    if (ru[0].includes('xing')) xingUrls.push(ru[0].substring(0, 80));\n  }\n  const allLinkPat = /\\[([^\\]\\n]+)\\]\\((https?:\\/\\/[^\\)\\s\\n]{5,})\\)/g;\n  const allLinks = [];\n  let al;\n  while ((al = allLinkPat.exec(markdown)) !== null) { allLinks.push(al[2].substring(0, 80)); }\n\n  return [{ json: Object.assign({}, scrape, {\n    _debug: {\n      label: label,\n      scraper: (scrape.data && scrape.data.metadata && scrape.data.metadata.scraper) || 'firecrawl',\n      markdown_length: markdown.length,\n      xing_raw_urls_found: xingUrls,\n      all_md_links_count: allLinks.length,\n      all_md_links_sample: allLinks.slice(0, 8),\n      markdown_first_600: markdown.substring(0, 600)\n    }\n  }) }];\n}\n\n// For each job link, extract surrounding lines as context\nconst items = [];\nfor (let i = 0; i < jobLinks.length; i++) {\n  const { linkText, url, pos } = jobLinks[i];\n\n  const lineNum = (markdown.substring(0, pos).match(/\\n/g) || []).length;\n  const ctxStart = Math.max(0, lineNum - 1);\n  const ctxEnd   = Math.min(lines.length, lineNum + 20);\n  const ctx = lines.slice(ctxStart, ctxEnd)\n    .map(l => l.trim())\n    .filter(l => l && !l.startsWith('![') && l !== 'Save job' && l !== 'Urgently hiring');\n\n  const h2Line = ctx.find(l => /^#{1,3}\\s/.test(l));\n  const title = h2Line ? h2Line.replace(/^#{1,3}\\s+/, '').trim() : linkText;\n\n  let company = null;\n  const h2Idx = h2Line ? ctx.indexOf(h2Line) : -1;\n  if (h2Idx >= 0) {\n    const after = ctx.slice(h2Idx + 1).filter(l => !/^#{1,3}\\s/.test(l) && !l.startsWith('External job'));\n    company = after[0] || null;\n  }\n\n  const salaryLine = ctx.find(l => l.includes('\\u20ac'));\n  const salary = salaryLine ? salaryLine.replace(/\\s*\\*+.*$/, '').trim() : null;\n\n  const dateLine = ctx.find(l => /\\d+\\s+(hour|day|week|month)s?\\s+ago/i.test(l));\n  const postedAgo = dateLine ? (dateLine.match(/(\\d+\\s+(?:hour|day|week|month)s?\\s+ago)/i) || [])[1] : null;\n\n  const snip = ['# ' + title];\n  if (company)   snip.push('Company: ' + company);\n  if (salary)    snip.push('Salary/Type: ' + salary);\n  if (postedAgo) snip.push('Posted: ' + postedAgo);\n  snip.push('Source: XING');\n  snip.push('URL: ' + url);\n\n  items.push({\n    json: {\n      success: true,\n      data: {\n        markdown: snip.join('\\n'),\n        metadata: {\n          sourceURL: url,\n          title: title + (company ? ' \\u2014 ' + company : '')\n        }\n      }\n    }\n  });\n}\n\nreturn items;"
-      },
-      "id": "n_split_listings",
-      "name": "Split: XING Listings",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1430,
-        300
-      ],
-      "notes": "For XING listing pages: splits markdown into individual job items.\nEach item gets its own xing.com URL for per-job dedup.\nNon-listing pages pass through unchanged as 1 item.\nWorks with both Firecrawl and Jina AI responses."
-    },
-    {
-      "parameters": {
-        "jsCode": "// UTF-8 sanitizer: replace malformed chars before processing\nfunction sanitizeText(s) {\n  if (!s) return s;\n  return String(s)\n    .replace(/\\uFFFD/g, '')   // replacement char\n    .replace(/\\u0000/g, '')   // null bytes\n    .trim();\n}\n\nconst scrape = $input.item.json;\nconst target = $('Scrape Targets').item.json;\n\nconst markdown = (scrape.data && scrape.data.markdown) || scrape.markdown || '';\nconst sourceUrl = (scrape.data && scrape.data.metadata && scrape.data.metadata.sourceURL)\n               || (scrape.metadata && scrape.metadata.sourceURL)\n               || target.url || null;\nconst pageTitle = (scrape.data && scrape.data.metadata && scrape.data.metadata.title)\n               || (scrape.metadata && scrape.metadata.title) || null;\n\nconst rawText = markdown.substring(0, 10000);\n\nreturn [{\n  json: {\n    normalized_input: {\n      input_source: 'scraped',\n      source_detail: 'scraped_json',\n      email_account_id: null,\n      email_address: null,\n      email_provider: null,\n      subject: pageTitle,\n      date: null,\n      raw_text: rawText,\n      raw_meta: {\n        url: sourceUrl,\n        label: target.label || null\n      }\n    }\n  }\n}];"
-      },
-      "id": "n_normalize",
-      "name": "Normalize Item",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1540,
-        300
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "const ni = $('Normalize Item').item.json.normalized_input;\n\nreturn [{ json: {\n  normalized_input: ni,\n  hard_injection_detected: 'no'\n} }];"
-      },
-      "id": "n_skip_security",
-      "name": "Skip Security Checks",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        2200,
-        300
-      ],
-      "notes": "Scraped content is from trusted URLs we configured.\nNo sender domain to check. Injection check still runs inside LLM via system prompt."
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "https://openrouter.ai/api/v1/chat/completions",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Authorization",
-              "value": "=Bearer {{ $env.OPENROUTER_API_KEY }}"
-            },
-            {
-              "name": "content-type",
-              "value": "application/json"
-            }
-          ]
-        },
-        "sendBody": true,
-        "contentType": "raw",
-        "rawContentType": "application/json",
-        "body": "={{ JSON.stringify({ model: 'qwen/qwen3-30b-a3b-instruct-2507', max_tokens: 2048, messages: [{ role: 'system', content: $env.JOBRADAR_SYSTEM_PROMPT }, { role: 'user', content: JSON.stringify($json.normalized_input) }] }) }}",
-        "options": {
-          "timeout": 60000
-        }
-      },
-      "id": "n_llm",
-      "name": "LLM Call (OpenRouter)",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        2420,
-        300
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "const body = $input.item.json;\nlet jobEvent;\ntry {\n  let raw = (body.choices[0].message.content || '').trim();\n  raw = raw.replace(/<think>[\\s\\S]*?<\\/think>/gi, '').trim();\n  raw = raw.replace(/^```(?:json)?\\s*/i, '').replace(/\\s*```$/, '').trim();\n  // If LLM returned an array (multiple jobs from listing page), take first element\n  if (raw.startsWith('[')) {\n    const arr = JSON.parse(raw);\n    jobEvent = Array.isArray(arr) && arr.length > 0 ? arr[0] : { is_job_related: false, action: 'ignore' };\n  } else {\n    jobEvent = JSON.parse(raw);\n  }\n} catch (err) {\n  // LLM returned non-JSON (e.g. listing page confusion) — silently ignore\n  return [{ json: { job_event: {\n    is_job_related: false,\n    is_job_related_str: 'no',\n    action: 'ignore',\n    category: 'other',\n    injection_suspected: false,\n    tech_stack: [],\n    key_requirements: [],\n    _parse_error: String(err.message).substring(0, 200)\n  } } }];\n}\n\nif (typeof jobEvent.is_job_related !== 'boolean') jobEvent.is_job_related = false;\nif (typeof jobEvent.injection_suspected !== 'boolean') jobEvent.injection_suspected = false;\n\nconst ALLOWED_ACTIONS = ['create_job','update_stage','add_interview','add_deadline','log_only','flag_error','ignore'];\nif (!ALLOWED_ACTIONS.includes(jobEvent.action)) jobEvent.action = 'ignore';\n\nif (jobEvent.company_id && !/^[a-z0-9][a-z0-9-]*[a-z0-9]$/.test(jobEvent.company_id)) {\n  jobEvent.company_id = jobEvent.company_id.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/--+/g, '-').replace(/^-|-$/g, '');\n}\n\nif (!Array.isArray(jobEvent.tech_stack)) jobEvent.tech_stack = [];\nif (!Array.isArray(jobEvent.key_requirements)) jobEvent.key_requirements = [];\n\nconst JOB_RELATED_CATEGORIES = ['job_posting','hr_invite','interview_invite','test_task','offer','rejection','follow_up','platform_notification','manual_note'];\nif (JOB_RELATED_CATEGORIES.includes(jobEvent.category)) jobEvent.is_job_related = true;\n\njobEvent.is_job_related_str = jobEvent.is_job_related ? 'yes' : 'no';\n\nreturn [{ json: { job_event: jobEvent } }];"
-      },
-      "id": "n_parse",
-      "name": "Parse LLM Response",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        2640,
-        300
-      ]
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "conditions": [
-            {
-              "id": "cond_related",
-              "leftValue": "={{ $json.job_event.is_job_related_str }}",
-              "rightValue": "yes",
-              "operator": {
-                "type": "string",
-                "operation": "equals"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "id": "n_if_related",
-      "name": "IF: is_job_related",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.2,
-      "position": [
-        2860,
-        300
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "/* ============================================================\n   Prepare DB Params -- Firecrawl Flow\n   input_source: scraped, no email_account_id / raw_reference\n   ============================================================ */\n\nconst e = $input.item.json.job_event;\nconst ni = $('Normalize Item').item.json.normalized_input;\nconst rawText = ni.raw_text;\nconst sourceUrl = (ni.raw_meta && ni.raw_meta.url) || null;\n\nfunction sql(v) {\n  if (v === null || v === undefined) return 'NULL';\n  return \"'\" + String(v).replace(/'/g, \"''\") + \"'\";\n}\nfunction num(v) {\n  if (v === null || v === undefined) return 'NULL';\n  const n = parseFloat(v); return isNaN(n) ? 'NULL' : String(n);\n}\nfunction bool(v) { return v === true ? 'TRUE' : 'FALSE'; }\nfunction dt(v)   { return v ? \"'\" + String(v).replace(/'/g, \"''\") + \"'\" : 'NULL'; }\nfunction en(v, t) { return v ? \"'\" + String(v).replace(/'/g, \"''\") + \"'::\" + t : 'NULL'; }\nfunction arr(vals) {\n  if (!vals || vals.length === 0) return \"'{}'\";\n  const parts = vals.map(v => '\"' + String(v).replace(/\\\\/g, '\\\\\\\\').replace(/\"/g, '\\\\\"') + '\"');\n  return \"'\" + '{' + parts.join(',') + '}' + \"'\";\n}\nfunction jsonb(v) {\n  if (!v) return \"'{}'::jsonb\";\n  return \"'\" + JSON.stringify(v).replace(/'/g, \"''\") + \"'::jsonb\";\n}\n\nfunction normWorkMode(v) {\n  if (!v) return null;\n  const s = String(v).toLowerCase().replace(/[-\\s]/g, '_');\n  const map = {\n    on_site: 'onsite', onsite: 'onsite', in_office: 'onsite', office: 'onsite', vor_ort: 'onsite',\n    full_remote: 'remote', fully_remote: 'remote', remote: 'remote', homeoffice: 'remote', home_office: 'remote',\n    hybrid: 'hybrid', partially_remote: 'hybrid', teilweise_remote: 'hybrid'\n  };\n  return map[s] || null;\n}\nfunction normSeniority(v) {\n  if (!v) return null;\n  const s = String(v).toLowerCase().replace(/[-\\s]/g, '_');\n  const map = {\n    intern: 'intern', internship: 'intern', praktikum: 'intern',\n    junior: 'junior', jr: 'junior',\n    middle: 'middle', mid: 'middle', medior: 'middle', intermediate: 'middle',\n    senior: 'senior', sr: 'senior',\n    lead: 'lead', tech_lead: 'lead', team_lead: 'lead',\n    principal: 'principal', staff: 'principal', architect: 'principal'\n  };\n  return map[s] || null;\n}\n\n\nconst finalSourceUrl = sourceUrl || e.source_url || null;\n\nreturn [{\n  json: {\n    job_event: e,\n    db: {\n      company_id_sql:           sql(e.company_id           || 'unknown'),\n      company_name_sql:         sql(e.company_name         || 'Unknown Company'),\n      employer_id_sql:          sql(e.employer_id),\n      employer_name_sql:        sql(e.employer_name),\n      job_id_fuzzy_sql:         sql(e.job_id_fuzzy         || 'unknown__unknown__unknown'),\n      job_title_sql:            sql(e.job_title),\n      location_sql:             sql(e.location),\n      job_thread_key_sql:       sql(e.job_thread_key),\n      seniority_sql:            en(normSeniority(e.seniority),             'seniority_enum'),\n      work_mode_sql:            en(normWorkMode(e.work_mode),             'work_mode_enum'),\n      work_mode_raw_sql:        sql(e.work_mode_raw),\n      working_hours_sql:        sql(e.working_hours),\n      salary_currency_sql:      sql(e.salary_currency),\n      salary_min_sql:           num(e.salary_min),\n      salary_max_sql:           num(e.salary_max),\n      salary_period_sql:        en(e.salary_period,         'salary_period_enum'),\n      tech_stack_sql:           arr(e.tech_stack),\n      key_requirements_sql:     arr(e.key_requirements),\n      current_stage_sql:        en(e.stage || 'discovered', 'job_stage_enum'),\n      priority_sql:             en(e.priority,              'priority_enum'),\n      priority_level_sql:       num(e.priority_level),\n      interview_date_sql:       dt(e.interview_date),\n      response_deadline_sql:    dt(e.response_deadline),\n      application_deadline_sql: dt(e.application_deadline),\n      has_had_call_sql:         bool(e.has_had_call),\n      call_count_sql:           String(e.call_count || 0),\n      last_call_date_sql:       dt(e.last_call_date),\n      source_url_sql:           sql(finalSourceUrl),\n      source_input_sql:         en('scraped',               'input_source_enum'),\n      summary_sql:              sql(e.summary),\n      category_sql:             en(e.category,              'job_category_enum'),\n      action_sql:               sql(e.action),\n      is_job_related_sql:       bool(e.is_job_related),\n      call_platform_sql:        en(e.call_platform,         'call_platform_enum'),\n      call_platform_raw_sql:    sql(e.call_platform_raw),\n      raw_text_sql:             sql(rawText),\n      parsed_json_sql:          jsonb(e),\n      sender_risk_level_sql:    sql('unknown'),\n      sender_risk_signals_sql:  arr([])\n    }\n  }\n}];"
-      },
-      "id": "n_prepare",
-      "name": "Prepare DB Params",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        3080,
-        300
-      ]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "WITH\nco AS (\n  INSERT INTO companies (company_id, name, meta)\n  VALUES ({{ $json.db.company_id_sql }}, {{ $json.db.company_name_sql }}, '{}')\n  ON CONFLICT (tenant_id, company_id) DO UPDATE SET updated_at = NOW()\n  RETURNING id\n),\nem AS (\n  INSERT INTO employers (employer_id, company_id, name)\n  SELECT {{ $json.db.employer_id_sql }},\n         {{ $json.db.company_id_sql }},\n         {{ $json.db.employer_name_sql }}\n  WHERE  {{ $json.db.employer_id_sql }} IS NOT NULL\n  ON CONFLICT (tenant_id, employer_id) DO UPDATE SET\n    name       = COALESCE(EXCLUDED.name, employers.name),\n    updated_at = NOW()\n  RETURNING id\n),\nj AS (\n  INSERT INTO jobs (\n    job_id_fuzzy,   company_id,      employer_id,\n    job_title,      location,        seniority,\n    work_mode,      work_mode_raw,   working_hours,\n    salary_currency, salary_min,     salary_max,     salary_period,\n    tech_stack,     key_requirements,\n    current_stage,  priority,        priority_level,\n    interview_date, response_deadline, application_deadline,\n    has_had_call,   call_count,      last_call_date,\n    source_url,     source_input,    summary\n  ) VALUES (\n    {{ $json.db.job_id_fuzzy_sql }},\n    {{ $json.db.company_id_sql }},\n    {{ $json.db.employer_id_sql }},\n    {{ $json.db.job_title_sql }},\n    {{ $json.db.location_sql }},\n    {{ $json.db.seniority_sql }},\n    {{ $json.db.work_mode_sql }},\n    {{ $json.db.work_mode_raw_sql }},\n    {{ $json.db.working_hours_sql }},\n    {{ $json.db.salary_currency_sql }},\n    {{ $json.db.salary_min_sql }},\n    {{ $json.db.salary_max_sql }},\n    {{ $json.db.salary_period_sql }},\n    {{ $json.db.tech_stack_sql }},\n    {{ $json.db.key_requirements_sql }},\n    {{ $json.db.current_stage_sql }},\n    {{ $json.db.priority_sql }},\n    {{ $json.db.priority_level_sql }},\n    {{ $json.db.interview_date_sql }},\n    {{ $json.db.response_deadline_sql }},\n    {{ $json.db.application_deadline_sql }},\n    {{ $json.db.has_had_call_sql }},\n    {{ $json.db.call_count_sql }},\n    {{ $json.db.last_call_date_sql }},\n    {{ $json.db.source_url_sql }},\n    {{ $json.db.source_input_sql }},\n    {{ $json.db.summary_sql }}\n  )\n  ON CONFLICT (tenant_id, job_id_fuzzy) DO UPDATE SET\n    current_stage        = EXCLUDED.current_stage,\n    priority             = EXCLUDED.priority,\n    priority_level       = EXCLUDED.priority_level,\n    interview_date       = COALESCE(EXCLUDED.interview_date, jobs.interview_date),\n    response_deadline    = COALESCE(EXCLUDED.response_deadline, jobs.response_deadline),\n    application_deadline = COALESCE(EXCLUDED.application_deadline, jobs.application_deadline),\n    tech_stack           = CASE WHEN array_length(EXCLUDED.tech_stack, 1) > 0\n                                THEN EXCLUDED.tech_stack ELSE jobs.tech_stack END,\n    source_url           = COALESCE(EXCLUDED.source_url, jobs.source_url),\n    summary              = EXCLUDED.summary,\n    updated_at           = NOW()\n  RETURNING id, job_id_fuzzy, current_stage::text, priority::text, summary, interview_date\n),\nev AS (\n  INSERT INTO job_events (\n    job_id,         job_thread_key,  job_id_fuzzy,\n    input_source,   source_detail,\n    category,       is_job_related,  action,\n    stage,          priority,        priority_level,\n    interview_date, response_deadline, application_deadline,\n    call_platform,  call_platform_raw,\n    raw_text,       parsed_json,\n    sender_risk_level, sender_risk_signals\n  )\n  SELECT\n    (SELECT id FROM j),\n    {{ $json.db.job_thread_key_sql }},\n    {{ $json.db.job_id_fuzzy_sql }},\n    {{ $json.db.source_input_sql }},\n    'scraped_json',\n    {{ $json.db.category_sql }},\n    {{ $json.db.is_job_related_sql }},\n    {{ $json.db.action_sql }},\n    {{ $json.db.current_stage_sql }},\n    {{ $json.db.priority_sql }},\n    {{ $json.db.priority_level_sql }},\n    {{ $json.db.interview_date_sql }},\n    {{ $json.db.response_deadline_sql }},\n    {{ $json.db.application_deadline_sql }},\n    {{ $json.db.call_platform_sql }},\n    {{ $json.db.call_platform_raw_sql }},\n    {{ $json.db.raw_text_sql }},\n    {{ $json.db.parsed_json_sql }},\n    {{ $json.db.sender_risk_level_sql }},\n    {{ $json.db.sender_risk_signals_sql }}\n  RETURNING id\n)\nSELECT\n  (SELECT id             FROM j) AS job_id,\n  (SELECT job_id_fuzzy   FROM j) AS job_id_fuzzy,\n  (SELECT current_stage  FROM j) AS stage,\n  (SELECT priority       FROM j) AS priority,\n  (SELECT summary        FROM j) AS summary,\n  (SELECT interview_date FROM j) AS interview_date,\n  (SELECT id             FROM ev) AS event_id;",
-        "options": {}
-      },
-      "id": "n_db_write",
-      "name": "DB: Write All",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        3300,
-        300
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "Tvuhat51UDCzKwnE",
-          "name": "Postgres account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "conditions": [
-            {
-              "id": "cond_priority",
-              "leftValue": "={{ $json.priority }}",
-              "rightValue": "high",
-              "operator": {
-                "type": "string",
-                "operation": "equals"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "id": "n_if_priority",
-      "name": "IF: priority = high",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.2,
-      "position": [
-        3520,
-        300
-      ]
-    },
-    {
-      "id": "n_telegram_alert_firecrawl",
-      "name": "Telegram: Job Alert",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        3740,
-        160
-      ],
-      "parameters": {
-        "method": "POST",
-        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendMessage",
-        "sendBody": true,
-        "contentType": "raw",
-        "rawContentType": "application/json",
-        "body": "={{ JSON.stringify({  chat_id: $env.TELEGRAM_CHAT_ID,  parse_mode: 'HTML',  text: [    '\\u{1F514} <b>JobRadar: ' + ($('Parse LLM Response').item.json.job_event.company_name || 'Unknown') + '</b>',    ($('Parse LLM Response').item.json.job_event.job_title || '\\u2014'),    '',    'Stage: <code>' + ($json.stage || '') + '</code>  Priority: <b>' + ($json.priority || '') + '</b>',    '',    ($json.summary || '')  ].join('\\n')}) }}"
-      }
-    },
-    {
-      "id": "n_filter_expired_8nSk6jvO",
-      "name": "Filter: Skip Expired",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        3100,
-        300
-      ],
-      "parameters": {
-        "jsCode": "// Filter: Skip Expired\n// Drops jobs whose deadline has already passed.\n// No deadline → always pass through (we can't know → benefit of the doubt).\nconst e = $('Parse LLM Response').item.json.job_event;\nconst deadline = e.application_deadline || e.response_deadline || null;\n\nif (deadline) {\n  const deadlineDate = new Date(deadline);\n  // Guard: invalid date string → pass through\n  if (!isNaN(deadlineDate.getTime()) && deadlineDate < new Date()) {\n    // Expired — drop silently\n    return [];\n  }\n}\n\nreturn [$input.item];"
-      }
-    }
-  ],
-  "connections": {
-    "Schedule: Daily 04:00": {
-      "main": [
-        [
-          {
-            "node": "Scrape Targets",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Scrape Targets": {
-      "main": [
-        [
-          {
-            "node": "IF: use Jina",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "IF: use Jina": {
-      "main": [
-        [
-          {
-            "node": "Jina AI: Scrape",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Crawl4AI: Scrape",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Jina AI: Scrape": {
-      "main": [
-        [
-          {
-            "node": "Jina: Format as Firecrawl",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Jina: Format as Firecrawl": {
-      "main": [
-        [
-          {
-            "node": "IF: scrape success",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Crawl4AI: Scrape": {
-      "main": [
-        [
-          {
-            "node": "Crawl4AI: Format",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Crawl4AI: Format": {
-      "main": [
-        [
-          {
-            "node": "IF: scrape success",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "IF: scrape success": {
-      "main": [
-        [
-          {
-            "node": "Split: XING Listings",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        []
-      ]
-    },
-    "Split: XING Listings": {
-      "main": [
-        [
-          {
-            "node": "Normalize Item",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Normalize Item": {
-      "main": [
-        [
-          {
-            "node": "Skip Security Checks",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Skip Security Checks": {
-      "main": [
-        [
-          {
-            "node": "LLM Call (OpenRouter)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "LLM Call (OpenRouter)": {
-      "main": [
-        [
-          {
-            "node": "Parse LLM Response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse LLM Response": {
-      "main": [
-        [
-          {
-            "node": "IF: is_job_related",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "IF: is_job_related": {
-      "main": [
-        [
-          {
-            "node": "Filter: Skip Expired",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        []
-      ]
-    },
-    "Prepare DB Params": {
-      "main": [
-        [
-          {
-            "node": "DB: Write All",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "DB: Write All": {
-      "main": [
-        [
-          {
-            "node": "IF: priority = high",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "IF: priority = high": {
-      "main": [
-        [
-          {
-            "node": "Telegram: Job Alert",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        []
-      ]
-    },
-    "Filter: Skip Expired": {
-      "main": [
-        [
-          {
-            "node": "Prepare DB Params",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    }
-  },
-  "settings": {
-    "executionOrder": "v1"
-  }
+    "name":  "JobRadar -- Flow 2: Web Scraper (Crawl4AI + Jina)",
+    "nodes":  [
+                  {
+                      "parameters":  {
+                                         "rule":  {
+                                                      "interval":  [
+                                                                       {
+                                                                           "field":  "hours",
+                                                                           "hoursInterval":  24
+                                                                       }
+                                                                   ]
+                                                  }
+                                     },
+                      "id":  "n_trigger",
+                      "name":  "Schedule: Daily 04:00",
+                      "type":  "n8n-nodes-base.scheduleTrigger",
+                      "typeVersion":  1.1,
+                      "position":  [
+                                       208,
+                                       304
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "// Job board search pages - scraped once daily.\n// scraper=\u0027jina\u0027    -\u003e Jina AI (free, handles Cloudflare-protected sites)\n// scraper=\u0027crawl4ai\u0027 -\u003e self-hosted Crawl4AI on VPS (free, no limits)\n//\n// Cloudflare-blocked sites confirmed: indeed.de, devjobs.de\n// XING requires Jina (JS-heavy + Cloudflare)\n\nconst TARGETS = [\n  { url: \u0027https://berlinstartupjobs.com/engineering/\u0027, label: \u0027berlinstartupjobs-engineering\u0027, scraper: \u0027crawl4ai\u0027 },\n  { url: \u0027https://www.remotely.de/jobs/ai-automation\u0027, label: \u0027remotely-ai-automation\u0027, scraper: \u0027crawl4ai\u0027 },\n  { url: \u0027https://en.devjobs.de/jobs?q=automation+engineer+remote\u0027, label: \u0027devjobs-automation\u0027, scraper: \u0027jina\u0027 },\n  { url: \u0027https://weworkremotely.com/remote-jobs/search?term=automation+engineer\u0027, label: \u0027wwr-automation\u0027, scraper: \u0027crawl4ai\u0027 },\n  { url: \u0027https://www.xing.com/jobs/search?keywords=automation+engineer+n8n+KI\u0026location=Deutschland\u0026sort=date\u0027, label: \u0027xing-automation\u0027, scraper: \u0027jina\u0027 },\n\n  // --- Stepstone (JS-heavy, Cloudflare → jina) ---\n  { url: \u0027https://www.stepstone.de/jobs/python?homeOffice=2\u0027, label: \u0027stepstone-python\u0027, scraper: \u0027jina\u0027 },\n  { url: \u0027https://www.stepstone.de/jobs/automatisierung?homeOffice=2\u0027, label: \u0027stepstone-automation\u0027, scraper: \u0027jina\u0027 },\n  { url: \u0027https://www.stepstone.de/jobs/ki-entwickler?homeOffice=2\u0027, label: \u0027stepstone-ki\u0027, scraper: \u0027jina\u0027 },\n\n  // --- Indeed (Cloudflare-blocked confirmed → jina) ---\n  { url: \u0027https://de.indeed.com/jobs?q=python+automatisierung\u0026l=remote\u0026fromage=7\u0027, label: \u0027indeed-python\u0027, scraper: \u0027jina\u0027 },\n  { url: \u0027https://de.indeed.com/jobs?q=n8n+ki+automatisierung\u0026fromage=7\u0027, label: \u0027indeed-n8n-ki\u0027, scraper: \u0027jina\u0027 },\n\n  // --- Monster (Cloudflare → jina) ---\n  { url: \u0027https://www.monster.de/jobs/suche/?q=python-automatisierung\u0026where=remote\u0027, label: \u0027monster-python\u0027, scraper: \u0027jina\u0027 },\n\n  // --- Arbeitsagentur Jobbörse (gov, no Cloudflare → crawl4ai) ---\n  { url: \u0027https://www.arbeitsagentur.de/jobsuche/suche?angebotsart=1\u0026was=Python+Automatisierung\u0026wo=Deutschland\u0027, label: \u0027jobboerse-python\u0027, scraper: \u0027crawl4ai\u0027 },\n  { url: \u0027https://www.arbeitsagentur.de/jobsuche/suche?angebotsart=1\u0026was=KI+Entwickler\u0026wo=Deutschland\u0027, label: \u0027jobboerse-ki\u0027, scraper: \u0027crawl4ai\u0027 },\n\n  // --- Heise Jobs (tech-specific, no heavy protection → crawl4ai) ---\n  { url: \u0027https://jobs.heise.de/?q=python+automation\u0026remote=true\u0027, label: \u0027heise-python\u0027, scraper: \u0027crawl4ai\u0027 },\n\n  // --- Praktikum / Werkstudent (remote) ---\n  { url: \u0027https://www.stepstone.de/jobs/praktikum-python?homeOffice=2\u0027, label: \u0027stepstone-praktikum-python\u0027, scraper: \u0027jina\u0027 },\n  { url: \u0027https://www.stepstone.de/jobs/werkstudent-python?homeOffice=2\u0027, label: \u0027stepstone-werkstudent\u0027, scraper: \u0027jina\u0027 },\n  { url: \u0027https://de.indeed.com/jobs?q=python+KI+praktikum\u0026jt=internship\u0026fromage=14\u0027, label: \u0027indeed-praktikum\u0027, scraper: \u0027jina\u0027 },\n  { url: \u0027https://www.arbeitsagentur.de/jobsuche/suche?angebotsart=34\u0026was=Python+Automatisierung\u0026wo=Deutschland\u0027, label: \u0027jobboerse-praktikum\u0027, scraper: \u0027crawl4ai\u0027 },\n];\n\nreturn TARGETS.map(t =\u003e ({ json: t }));\n"
+                                     },
+                      "id":  "n_targets",
+                      "name":  "Scrape Targets",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       448,
+                                       304
+                                   ],
+                      "notes":  "Add your scrape targets here.\nXING (label: xing-automation) is routed to Jina AI (free).\nOthers go to Firecrawl."
+                  },
+                  {
+                      "parameters":  {
+                                         "conditions":  {
+                                                            "conditions":  [
+                                                                               {
+                                                                                   "id":  "cond_is_jina",
+                                                                                   "leftValue":  "={{ $json.scraper }}",
+                                                                                   "rightValue":  "jina",
+                                                                                   "operator":  {
+                                                                                                    "type":  "string",
+                                                                                                    "operation":  "equals"
+                                                                                                }
+                                                                               }
+                                                                           ],
+                                                            "combinator":  "and",
+                                                            "options":  {
+                                                                            "caseSensitive":  true,
+                                                                            "leftValue":  "",
+                                                                            "typeValidation":  "strict",
+                                                                            "version":  1
+                                                                        }
+                                                        },
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "n_route_scraper",
+                      "name":  "IF: use Jina",
+                      "type":  "n8n-nodes-base.if",
+                      "typeVersion":  2.2,
+                      "position":  [
+                                       672,
+                                       304
+                                   ],
+                      "notes":  "TRUE (scraper=jina) -\u003e Jina AI: XING + Cloudflare-protected sites\nFALSE (scraper=crawl4ai) -\u003e Crawl4AI self-hosted"
+                  },
+                  {
+                      "parameters":  {
+                                         "method":  "POST",
+                                         "url":  "http://crawl4ai:11235/md",
+                                         "sendBody":  true,
+                                         "contentType":  "raw",
+                                         "rawContentType":  "application/json",
+                                         "body":  "={{ JSON.stringify({ url: $json.url }) }}",
+                                         "options":  {
+                                                         "timeout":  60000
+                                                     }
+                                     },
+                      "id":  "n_scrape",
+                      "name":  "Crawl4AI: Scrape",
+                      "type":  "n8n-nodes-base.httpRequest",
+                      "typeVersion":  4.2,
+                      "position":  [
+                                       880,
+                                       160
+                                   ],
+                      "continueOnFail":  true,
+                      "notes":  "Self-hosted Crawl4AI (free, no limits).\nPOST /md -\u003e {url, markdown}.\nRuns in Docker on same hub network as n8n.\ncontinueOnFail=true: blocked sites are skipped, others continue."
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "// Wrap Crawl4AI response into Firecrawl-compatible format.\n// Handles both success and continueOnFail error objects gracefully.\n\nconst raw = $input.item.json;\nconst target = $(\u0027Scrape Targets\u0027).item.json;\n\n// continueOnFail error: raw has { error, statusCode } - treat as failed scrape\nif (raw.error || raw.statusCode \u003e= 400) {\n  return [{ json: { success: false, data: { markdown: \u0027\u0027, metadata: { sourceURL: target.url, scraper: \u0027crawl4ai\u0027, error: raw.error || raw.statusCode } } } }];\n}\n\nconst markdown = (typeof raw.markdown === \u0027string\u0027 \u0026\u0026 raw.markdown.length \u003e 50)\n  ? raw.markdown\n  : \u0027\u0027;\n\nreturn [{\n  json: {\n    success: markdown.length \u003e 0,\n    data: {\n      markdown: markdown,\n      metadata: {\n        sourceURL: raw.url || target.url,\n        title: target.label || \u0027Crawl4AI\u0027,\n        scraper: \u0027crawl4ai\u0027\n      }\n    }\n  }\n}];\n"
+                                     },
+                      "id":  "n_crawl4ai_format",
+                      "name":  "Crawl4AI: Format",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       1104,
+                                       160
+                                   ],
+                      "notes":  "Normalises Crawl4AI response to Firecrawl JSON shape {success, data.markdown, data.metadata}.\nAllows Crawl4AI and Jina paths to share one downstream pipeline."
+                  },
+                  {
+                      "parameters":  {
+                                         "url":  "=https://r.jina.ai/{{ $json.url }}",
+                                         "sendHeaders":  true,
+                                         "headerParameters":  {
+                                                                  "parameters":  [
+                                                                                     {
+                                                                                         "name":  "Accept",
+                                                                                         "value":  "text/plain"
+                                                                                     },
+                                                                                     {
+                                                                                         "name":  "X-Return-Format",
+                                                                                         "value":  "markdown"
+                                                                                     }
+                                                                                 ]
+                                                              },
+                                         "options":  {
+                                                         "response":  {
+                                                                          "response":  {
+                                                                                           "responseFormat":  "text"
+                                                                                       }
+                                                                      },
+                                                         "timeout":  30000
+                                                     }
+                                     },
+                      "id":  "n_jina_scrape",
+                      "name":  "Jina AI: Scrape",
+                      "type":  "n8n-nodes-base.httpRequest",
+                      "typeVersion":  4.2,
+                      "position":  [
+                                       880,
+                                       448
+                                   ],
+                      "continueOnFail":  true,
+                      "notes":  "FREE - no API key required, no credit limit.\nr.jina.ai/URL -\u003e JS-rendered markdown of target page.\nReturns plain text (wrapped in $json.data by n8n)."
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "// Wrap Jina AI plain-text response into Firecrawl-compatible format\n// so the downstream pipeline (IF: scrape success -\u003e Split -\u003e Normalize) works unchanged.\n\nconst raw = $input.item.json;\nconst target = $(\u0027Scrape Targets\u0027).item.json;\n\n// n8n HTTP node with responseFormat:text puts body in raw.data\nconst jinaMarkdown = (typeof raw.data === \u0027string\u0027 \u0026\u0026 raw.data.length \u003e 0)\n  ? raw.data\n  : (typeof raw === \u0027string\u0027 ? raw : JSON.stringify(raw));\n\nreturn [{\n  json: {\n    success: true,\n    data: {\n      markdown: jinaMarkdown,\n      metadata: {\n        sourceURL: target.url,\n        title: \u0027XING Search - Jina AI\u0027,\n        scraper: \u0027jina\u0027\n      }\n    }\n  }\n}];\n"
+                                     },
+                      "id":  "n_jina_format",
+                      "name":  "Jina: Format as Firecrawl",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       1104,
+                                       448
+                                   ],
+                      "notes":  "Normalises Jina plain-text response to Firecrawl JSON shape {success, data.markdown, data.metadata}.\nAllows Firecrawl and Jina paths to share one downstream pipeline."
+                  },
+                  {
+                      "parameters":  {
+
+                                     },
+                      "id":  "n_stub_scrapingbee",
+                      "name":  "ScrapingBee XING [STUB]",
+                      "type":  "n8n-nodes-base.noOp",
+                      "typeVersion":  1,
+                      "position":  [
+                                       1104,
+                                       624
+                                   ],
+                      "disabled":  true,
+                      "notes":  "??????? ????????: ScrapingBee ($49/mo)\nReal browser + residential proxies.\n???????????? ???? Jina ??????????? XING.\n\n??????????: Jina AI: Scrape -\u003e ScrapingBee -\u003e Jina: Format as Firecrawl\nAPI ????: SCRAPINGBEE_API_KEY ? .env VPS\nURL: https://app.scrapingbee.com/api/v1/?api_key=$env.SCRAPINGBEE_API_KEY\u0026url={{ urlencode($json.url) }}\u0026render_js=true"
+                  },
+                  {
+                      "parameters":  {
+
+                                     },
+                      "id":  "n_stub_apify",
+                      "name":  "Apify XING [STUB]",
+                      "type":  "n8n-nodes-base.noOp",
+                      "typeVersion":  1,
+                      "position":  [
+                                       1104,
+                                       848
+                                   ],
+                      "disabled":  true,
+                      "notes":  "??????? ????????: Apify (pay-per-use)\nHeadless Chrome + proxy rotation.\n???????????? ???? ? Jina ? ScrapingBee ?????????????.\n\nActor: apify/web-scraper (universal) ??? xing-specific ?? apify.com/store\nAPI ????: APIFY_API_TOKEN ? .env VPS\n??. ?????: n8n/flows.md -\u003e Flow 4b"
+                  },
+                  {
+                      "parameters":  {
+                                         "conditions":  {
+                                                            "conditions":  [
+                                                                               {
+                                                                                   "id":  "cond_ok",
+                                                                                   "leftValue":  "={{ $json.success }}",
+                                                                                   "rightValue":  true,
+                                                                                   "operator":  {
+                                                                                                    "type":  "boolean",
+                                                                                                    "operation":  "equals"
+                                                                                                }
+                                                                               }
+                                                                           ],
+                                                            "combinator":  "and",
+                                                            "options":  {
+                                                                            "caseSensitive":  true,
+                                                                            "leftValue":  "",
+                                                                            "typeValidation":  "strict",
+                                                                            "version":  1
+                                                                        }
+                                                        },
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "n_if_ok",
+                      "name":  "IF: scrape success",
+                      "type":  "n8n-nodes-base.if",
+                      "typeVersion":  2.2,
+                      "position":  [
+                                       1328,
+                                       304
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "// ============================================================\n// Split: XING / Listing Page Parser (v2 - URL-based)\n//\n// Finds all job hyperlinks in the Firecrawl/Jina markdown by URL\n// pattern - does NOT depend on numbered list format.\n// Each unique xing.com/jobs/ URL becomes a separate item.\n// ============================================================\n\nconst LISTING_LABELS = [\u0027xing-automation\u0027];\n\nconst scrape = $input.item.json;\nconst target = $(\u0027Scrape Targets\u0027).item.json;\nconst label = target.label || \u0027\u0027;\n\nif (!LISTING_LABELS.includes(label)) {\n  return [{ json: scrape }];\n}\n\nconst markdown = (scrape.data \u0026\u0026 scrape.data.markdown) || scrape.markdown || \u0027\u0027;\nconst searchPageUrl = target.url;\nconst lines = markdown.split(\u0027\\n\u0027);\n\n// Find all [text](url) links in the markdown\nconst linkPattern = /\\[([^\\]\\n]+)\\]\\((https?:\\/\\/[^\\)\\s\\n]{10,})\\)/g;\nconst seen = new Set();\nconst jobLinks = [];\nlet m;\n\nwhile ((m = linkPattern.exec(markdown)) !== null) {\n  const linkText = m[1].trim();\n  const url = m[2].trim();\n  if (seen.has(url)) continue;\n  if (url === searchPageUrl) continue;\n  // Only XING job detail pages (not search, not image/nav links)\n  const isXingJob = url.includes(\u0027xing.com/jobs/\u0027) \u0026\u0026 !url.includes(\u0027/search\u0027) \u0026\u0026 !url.includes(\u0027?keywords\u0027);\n  if (!isXingJob) continue;\n  seen.add(url);\n  jobLinks.push({ linkText, url, pos: m.index });\n}\n\nif (jobLinks.length === 0) {\n  // DEBUG: analyze what\u0027s actually in the markdown\n  const rawUrlPat = /https?:\\/\\/[^\\s\\n\"\u0027\u003c\u003e]{10,}/g;\n  const xingUrls = [];\n  let ru;\n  while ((ru = rawUrlPat.exec(markdown)) !== null) {\n    if (ru[0].includes(\u0027xing\u0027)) xingUrls.push(ru[0].substring(0, 80));\n  }\n  const allLinkPat = /\\[([^\\]\\n]+)\\]\\((https?:\\/\\/[^\\)\\s\\n]{5,})\\)/g;\n  const allLinks = [];\n  let al;\n  while ((al = allLinkPat.exec(markdown)) !== null) { allLinks.push(al[2].substring(0, 80)); }\n\n  return [{ json: Object.assign({}, scrape, {\n    _debug: {\n      label: label,\n      scraper: (scrape.data \u0026\u0026 scrape.data.metadata \u0026\u0026 scrape.data.metadata.scraper) || \u0027firecrawl\u0027,\n      markdown_length: markdown.length,\n      xing_raw_urls_found: xingUrls,\n      all_md_links_count: allLinks.length,\n      all_md_links_sample: allLinks.slice(0, 8),\n      markdown_first_600: markdown.substring(0, 600)\n    }\n  }) }];\n}\n\n// For each job link, extract surrounding lines as context\nconst items = [];\nfor (let i = 0; i \u003c jobLinks.length; i++) {\n  const { linkText, url, pos } = jobLinks[i];\n\n  const lineNum = (markdown.substring(0, pos).match(/\\n/g) || []).length;\n  const ctxStart = Math.max(0, lineNum - 1);\n  const ctxEnd   = Math.min(lines.length, lineNum + 20);\n  const ctx = lines.slice(ctxStart, ctxEnd)\n    .map(l =\u003e l.trim())\n    .filter(l =\u003e l \u0026\u0026 !l.startsWith(\u0027![\u0027) \u0026\u0026 l !== \u0027Save job\u0027 \u0026\u0026 l !== \u0027Urgently hiring\u0027);\n\n  const h2Line = ctx.find(l =\u003e /^#{1,3}\\s/.test(l));\n  const title = h2Line ? h2Line.replace(/^#{1,3}\\s+/, \u0027\u0027).trim() : linkText;\n\n  let company = null;\n  const h2Idx = h2Line ? ctx.indexOf(h2Line) : -1;\n  if (h2Idx \u003e= 0) {\n    const after = ctx.slice(h2Idx + 1).filter(l =\u003e !/^#{1,3}\\s/.test(l) \u0026\u0026 !l.startsWith(\u0027External job\u0027));\n    company = after[0] || null;\n  }\n\n  const salaryLine = ctx.find(l =\u003e l.includes(\u0027\\u20ac\u0027));\n  const salary = salaryLine ? salaryLine.replace(/\\s*\\*+.*$/, \u0027\u0027).trim() : null;\n\n  const dateLine = ctx.find(l =\u003e /\\d+\\s+(hour|day|week|month)s?\\s+ago/i.test(l));\n  const postedAgo = dateLine ? (dateLine.match(/(\\d+\\s+(?:hour|day|week|month)s?\\s+ago)/i) || [])[1] : null;\n\n  const snip = [\u0027# \u0027 + title];\n  if (company)   snip.push(\u0027Company: \u0027 + company);\n  if (salary)    snip.push(\u0027Salary/Type: \u0027 + salary);\n  if (postedAgo) snip.push(\u0027Posted: \u0027 + postedAgo);\n  snip.push(\u0027Source: XING\u0027);\n  snip.push(\u0027URL: \u0027 + url);\n\n  items.push({\n    json: {\n      success: true,\n      data: {\n        markdown: snip.join(\u0027\\n\u0027),\n        metadata: {\n          sourceURL: url,\n          title: title + (company ? \u0027 \\u2014 \u0027 + company : \u0027\u0027)\n        }\n      }\n    }\n  });\n}\n\nreturn items;"
+                                     },
+                      "id":  "n_split_listings",
+                      "name":  "Split: XING Listings",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       1568,
+                                       304
+                                   ],
+                      "notes":  "For XING listing pages: splits markdown into individual job items.\nEach item gets its own xing.com URL for per-job dedup.\nNon-listing pages pass through unchanged as 1 item.\nWorks with both Firecrawl and Jina AI responses."
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "// UTF-8 sanitizer: replace malformed chars before processing\nfunction sanitizeText(s) {\n  if (!s) return s;\n  return String(s)\n    .replace(/\\uFFFD/g, \u0027\u0027)   // replacement char\n    .replace(/\\u0000/g, \u0027\u0027)   // null bytes\n    .trim();\n}\n\nconst scrape = $input.item.json;\nconst target = $(\u0027Scrape Targets\u0027).item.json;\n\nconst markdown = (scrape.data \u0026\u0026 scrape.data.markdown) || scrape.markdown || \u0027\u0027;\nconst sourceUrl = (scrape.data \u0026\u0026 scrape.data.metadata \u0026\u0026 scrape.data.metadata.sourceURL)\n               || (scrape.metadata \u0026\u0026 scrape.metadata.sourceURL)\n               || target.url || null;\nconst pageTitle = (scrape.data \u0026\u0026 scrape.data.metadata \u0026\u0026 scrape.data.metadata.title)\n               || (scrape.metadata \u0026\u0026 scrape.metadata.title) || null;\n\nconst rawText = markdown.substring(0, 10000);\n\nreturn [{\n  json: {\n    normalized_input: {\n      input_source: \u0027scraped\u0027,\n      source_detail: \u0027scraped_json\u0027,\n      email_account_id: null,\n      email_address: null,\n      email_provider: null,\n      subject: pageTitle,\n      date: null,\n      raw_text: rawText,\n      raw_meta: {\n        url: sourceUrl,\n        label: target.label || null\n      }\n    }\n  }\n}];"
+                                     },
+                      "id":  "n_normalize",
+                      "name":  "Normalize Item",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       1776,
+                                       320
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "const ni = $(\u0027Normalize Item\u0027).item.json.normalized_input;\n\nreturn [{ json: {\n  normalized_input: ni,\n  hard_injection_detected: \u0027no\u0027\n} }];"
+                                     },
+                      "id":  "n_skip_security",
+                      "name":  "Skip Security Checks",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       1984,
+                                       320
+                                   ],
+                      "notes":  "Scraped content is from trusted URLs we configured.\nNo sender domain to check. Injection check still runs inside LLM via system prompt."
+                  },
+                  {
+                      "parameters":  {
+                                         "method":  "POST",
+                                         "url":  "https://openrouter.ai/api/v1/chat/completions",
+                                         "sendHeaders":  true,
+                                         "headerParameters":  {
+                                                                  "parameters":  [
+                                                                                     {
+                                                                                         "name":  "Authorization",
+                                                                                         "value":  "=Bearer {{ $env.OPENROUTER_API_KEY }}"
+                                                                                     },
+                                                                                     {
+                                                                                         "name":  "content-type",
+                                                                                         "value":  "application/json"
+                                                                                     }
+                                                                                 ]
+                                                              },
+                                         "sendBody":  true,
+                                         "contentType":  "raw",
+                                         "rawContentType":  "application/json",
+                                         "body":  "={{ JSON.stringify({ model: \u0027qwen/qwen3-30b-a3b-instruct-2507\u0027, max_tokens: 2048, messages: [{ role: \u0027system\u0027, content: $env.JOBRADAR_SYSTEM_PROMPT }, { role: \u0027user\u0027, content: JSON.stringify($json.normalized_input) }] }) }}",
+                                         "options":  {
+                                                         "timeout":  60000
+                                                     }
+                                     },
+                      "id":  "n_llm",
+                      "name":  "LLM Call (OpenRouter)",
+                      "type":  "n8n-nodes-base.httpRequest",
+                      "typeVersion":  4.2,
+                      "position":  [
+                                       2224,
+                                       304
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "const body = $input.item.json;\nlet jobEvent;\ntry {\n  let raw = (body.choices[0].message.content || \u0027\u0027).trim();\n  raw = raw.replace(/\u003cthink\u003e[\\s\\S]*?\u003c\\/think\u003e/gi, \u0027\u0027).trim();\n  raw = raw.replace(/^```(?:json)?\\s*/i, \u0027\u0027).replace(/\\s*```$/, \u0027\u0027).trim();\n  // If LLM returned an array (multiple jobs from listing page), take first element\n  if (raw.startsWith(\u0027[\u0027)) {\n    const arr = JSON.parse(raw);\n    jobEvent = Array.isArray(arr) \u0026\u0026 arr.length \u003e 0 ? arr[0] : { is_job_related: false, action: \u0027ignore\u0027 };\n  } else {\n    jobEvent = JSON.parse(raw);\n  }\n} catch (err) {\n  // LLM returned non-JSON (e.g. listing page confusion) - silently ignore\n  return [{ json: { job_event: {\n    is_job_related: false,\n    is_job_related_str: \u0027no\u0027,\n    action: \u0027ignore\u0027,\n    category: \u0027other\u0027,\n    injection_suspected: false,\n    tech_stack: [],\n    key_requirements: [],\n    _parse_error: String(err.message).substring(0, 200)\n  } } }];\n}\n\nif (typeof jobEvent.is_job_related !== \u0027boolean\u0027) jobEvent.is_job_related = false;\nif (typeof jobEvent.injection_suspected !== \u0027boolean\u0027) jobEvent.injection_suspected = false;\n\nconst ALLOWED_ACTIONS = [\u0027create_job\u0027,\u0027update_stage\u0027,\u0027add_interview\u0027,\u0027add_deadline\u0027,\u0027log_only\u0027,\u0027flag_error\u0027,\u0027ignore\u0027];\nif (!ALLOWED_ACTIONS.includes(jobEvent.action)) jobEvent.action = \u0027ignore\u0027;\n\nif (jobEvent.company_id \u0026\u0026 !/^[a-z0-9][a-z0-9-]*[a-z0-9]$/.test(jobEvent.company_id)) {\n  jobEvent.company_id = jobEvent.company_id.toLowerCase().replace(/[^a-z0-9-]/g, \u0027-\u0027).replace(/--+/g, \u0027-\u0027).replace(/^-|-$/g, \u0027\u0027);\n}\n\nif (!Array.isArray(jobEvent.tech_stack)) jobEvent.tech_stack = [];\nif (!Array.isArray(jobEvent.key_requirements)) jobEvent.key_requirements = [];\n\nconst JOB_RELATED_CATEGORIES = [\u0027job_posting\u0027,\u0027hr_invite\u0027,\u0027interview_invite\u0027,\u0027test_task\u0027,\u0027offer\u0027,\u0027rejection\u0027,\u0027follow_up\u0027,\u0027platform_notification\u0027,\u0027manual_note\u0027];\nif (JOB_RELATED_CATEGORIES.includes(jobEvent.category)) jobEvent.is_job_related = true;\n\njobEvent.is_job_related_str = jobEvent.is_job_related ? \u0027yes\u0027 : \u0027no\u0027;\n\nreturn [{ json: { job_event: jobEvent } }];"
+                                     },
+                      "id":  "n_parse",
+                      "name":  "Parse LLM Response",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       2448,
+                                       304
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "conditions":  {
+                                                            "conditions":  [
+                                                                               {
+                                                                                   "id":  "cond_related",
+                                                                                   "leftValue":  "={{ $json.job_event.is_job_related_str }}",
+                                                                                   "rightValue":  "yes",
+                                                                                   "operator":  {
+                                                                                                    "type":  "string",
+                                                                                                    "operation":  "equals"
+                                                                                                }
+                                                                               }
+                                                                           ],
+                                                            "combinator":  "and",
+                                                            "options":  {
+                                                                            "caseSensitive":  true,
+                                                                            "leftValue":  "",
+                                                                            "typeValidation":  "strict",
+                                                                            "version":  1
+                                                                        }
+                                                        },
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "n_if_related",
+                      "name":  "IF: is_job_related",
+                      "type":  "n8n-nodes-base.if",
+                      "typeVersion":  2.2,
+                      "position":  [
+                                       2656,
+                                       304
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "/* ============================================================\n   Prepare DB Params -- Firecrawl Flow\n   input_source: scraped, no email_account_id / raw_reference\n   ============================================================ */\n\nconst e = $input.item.json.job_event;\nconst ni = $(\u0027Normalize Item\u0027).item.json.normalized_input;\nconst rawText = ni.raw_text;\nconst sourceUrl = (ni.raw_meta \u0026\u0026 ni.raw_meta.url) || null;\n\nfunction sql(v) {\n  if (v === null || v === undefined) return \u0027NULL\u0027;\n  return \"\u0027\" + String(v).replace(/\u0027/g, \"\u0027\u0027\") + \"\u0027\";\n}\nfunction num(v) {\n  if (v === null || v === undefined) return \u0027NULL\u0027;\n  const n = parseFloat(v); return isNaN(n) ? \u0027NULL\u0027 : String(n);\n}\nfunction bool(v) { return v === true ? \u0027TRUE\u0027 : \u0027FALSE\u0027; }\nfunction dt(v)   { return v ? \"\u0027\" + String(v).replace(/\u0027/g, \"\u0027\u0027\") + \"\u0027\" : \u0027NULL\u0027; }\nfunction en(v, t) { return v ? \"\u0027\" + String(v).replace(/\u0027/g, \"\u0027\u0027\") + \"\u0027::\" + t : \u0027NULL\u0027; }\nfunction arr(vals) {\n  if (!vals || vals.length === 0) return \"\u0027{}\u0027\";\n  const parts = vals.map(v =\u003e \u0027\"\u0027 + String(v).replace(/\\\\/g, \u0027\\\\\\\\\u0027).replace(/\"/g, \u0027\\\\\"\u0027) + \u0027\"\u0027);\n  return \"\u0027\" + \u0027{\u0027 + parts.join(\u0027,\u0027) + \u0027}\u0027 + \"\u0027\";\n}\nfunction jsonb(v) {\n  if (!v) return \"\u0027{}\u0027::jsonb\";\n  return \"\u0027\" + JSON.stringify(v).replace(/\u0027/g, \"\u0027\u0027\") + \"\u0027::jsonb\";\n}\n\nfunction normWorkMode(v) {\n  if (!v) return null;\n  const s = String(v).toLowerCase().replace(/[-\\s]/g, \u0027_\u0027);\n  const map = {\n    on_site: \u0027onsite\u0027, onsite: \u0027onsite\u0027, in_office: \u0027onsite\u0027, office: \u0027onsite\u0027, vor_ort: \u0027onsite\u0027,\n    full_remote: \u0027remote\u0027, fully_remote: \u0027remote\u0027, remote: \u0027remote\u0027, homeoffice: \u0027remote\u0027, home_office: \u0027remote\u0027,\n    hybrid: \u0027hybrid\u0027, partially_remote: \u0027hybrid\u0027, teilweise_remote: \u0027hybrid\u0027\n  };\n  return map[s] || null;\n}\nfunction normSeniority(v) {\n  if (!v) return null;\n  const s = String(v).toLowerCase().replace(/[-\\s]/g, \u0027_\u0027);\n  const map = {\n    intern: \u0027intern\u0027, internship: \u0027intern\u0027, praktikum: \u0027intern\u0027,\n    junior: \u0027junior\u0027, jr: \u0027junior\u0027,\n    middle: \u0027middle\u0027, mid: \u0027middle\u0027, medior: \u0027middle\u0027, intermediate: \u0027middle\u0027,\n    senior: \u0027senior\u0027, sr: \u0027senior\u0027,\n    lead: \u0027lead\u0027, tech_lead: \u0027lead\u0027, team_lead: \u0027lead\u0027,\n    principal: \u0027principal\u0027, staff: \u0027principal\u0027, architect: \u0027principal\u0027\n  };\n  return map[s] || null;\n}\n\n\nconst finalSourceUrl = sourceUrl || e.source_url || null;\n\nreturn [{\n  json: {\n    job_event: e,\n    db: {\n      company_id_sql:           sql(e.company_id           || \u0027unknown\u0027),\n      company_name_sql:         sql(e.company_name         || \u0027Unknown Company\u0027),\n      employer_id_sql:          sql(e.employer_id),\n      employer_name_sql:        sql(e.employer_name),\n      job_id_fuzzy_sql:         sql(e.job_id_fuzzy         || \u0027unknown__unknown__unknown\u0027),\n      job_title_sql:            sql(e.job_title),\n      location_sql:             sql(e.location),\n      job_thread_key_sql:       sql(e.job_thread_key),\n      seniority_sql:            en(normSeniority(e.seniority),             \u0027seniority_enum\u0027),\n      work_mode_sql:            en(normWorkMode(e.work_mode),             \u0027work_mode_enum\u0027),\n      work_mode_raw_sql:        sql(e.work_mode_raw),\n      working_hours_sql:        sql(e.working_hours),\n      salary_currency_sql:      sql(e.salary_currency),\n      salary_min_sql:           num(e.salary_min),\n      salary_max_sql:           num(e.salary_max),\n      salary_period_sql:        en(e.salary_period,         \u0027salary_period_enum\u0027),\n      tech_stack_sql:           arr(e.tech_stack),\n      key_requirements_sql:     arr(e.key_requirements),\n      current_stage_sql:        en(e.stage || \u0027discovered\u0027, \u0027job_stage_enum\u0027),\n      priority_sql:             (()=\u003e{const vp=[\u0027high\u0027,\u0027medium\u0027,\u0027low\u0027];const s=e.priority?String(e.priority).toLowerCase().trim():null;return s\u0026\u0026vp.includes(s)?en(s,\u0027priority_enum\u0027):\u0027NULL\u0027;})(),\n      priority_level_sql:       num(e.priority_level),\n      interview_date_sql:       dt(e.interview_date),\n      response_deadline_sql:    dt(e.response_deadline),\n      application_deadline_sql: dt(e.application_deadline),\n      has_had_call_sql:         bool(e.has_had_call),\n      call_count_sql:           String(e.call_count || 0),\n      last_call_date_sql:       dt(e.last_call_date),\n      source_url_sql:           sql(finalSourceUrl),\n      source_input_sql:         en(\u0027scraped\u0027,               \u0027input_source_enum\u0027),\n      summary_sql:              sql(e.summary),\n      category_sql:             en(e.category,              \u0027job_category_enum\u0027),\n      action_sql:               sql(e.action),\n      is_job_related_sql:       bool(e.is_job_related),\n      call_platform_sql:        en(e.call_platform,         \u0027call_platform_enum\u0027),\n      call_platform_raw_sql:    sql(e.call_platform_raw),\n      raw_text_sql:             sql(rawText),\n      parsed_json_sql:          jsonb(e),\n      sender_risk_level_sql:    sql(\u0027unknown\u0027),\n      sender_risk_signals_sql:  arr([])\n    }\n  }\n}];"
+                                     },
+                      "id":  "n_prepare",
+                      "name":  "Prepare DB Params",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       3136,
+                                       304
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "operation":  "executeQuery",
+                                         "query":  "WITH\nco AS (\n  INSERT INTO companies (company_id, name, meta)\n  VALUES ({{ $json.db.company_id_sql }}, {{ $json.db.company_name_sql }}, \u0027{}\u0027)\n  ON CONFLICT (tenant_id, company_id) DO UPDATE SET updated_at = NOW()\n  RETURNING id\n),\nem AS (\n  INSERT INTO employers (employer_id, company_id, name)\n  SELECT {{ $json.db.employer_id_sql }},\n         {{ $json.db.company_id_sql }},\n         {{ $json.db.employer_name_sql }}\n  WHERE  {{ $json.db.employer_id_sql }} IS NOT NULL\n  ON CONFLICT (tenant_id, employer_id) DO UPDATE SET\n    name       = COALESCE(EXCLUDED.name, employers.name),\n    updated_at = NOW()\n  RETURNING id\n),\nj AS (\n  INSERT INTO jobs (\n    job_id_fuzzy,   company_id,      employer_id,\n    job_title,      location,        seniority,\n    work_mode,      work_mode_raw,   working_hours,\n    salary_currency, salary_min,     salary_max,     salary_period,\n    tech_stack,     key_requirements,\n    current_stage,  priority,        priority_level,\n    interview_date, response_deadline, application_deadline,\n    has_had_call,   call_count,      last_call_date,\n    source_url,     source_input,    summary\n  ) VALUES (\n    {{ $json.db.job_id_fuzzy_sql }},\n    {{ $json.db.company_id_sql }},\n    {{ $json.db.employer_id_sql }},\n    {{ $json.db.job_title_sql }},\n    {{ $json.db.location_sql }},\n    {{ $json.db.seniority_sql }},\n    {{ $json.db.work_mode_sql }},\n    {{ $json.db.work_mode_raw_sql }},\n    {{ $json.db.working_hours_sql }},\n    {{ $json.db.salary_currency_sql }},\n    {{ $json.db.salary_min_sql }},\n    {{ $json.db.salary_max_sql }},\n    {{ $json.db.salary_period_sql }},\n    {{ $json.db.tech_stack_sql }},\n    {{ $json.db.key_requirements_sql }},\n    {{ $json.db.current_stage_sql }},\n    {{ $json.db.priority_sql }},\n    {{ $json.db.priority_level_sql }},\n    {{ $json.db.interview_date_sql }},\n    {{ $json.db.response_deadline_sql }},\n    {{ $json.db.application_deadline_sql }},\n    {{ $json.db.has_had_call_sql }},\n    {{ $json.db.call_count_sql }},\n    {{ $json.db.last_call_date_sql }},\n    {{ $json.db.source_url_sql }},\n    {{ $json.db.source_input_sql }},\n    {{ $json.db.summary_sql }}\n  )\n  ON CONFLICT (tenant_id, job_id_fuzzy) DO UPDATE SET\n    current_stage        = EXCLUDED.current_stage,\n    priority             = EXCLUDED.priority,\n    priority_level       = EXCLUDED.priority_level,\n    interview_date       = COALESCE(EXCLUDED.interview_date, jobs.interview_date),\n    response_deadline    = COALESCE(EXCLUDED.response_deadline, jobs.response_deadline),\n    application_deadline = COALESCE(EXCLUDED.application_deadline, jobs.application_deadline),\n    tech_stack           = CASE WHEN array_length(EXCLUDED.tech_stack, 1) \u003e 0\n                                THEN EXCLUDED.tech_stack ELSE jobs.tech_stack END,\n    source_url           = COALESCE(EXCLUDED.source_url, jobs.source_url),\n    summary              = EXCLUDED.summary,\n    updated_at           = NOW()\n  RETURNING id, job_id_fuzzy, current_stage::text, priority::text, summary, interview_date\n),\nev AS (\n  INSERT INTO job_events (\n    job_id,         job_thread_key,  job_id_fuzzy,\n    input_source,   source_detail,\n    category,       is_job_related,  action,\n    stage,          priority,        priority_level,\n    interview_date, response_deadline, application_deadline,\n    call_platform,  call_platform_raw,\n    raw_text,       parsed_json,\n    sender_risk_level, sender_risk_signals\n  )\n  SELECT\n    (SELECT id FROM j),\n    {{ $json.db.job_thread_key_sql }},\n    {{ $json.db.job_id_fuzzy_sql }},\n    {{ $json.db.source_input_sql }},\n    \u0027scraped_json\u0027,\n    {{ $json.db.category_sql }},\n    {{ $json.db.is_job_related_sql }},\n    {{ $json.db.action_sql }},\n    {{ $json.db.current_stage_sql }},\n    {{ $json.db.priority_sql }},\n    {{ $json.db.priority_level_sql }},\n    {{ $json.db.interview_date_sql }},\n    {{ $json.db.response_deadline_sql }},\n    {{ $json.db.application_deadline_sql }},\n    {{ $json.db.call_platform_sql }},\n    {{ $json.db.call_platform_raw_sql }},\n    {{ $json.db.raw_text_sql }},\n    {{ $json.db.parsed_json_sql }},\n    {{ $json.db.sender_risk_level_sql }},\n    {{ $json.db.sender_risk_signals_sql }}\n  RETURNING id\n)\nSELECT\n  (SELECT id             FROM j) AS job_id,\n  (SELECT job_id_fuzzy   FROM j) AS job_id_fuzzy,\n  (SELECT current_stage  FROM j) AS stage,\n  (SELECT priority       FROM j) AS priority,\n  (SELECT summary        FROM j) AS summary,\n  (SELECT interview_date FROM j) AS interview_date,\n  (SELECT id             FROM ev) AS event_id;",
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "n_db_write",
+                      "name":  "DB: Write All",
+                      "type":  "n8n-nodes-base.postgres",
+                      "typeVersion":  2.5,
+                      "position":  [
+                                       3312,
+                                       304
+                                   ],
+                      "credentials":  {
+                                          "postgres":  {
+                                                           "id":  "Tvuhat51UDCzKwnE",
+                                                           "name":  "Postgres account"
+                                                       }
+                                      }
+                  },
+                  {
+                      "parameters":  {
+                                         "conditions":  {
+                                                            "conditions":  [
+                                                                               {
+                                                                                   "id":  "cond_priority",
+                                                                                   "leftValue":  "={{ $json.priority }}",
+                                                                                   "rightValue":  "high",
+                                                                                   "operator":  {
+                                                                                                    "type":  "string",
+                                                                                                    "operation":  "equals"
+                                                                                                }
+                                                                               }
+                                                                           ],
+                                                            "combinator":  "and",
+                                                            "options":  {
+                                                                            "caseSensitive":  true,
+                                                                            "leftValue":  "",
+                                                                            "typeValidation":  "strict",
+                                                                            "version":  1
+                                                                        }
+                                                        },
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "n_if_priority",
+                      "name":  "IF: priority = high",
+                      "type":  "n8n-nodes-base.if",
+                      "typeVersion":  2.2,
+                      "position":  [
+                                       3520,
+                                       304
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "method":  "POST",
+                                         "url":  "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendMessage",
+                                         "sendBody":  true,
+                                         "contentType":  "raw",
+                                         "rawContentType":  "application/json",
+                                         "body":  "={{ JSON.stringify({  chat_id: $env.TELEGRAM_CHAT_ID,  parse_mode: \u0027HTML\u0027,  text: [    \u0027\\u{1F514} \u003cb\u003eJobRadar: \u0027 + ($(\u0027Parse LLM Response\u0027).item.json.job_event.company_name || \u0027Unknown\u0027) + \u0027\u003c/b\u003e\u0027,    ($(\u0027Parse LLM Response\u0027).item.json.job_event.job_title || \u0027\\u2014\u0027),    \u0027\u0027,    \u0027Stage: \u003ccode\u003e\u0027 + ($json.stage || \u0027\u0027) + \u0027\u003c/code\u003e  Priority: \u003cb\u003e\u0027 + ($json.priority || \u0027\u0027) + \u0027\u003c/b\u003e\u0027,    \u0027\u0027,    ($json.summary || \u0027\u0027)  ].join(\u0027\\n\u0027)}) }}",
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "n_telegram_alert_firecrawl",
+                      "name":  "Telegram: Job Alert",
+                      "type":  "n8n-nodes-base.httpRequest",
+                      "typeVersion":  4.2,
+                      "position":  [
+                                       3744,
+                                       160
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "// Filter: Skip Expired\n// Drops jobs whose deadline has already passed.\n// No deadline ? always pass through (we can\u0027t know ? benefit of the doubt).\nconst e = $(\u0027Parse LLM Response\u0027).item.json.job_event;\nconst deadline = e.application_deadline || e.response_deadline || null;\n\nif (deadline) {\n  const deadlineDate = new Date(deadline);\n  // Guard: invalid date string ? pass through\n  if (!isNaN(deadlineDate.getTime()) \u0026\u0026 deadlineDate \u003c new Date()) {\n    // Expired - drop silently\n    return [];\n  }\n}\n\nreturn [$input.item];"
+                                     },
+                      "id":  "n_filter_expired_8nSk6jvO",
+                      "name":  "Filter: Skip Expired",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       2896,
+                                       224
+                                   ]
+                  },
+                  {
+                      "id":  "a5fd18fe-d3ca-4d03-bbe3-bf6b7739b043",
+                      "name":  "Notion: Create Card",
+                      "type":  "n8n-nodes-base.httpRequest",
+                      "typeVersion":  4.2,
+                      "position":  [
+                                       -624,
+                                       240
+                                   ],
+                      "onError":  "continueRegularOutput",
+                      "parameters":  {
+                                         "method":  "POST",
+                                         "url":  "https://api.notion.com/v1/pages",
+                                         "sendHeaders":  true,
+                                         "headerParameters":  {
+                                                                  "parameters":  [
+                                                                                     {
+                                                                                         "name":  "Authorization",
+                                                                                         "value":  "=Bearer {{ $env.NOTION_TOKEN }}"
+                                                                                     },
+                                                                                     {
+                                                                                         "name":  "Notion-Version",
+                                                                                         "value":  "2022-06-28"
+                                                                                     }
+                                                                                 ]
+                                                              },
+                                         "sendBody":  true,
+                                         "contentType":  "raw",
+                                         "rawContentType":  "application/json",
+                                         "body":  "={{ JSON.stringify({ parent: { database_id: \"387e9707-d991-8182-ab7c-d83e9d147dba\" }, properties: { Unternehmen: { title: [{ text: { content: ($(\u0027Parse LLM Response\u0027).item.json.job_event.company_name || \"Unknown\") } }] }, Status: { select: { name: \"Neu\" } }, Stelle: { rich_text: [{ text: { content: ($(\u0027Parse LLM Response\u0027).item.json.job_event.job_title || \"\") } }] }, Gehalt: { rich_text: [{ text: { content: (String($(\u0027Parse LLM Response\u0027).item.json.job_event.salary_min || \"\") + ($(\u0027Parse LLM Response\u0027).item.json.job_event.salary_max ? \"-\" + $(\u0027Parse LLM Response\u0027).item.json.job_event.salary_max : \"\") + ($(\u0027Parse LLM Response\u0027).item.json.job_event.salary_currency ? \" \" + $(\u0027Parse LLM Response\u0027).item.json.job_event.salary_currency : \"\")).trim() } }] }, Standort: { rich_text: [{ text: { content: ($(\u0027Parse LLM Response\u0027).item.json.job_event.location || \"\") } }] }, Link: { url: ($(\u0027Parse LLM Response\u0027).item.json.job_event.source_url || null) }, Notizen: { rich_text: [{ text: { content: ($(\u0027Parse LLM Response\u0027).item.json.job_event.summary || \"\").substring(0, 2000) } }] } } }) }}",
+                                         "options":  {
+                                                         "timeout":  10000
+                                                     }
+                                     }
+                  },
+                  {
+                      "id":  "42fc117c-fb36-44f2-ae83-d009a1297f0b",
+                      "name":  "RESERVE: ScrapeGraphAI",
+                      "type":  "n8n-nodes-base.httpRequest",
+                      "typeVersion":  4.2,
+                      "position":  [
+                                       208,
+                                       700
+                                   ],
+                      "parameters":  {
+                                         "method":  "POST",
+                                         "url":  "https://api.scrapegraphai.com/v1/smartscraper",
+                                         "sendHeaders":  true,
+                                         "headerParameters":  {
+                                                                  "parameters":  [
+                                                                                     {
+                                                                                         "name":  "SGAI-APIKEY",
+                                                                                         "value":  "={{ $env.SGAI_API_KEY }}"
+                                                                                     },
+                                                                                     {
+                                                                                         "name":  "Content-Type",
+                                                                                         "value":  "application/json"
+                                                                                     }
+                                                                                 ]
+                                                              },
+                                         "sendBody":  true,
+                                         "contentType":  "raw",
+                                         "rawContentType":  "application/json",
+                                         "body":  "={{ JSON.stringify({ website_url: $json.url, user_prompt: \u0027Extract all job postings: title, company, location, salary, description, application email. Return JSON array.\u0027 }) }}",
+                                         "options":  {
+                                                         "timeout":  60000
+                                                     }
+                                     },
+                      "disabled":  true,
+                      "notes":  "⚠️ RESERVE — disabled, never executes. Power-up option for JS-heavy sites (XING, malt details) when SerpAPI/Crawl4AI are not enough.\n\nActivation:\n1) Cloud: register scrapegraphai.com → put SGAI_API_KEY into VPS .env → enable node → rewire: [URL source] → this node → Normalize.\n2) Self-hosted (free): pip install scrapegraphai + playwright in a container (needs ~500MB RAM — check VPS headroom first), point LLM to OpenRouter.\n\nCost note: ≥1 LLM call per page (~5k tokens)."
+                  }
+              ],
+    "connections":  {
+                        "Schedule: Daily 04:00":  {
+                                                      "main":  [
+                                                                   [
+                                                                       {
+                                                                           "node":  "Scrape Targets",
+                                                                           "type":  "main",
+                                                                           "index":  0
+                                                                       },
+                                                                       {
+                                                                           "node":  "ScrapingBee XING [STUB]",
+                                                                           "type":  "main",
+                                                                           "index":  0
+                                                                       },
+                                                                       {
+                                                                           "node":  "Apify XING [STUB]",
+                                                                           "type":  "main",
+                                                                           "index":  0
+                                                                       },
+                                                                       {
+                                                                           "node":  "RESERVE: ScrapeGraphAI",
+                                                                           "type":  "main",
+                                                                           "index":  0
+                                                                       }
+                                                                   ]
+                                                               ]
+                                                  },
+                        "Scrape Targets":  {
+                                               "main":  [
+                                                            [
+                                                                {
+                                                                    "node":  "IF: use Jina",
+                                                                    "type":  "main",
+                                                                    "index":  0
+                                                                }
+                                                            ]
+                                                        ]
+                                           },
+                        "IF: use Jina":  {
+                                             "main":  [
+                                                          [
+                                                              {
+                                                                  "node":  "Jina AI: Scrape",
+                                                                  "type":  "main",
+                                                                  "index":  0
+                                                              }
+                                                          ],
+                                                          [
+                                                              {
+                                                                  "node":  "Crawl4AI: Scrape",
+                                                                  "type":  "main",
+                                                                  "index":  0
+                                                              }
+                                                          ]
+                                                      ]
+                                         },
+                        "Jina AI: Scrape":  {
+                                                "main":  [
+                                                             [
+                                                                 {
+                                                                     "node":  "Jina: Format as Firecrawl",
+                                                                     "type":  "main",
+                                                                     "index":  0
+                                                                 }
+                                                             ]
+                                                         ]
+                                            },
+                        "Jina: Format as Firecrawl":  {
+                                                          "main":  [
+                                                                       [
+                                                                           {
+                                                                               "node":  "IF: scrape success",
+                                                                               "type":  "main",
+                                                                               "index":  0
+                                                                           }
+                                                                       ]
+                                                                   ]
+                                                      },
+                        "Crawl4AI: Scrape":  {
+                                                 "main":  [
+                                                              [
+                                                                  {
+                                                                      "node":  "Crawl4AI: Format",
+                                                                      "type":  "main",
+                                                                      "index":  0
+                                                                  }
+                                                              ]
+                                                          ]
+                                             },
+                        "Crawl4AI: Format":  {
+                                                 "main":  [
+                                                              [
+                                                                  {
+                                                                      "node":  "IF: scrape success",
+                                                                      "type":  "main",
+                                                                      "index":  0
+                                                                  }
+                                                              ]
+                                                          ]
+                                             },
+                        "IF: scrape success":  {
+                                                   "main":  [
+                                                                [
+                                                                    {
+                                                                        "node":  "Split: XING Listings",
+                                                                        "type":  "main",
+                                                                        "index":  0
+                                                                    }
+                                                                ],
+                                                                [
+
+                                                                ]
+                                                            ]
+                                               },
+                        "Split: XING Listings":  {
+                                                     "main":  [
+                                                                  [
+                                                                      {
+                                                                          "node":  "Normalize Item",
+                                                                          "type":  "main",
+                                                                          "index":  0
+                                                                      }
+                                                                  ]
+                                                              ]
+                                                 },
+                        "Normalize Item":  {
+                                               "main":  [
+                                                            [
+                                                                {
+                                                                    "node":  "Skip Security Checks",
+                                                                    "type":  "main",
+                                                                    "index":  0
+                                                                }
+                                                            ]
+                                                        ]
+                                           },
+                        "Skip Security Checks":  {
+                                                     "main":  [
+                                                                  [
+                                                                      {
+                                                                          "node":  "LLM Call (OpenRouter)",
+                                                                          "type":  "main",
+                                                                          "index":  0
+                                                                      }
+                                                                  ]
+                                                              ]
+                                                 },
+                        "LLM Call (OpenRouter)":  {
+                                                      "main":  [
+                                                                   [
+                                                                       {
+                                                                           "node":  "Parse LLM Response",
+                                                                           "type":  "main",
+                                                                           "index":  0
+                                                                       }
+                                                                   ]
+                                                               ]
+                                                  },
+                        "Parse LLM Response":  {
+                                                   "main":  [
+                                                                [
+                                                                    {
+                                                                        "node":  "IF: is_job_related",
+                                                                        "type":  "main",
+                                                                        "index":  0
+                                                                    }
+                                                                ]
+                                                            ]
+                                               },
+                        "IF: is_job_related":  {
+                                                   "main":  [
+                                                                [
+                                                                    {
+                                                                        "node":  "Filter: Skip Expired",
+                                                                        "type":  "main",
+                                                                        "index":  0
+                                                                    }
+                                                                ],
+                                                                [
+
+                                                                ]
+                                                            ]
+                                               },
+                        "Prepare DB Params":  {
+                                                  "main":  [
+                                                               [
+                                                                   {
+                                                                       "node":  "DB: Write All",
+                                                                       "type":  "main",
+                                                                       "index":  0
+                                                                   }
+                                                               ]
+                                                           ]
+                                              },
+                        "DB: Write All":  {
+                                              "main":  [
+                                                           [
+                                                               {
+                                                                   "node":  "IF: priority = high",
+                                                                   "type":  "main",
+                                                                   "index":  0
+                                                               },
+                                                               {
+                                                                   "node":  "Notion: Create Card",
+                                                                   "type":  "main",
+                                                                   "index":  0
+                                                               }
+                                                           ]
+                                                       ]
+                                          },
+                        "IF: priority = high":  {
+                                                    "main":  [
+                                                                 [
+                                                                     {
+                                                                         "node":  "Telegram: Job Alert",
+                                                                         "type":  "main",
+                                                                         "index":  0
+                                                                     }
+                                                                 ],
+                                                                 [
+
+                                                                 ]
+                                                             ]
+                                                },
+                        "Filter: Skip Expired":  {
+                                                     "main":  [
+                                                                  [
+                                                                      {
+                                                                          "node":  "Prepare DB Params",
+                                                                          "type":  "main",
+                                                                          "index":  0
+                                                                      }
+                                                                  ]
+                                                              ]
+                                                 }
+                    },
+    "settings":  {
+                     "executionOrder":  "v1",
+                     "binaryMode":  "separate"
+                 }
 }
