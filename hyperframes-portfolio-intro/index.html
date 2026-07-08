@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>Kirill Brüggemann — HyperFrames Portfolio Intro</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      :root {
+        --void: #070504;
+        --panel: rgba(20, 15, 12, 0.72);
+        --paper: #f0ebe5;
+        --muted: #a79c90;
+        --copper: #b5603e;
+        --violet: #a855f7;
+        --green: #22c55e;
+        --amber: #f59e0b;
+        --line: rgba(181, 96, 62, 0.26);
+      }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      html, body { width: 1920px; height: 1080px; overflow: hidden; background: var(--void); }
+      body { font-family: Inter, system-ui, sans-serif; color: var(--paper); -webkit-font-smoothing: antialiased; }
+      #root { position: relative; width: 1920px; height: 1080px; overflow: hidden; isolation: isolate; }
+      .clip { position: absolute; }
+      .scene { inset: 0; overflow: hidden; }
+      .bg {
+        inset: 0;
+        background:
+          radial-gradient(circle at 52% 45%, rgba(168,85,247,.16) 0 8%, transparent 24%),
+          radial-gradient(circle at 18% 18%, rgba(181,96,62,.18) 0 0.5%, transparent 19%),
+          radial-gradient(circle at 78% 76%, rgba(245,158,11,.11) 0 0.5%, transparent 22%),
+          radial-gradient(circle at 50% 50%, #18100e 0, #070504 66%);
+      }
+      .grain { inset: 0; opacity: .08; mix-blend-mode: screen; background-image: repeating-linear-gradient(90deg, rgba(255,255,255,.5) 0 1px, transparent 1px 3px); }
+      .vignette { inset: 0; box-shadow: inset 0 0 220px 80px #070504; }
+      .letterbox { left: 0; right: 0; height: 86px; background: #070504; z-index: 80; }
+      .topbar { top: 0; } .botbar { bottom: 0; }
+
+      .stars { inset: 0; transform-origin: 50% 50%; }
+      .star { position: absolute; width: 3px; height: 3px; border-radius: 50%; background: #fff6ec; opacity: .72; box-shadow: 0 0 12px rgba(255,246,236,.8); }
+      .star.s1{left:112px;top:180px}.star.s2{left:256px;top:812px}.star.s3{left:438px;top:130px}.star.s4{left:601px;top:918px}.star.s5{left:792px;top:221px}.star.s6{left:915px;top:735px}.star.s7{left:1090px;top:154px}.star.s8{left:1235px;top:894px}.star.s9{left:1410px;top:246px}.star.s10{left:1580px;top:780px}.star.s11{left:1744px;top:348px}.star.s12{left:1842px;top:656px}.star.s13{left:318px;top:420px}.star.s14{left:675px;top:548px}.star.s15{left:1290px;top:532px}.star.s16{left:1516px;top:112px}.star.s17{left:101px;top:612px}.star.s18{left:1811px;top:202px}
+
+      .brand { left: 138px; top: 142px; width: 780px; z-index: 20; }
+      .eyebrow { color: var(--copper); letter-spacing: .18em; text-transform: uppercase; font-size: 22px; font-weight: 700; margin-bottom: 28px; }
+      h1 { font-family: Fraunces, Georgia, serif; font-size: 112px; line-height: .96; font-weight: 650; letter-spacing: -.055em; }
+      h1 em { color: var(--copper); font-style: italic; font-weight: 400; }
+      .subtitle { margin-top: 34px; color: var(--muted); font-size: 34px; line-height: 1.32; max-width: 720px; }
+      .rate { margin-top: 42px; display: inline-flex; gap: 18px; align-items: center; padding: 18px 24px; border: 1px solid var(--line); border-radius: 999px; background: rgba(20,15,12,.52); backdrop-filter: blur(18px); color: var(--paper); font-size: 25px; }
+      .rate span { color: var(--muted); }
+
+      .solar { left: 1010px; top: 90px; width: 760px; height: 760px; z-index: 15; transform-origin: 50% 50%; }
+      .orbit { position: absolute; border: 1px solid rgba(181,96,62,.15); border-radius: 50%; inset: var(--i); }
+      .sun { position: absolute; left: 340px; top: 340px; width: 80px; height: 80px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff0c8, #b5603e 56%, #2b130c 100%); box-shadow: 0 0 70px rgba(181,96,62,.8), 0 0 160px rgba(181,96,62,.22); }
+      .planet { position: absolute; border-radius: 50%; box-shadow: 0 0 42px currentColor; }
+      .p-job { left: 560px; top: 280px; width: 96px; height: 96px; color: var(--violet); background: radial-gradient(circle at 30% 24%, #f3d4ff, #a855f7 46%, #31145b 100%); }
+      .p-whats { left: 203px; top: 198px; width: 72px; height: 72px; color: var(--green); background: radial-gradient(circle at 30% 24%, #cfffe0, #22c55e 45%, #063d1f 100%); }
+      .p-crypto { left: 238px; top: 596px; width: 92px; height: 92px; color: var(--amber); background: radial-gradient(circle at 30% 24%, #fff1b8, #f59e0b 45%, #573000 100%); }
+      .p-news { left: 610px; top: 530px; width: 68px; height: 68px; color: #e879f9; background: radial-gradient(circle at 30% 24%, #ffe2ff, #e879f9 47%, #4b1459 100%); }
+      .p-skills { left: 126px; top: 394px; width: 82px; height: 82px; color: #14b8a6; background: radial-gradient(circle at 30% 24%, #d4fffa, #14b8a6 47%, #063c39 100%); }
+
+      .title-center { left: 0; top: 0; right: 0; bottom: 0; display: grid; place-items: center; text-align: center; z-index: 40; }
+      .title-card { width: 980px; padding: 56px 64px; border: 1px solid rgba(181,96,62,.26); border-radius: 34px; background: rgba(12,8,6,.62); backdrop-filter: blur(24px); box-shadow: 0 44px 120px rgba(0,0,0,.52), inset 0 1px rgba(255,255,255,.08); }
+      .title-card h2 { font-family: Fraunces, Georgia, serif; font-size: 96px; line-height: 1; letter-spacing: -.045em; }
+      .title-card p { margin-top: 24px; color: var(--muted); font-size: 30px; line-height: 1.38; }
+
+      .metrics { left: 116px; bottom: 118px; display: flex; gap: 18px; z-index: 25; }
+      .metric { width: 214px; padding: 22px 22px 20px; border-radius: 24px; border: 1px solid var(--line); background: rgba(20,15,12,.64); backdrop-filter: blur(18px); }
+      .metric strong { display: block; font-family: Fraunces, Georgia, serif; font-size: 54px; line-height: .96; color: var(--paper); }
+      .metric span { display: block; margin-top: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; font-size: 14px; line-height: 1.35; }
+
+      .job-card { right: 116px; top: 170px; width: 684px; padding: 38px; border-radius: 34px; border: 1px solid rgba(168,85,247,.34); background: linear-gradient(145deg, rgba(22,13,31,.82), rgba(10,7,6,.68)); backdrop-filter: blur(26px); box-shadow: 0 0 90px rgba(168,85,247,.18), 0 42px 120px rgba(0,0,0,.44); z-index: 30; }
+      .job-card h3 { font-family: Fraunces, Georgia, serif; font-size: 66px; line-height: 1; letter-spacing: -.04em; }
+      .job-card h3 em { color: var(--violet); font-style: italic; font-weight: 400; }
+      .job-card p { margin-top: 24px; color: var(--muted); font-size: 25px; line-height: 1.5; }
+      .chips { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 28px; }
+      .chip { padding: 9px 14px; border-radius: 999px; border: 1px solid rgba(168,85,247,.3); background: rgba(168,85,247,.10); color: #e8d2ff; font-size: 15px; text-transform: uppercase; letter-spacing: .06em; }
+
+      .pipeline { left: 120px; right: 120px; top: 330px; height: 270px; display: flex; align-items: center; justify-content: space-between; z-index: 35; }
+      .pipe-line { left: 210px; right: 210px; top: 463px; height: 2px; background: linear-gradient(90deg, transparent, rgba(181,96,62,.18), rgba(168,85,247,.55), rgba(34,197,94,.55), transparent); transform-origin: left center; z-index: 33; }
+      .node { position: relative; width: 290px; min-height: 186px; padding: 26px; border-radius: 28px; border: 1px solid rgba(181,96,62,.24); background: rgba(20,15,12,.72); backdrop-filter: blur(20px); box-shadow: 0 28px 80px rgba(0,0,0,.34); }
+      .node .num { font-family: Fraunces, Georgia, serif; font-size: 58px; color: var(--paper); line-height: .9; }
+      .node .label { margin-top: 13px; color: var(--muted); font-size: 21px; line-height: 1.25; }
+      .node .tag { margin-top: 16px; color: #d6815a; text-transform: uppercase; letter-spacing: .12em; font-size: 13px; font-weight: 700; }
+
+      .security { left: 134px; top: 178px; width: 640px; z-index: 45; }
+      .security h2, .deliver h2 { font-family: Fraunces, Georgia, serif; font-size: 78px; line-height: 1; letter-spacing: -.045em; }
+      .security p, .deliver p { margin-top: 24px; color: var(--muted); font-size: 28px; line-height: 1.42; }
+      .scanner { right: 150px; top: 178px; width: 690px; height: 560px; border-radius: 34px; border: 1px solid rgba(245,158,11,.28); background: rgba(20,15,12,.62); overflow: hidden; z-index: 44; box-shadow: 0 34px 120px rgba(0,0,0,.42); }
+      .scan-row { position: relative; margin: 22px 26px; padding: 18px 20px; border-radius: 18px; background: rgba(255,255,255,.035); border: 1px solid rgba(255,255,255,.07); color: var(--muted); font-size: 22px; display: flex; justify-content: space-between; }
+      .scan-row b { color: var(--paper); font-weight: 600; }
+      .scan-row.good { border-color: rgba(34,197,94,.35); } .scan-row.warn { border-color: rgba(245,158,11,.45); }
+      .scanbeam { left: 0; right: 0; top: 0; height: 4px; background: linear-gradient(90deg, transparent, var(--amber), transparent); box-shadow: 0 0 34px rgba(245,158,11,.55); z-index: 0; opacity: .55; }
+      .scanner .scan-row { z-index: 2; }
+
+      .deliver { right: 130px; top: 160px; width: 670px; z-index: 50; }
+      .deliver-grid { left: 130px; top: 158px; width: 800px; height: 610px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; z-index: 50; }
+      .deliver-card { padding: 30px; border-radius: 30px; border: 1px solid rgba(34,197,94,.24); background: rgba(11,20,15,.66); backdrop-filter: blur(20px); }
+      .deliver-card .icon { font-size: 42px; margin-bottom: 22px; }
+      .deliver-card h4 { font-size: 31px; line-height: 1.1; }
+      .deliver-card p { margin-top: 12px; color: var(--muted); font-size: 20px; line-height: 1.38; }
+
+      .final { inset: 0; display: grid; place-items: center; text-align: center; z-index: 70; }
+      .final-inner { width: 1160px; }
+      .final h2 { font-family: Fraunces, Georgia, serif; font-size: 112px; line-height: .96; letter-spacing: -.055em; }
+      .final h2 em { color: var(--copper); font-style: italic; font-weight: 400; }
+      .final p { margin: 30px auto 0; max-width: 880px; color: var(--muted); font-size: 32px; line-height: 1.4; }
+      .links { margin-top: 42px; display: flex; justify-content: center; gap: 20px; }
+      .link-pill { padding: 16px 24px; border-radius: 999px; border: 1px solid var(--line); background: rgba(20,15,12,.62); color: var(--paper); font-size: 22px; }
+      .credits { inset: 0; z-index: 85; overflow: hidden; display: grid; place-items: center; text-align: center; }
+      .credits::before, .credits::after { content: ""; position: absolute; left: 0; right: 0; height: 260px; z-index: 2; pointer-events: none; }
+      .credits::before { top: 0; background: linear-gradient(#070504 0%, rgba(7,5,4,.86) 45%, transparent 100%); }
+      .credits::after { bottom: 0; background: linear-gradient(transparent 0%, rgba(7,5,4,.86) 55%, #070504 100%); }
+      .credits-roll { position: absolute; top: 0; width: 1320px; padding-top: 660px; padding-bottom: 900px; }
+      .credits-kicker { color: var(--copper); text-transform: uppercase; letter-spacing: .22em; font-size: 20px; font-weight: 700; margin-bottom: 32px; }
+      .credits-title { font-family: Fraunces, Georgia, serif; font-size: 92px; line-height: 1; letter-spacing: -.055em; margin-bottom: 62px; }
+      .credit-row { display: grid; grid-template-columns: .95fr 1.7fr; gap: 64px; align-items: baseline; padding: 13px 0; border-top: 1px solid rgba(181,96,62,.15); }
+      .credit-role { text-align: right; color: var(--muted); text-transform: uppercase; letter-spacing: .18em; font-size: 18px; }
+      .credit-name { text-align: left; color: var(--paper); font-family: Fraunces, Georgia, serif; font-size: 46px; line-height: 1.03; }
+      .credit-row.major { padding: 22px 0; border-top-color: rgba(181,96,62,.34); }
+      .credit-row.major .credit-role { color: #d6815a; font-size: 20px; }
+      .credit-row.major .credit-name { font-size: 62px; }
+      .credit-row.dim { opacity: .62; }
+      .credit-end { margin-top: 100px; font-size: 24px; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; }
+      .progress { left: 0; bottom: 0; height: 4px; width: 100%; background: var(--copper); transform-origin: left center; z-index: 100; box-shadow: 0 0 12px rgba(181,96,62,.7); }
+      .fade { inset: 0; background: #070504; z-index: 120; pointer-events: none; opacity: 0; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="46" data-width="1920" data-height="1080">
+      <div id="cosmic-bg" class="clip bg scene" data-start="0" data-duration="46" data-track-index="0"></div>
+      <div id="starfield" class="clip stars" data-start="0" data-duration="46" data-track-index="1">
+        <i class="star s1"></i><i class="star s2"></i><i class="star s3"></i><i class="star s4"></i><i class="star s5"></i><i class="star s6"></i><i class="star s7"></i><i class="star s8"></i><i class="star s9"></i><i class="star s10"></i><i class="star s11"></i><i class="star s12"></i><i class="star s13"></i><i class="star s14"></i><i class="star s15"></i><i class="star s16"></i><i class="star s17"></i><i class="star s18"></i>
+      </div>
+      <div id="grain" class="clip grain scene" data-start="0" data-duration="46" data-track-index="2"></div>
+      <div id="vignette" class="clip vignette scene" data-start="0" data-duration="46" data-track-index="3"></div>
+      <div id="letterbox-top" class="clip letterbox topbar" data-start="0" data-duration="46" data-track-index="80"></div>
+      <div id="letterbox-bottom" class="clip letterbox botbar" data-start="0" data-duration="46" data-track-index="81"></div>
+
+      <section id="hero-brand" class="clip brand" data-start="1" data-duration="9" data-track-index="10">
+        <div class="eyebrow">AI Automation · API Integration</div>
+        <h1>Kirill <em>Brüggemann</em></h1>
+        <div class="subtitle">n8n / Make.com workflows, LLM pipelines, RAG systems and production-grade self-hosting.</div>
+        <div class="rate">€65/h · €350/Tag <span>· 100% Remote</span></div>
+      </section>
+
+      <div id="solar-system" class="clip solar" data-start="1" data-duration="18" data-track-index="12">
+        <div class="orbit" style="--i:70px"></div><div class="orbit" style="--i:132px"></div><div class="orbit" style="--i:198px"></div>
+        <div class="sun"></div><div class="planet p-job"></div><div class="planet p-whats"></div><div class="planet p-crypto"></div><div class="planet p-news"></div><div class="planet p-skills"></div>
+      </div>
+
+      <div id="jobradar-title" class="clip title-center" data-start="9" data-duration="3.6" data-track-index="25">
+        <div class="title-card">
+          <h2>JobRadar</h2>
+          <p>From emails, job boards and career pages to structured decisions — without manual tracking.</p>
+        </div>
+      </div>
+
+      <div id="jobradar-metrics" class="clip metrics" data-start="12" data-duration="9" data-track-index="31">
+        <div class="metric"><strong>25+</strong><span>workflow modules</span></div>
+        <div class="metric"><strong>50+</strong><span>sites / boards</span></div>
+        <div class="metric"><strong>37</strong><span>SerpAPI queries</span></div>
+        <div class="metric"><strong>39</strong><span>fields per job</span></div>
+      </div>
+      <article id="jobradar-card" class="clip job-card" data-start="12" data-duration="9" data-track-index="32">
+        <h3>KI-gestützte <em>Job-Pipeline</em></h3>
+        <p><b>Gmail API, IMAP, Crawl4AI, Jina Reader, SerpAPI, RSS, ATS APIs and webhooks</b> feed one schema-validated PostgreSQL core.</p>
+        <div class="chips"><span class="chip">n8n</span><span class="chip">OpenRouter</span><span class="chip">Qwen3</span><span class="chip">Postgres</span><span class="chip">Docker</span><span class="chip">Telegram</span></div>
+      </article>
+
+      <div id="pipeline-line" class="clip pipe-line" data-start="20" data-duration="6" data-track-index="40"></div>
+      <section id="pipeline-nodes" class="clip pipeline" data-start="20" data-duration="6" data-track-index="41">
+        <div class="node"><div class="num">01</div><div class="label">Capture signals from email, APIs, scraping and manual input</div><div class="tag">Normalize</div></div>
+        <div class="node"><div class="num">02</div><div class="label">Risk checks and prompt-injection filter before LLM</div><div class="tag">Secure</div></div>
+        <div class="node"><div class="num">03</div><div class="label">Qwen3 extracts a stable 39-field JSON contract</div><div class="tag">Parse</div></div>
+        <div class="node"><div class="num">04</div><div class="label">Idempotent upsert plus side effects and alerts</div><div class="tag">Deliver</div></div>
+      </section>
+
+      <section id="security-copy" class="clip security" data-start="25" data-duration="6" data-track-index="51">
+        <h2>Security before automation.</h2>
+        <p>Unknown emails are treated as untrusted input: sender-risk scoring, 17 injection-pattern checks, LLM guard and parameterized database writes.</p>
+      </section>
+      <div id="security-scanner" class="clip scanner" data-start="25" data-duration="6" data-track-index="52">
+        <div id="scan-beam" class="clip scanbeam" data-start="25" data-duration="6" data-track-index="53"></div>
+        <div class="scan-row good"><b>Sender domain</b><span>low risk</span></div>
+        <div class="scan-row warn"><b>Prompt injection</b><span>blocked before LLM</span></div>
+        <div class="scan-row good"><b>JSON schema</b><span>validated</span></div>
+        <div class="scan-row good"><b>Postgres write</b><span>idempotent</span></div>
+        <div class="scan-row good"><b>Side effects</b><span>isolated</span></div>
+      </div>
+
+      <section id="delivery-grid" class="clip deliver-grid" data-start="30" data-duration="4.7" data-track-index="61">
+        <div class="deliver-card"><div class="icon">📅</div><h4>Calendar</h4><p>Interviews become real events with source context.</p></div>
+        <div class="deliver-card"><div class="icon">✉</div><h4>Gmail labels</h4><p>Interview, offer, rejection and active threads are sorted.</p></div>
+        <div class="deliver-card"><div class="icon">⚡</div><h4>Telegram</h4><p>High-priority leads and daily digests arrive immediately.</p></div>
+        <div class="deliver-card"><div class="icon">▦</div><h4>Database</h4><p>Every signal becomes searchable, auditable job intelligence.</p></div>
+      </section>
+      <section id="delivery-copy" class="clip deliver" data-start="30" data-duration="4.7" data-track-index="62">
+        <h2>Real project. Real pipeline. Remote-ready.</h2>
+        <p>Built as a production automation portfolio piece — not a tutorial clone.</p>
+      </section>
+
+      <section id="final-card" class="clip final" data-start="34" data-duration="4" data-track-index="70">
+        <div class="final-inner">
+          <h2>AI Automation <em>Engineer</em></h2>
+          <p>n8n · Make.com · Python · LLM/RAG · APIs · Docker Self-Hosting</p>
+          <div class="links"><span class="link-pill">github.com/KiBrueg</span><span class="link-pill">linkedin.com/in/ki-brueg-2520033bb</span></div>
+        </div>
+      </section>
+      <section id="rolling-credits" class="clip credits" data-start="37" data-duration="8.7" data-track-index="74" data-layout-allow-overflow>
+        <div class="credits-roll">
+          <div class="credits-kicker">Used across the projects — partial credits</div>
+          <div class="credits-title">Skills & Stack</div>
+          <div class="credit-row major"><div class="credit-role">Orchestration</div><div class="credit-name">n8n · Make.com · Workflow Architecture</div></div>
+          <div class="credit-row major"><div class="credit-role">Automation Logic</div><div class="credit-name">Python · JavaScript · Apps Script · Code Nodes</div></div>
+          <div class="credit-row"><div class="credit-role">Trigger Systems</div><div class="credit-name">Webhooks · Cron Schedules · Gmail Push · IMAP Polling</div></div>
+          <div class="credit-row"><div class="credit-role">LLM Layer</div><div class="credit-name">OpenRouter · Qwen3 · Claude · Prompt Engineering</div></div>
+          <div class="credit-row"><div class="credit-role">Structured Output</div><div class="credit-name">JSON Schema · Validation · CoT Stripping · Parser Guards</div></div>
+          <div class="credit-row major"><div class="credit-role">Retrieval</div><div class="credit-name">RAG · Embeddings · pgvector · Semantic Search</div></div>
+          <div class="credit-row"><div class="credit-role">Data Core</div><div class="credit-name">PostgreSQL · SQLite · Migrations · Audit Logs</div></div>
+          <div class="credit-row"><div class="credit-role">Idempotency</div><div class="credit-name">Upserts · Dedup Keys · Retry-Safe Side Effects</div></div>
+          <div class="credit-row"><div class="credit-role">API Integration</div><div class="credit-name">REST APIs · OAuth2 · Gmail API · Calendar API</div></div>
+          <div class="credit-row"><div class="credit-role">Job Sources</div><div class="credit-name">SerpAPI · Google Jobs · RemoteOK · Remotive · Arbeitnow</div></div>
+          <div class="credit-row"><div class="credit-role">More Sources</div><div class="credit-name">Jobicy · Himalayas · Greenhouse · Ashby · RSS</div></div>
+          <div class="credit-row"><div class="credit-role">Web Extraction</div><div class="credit-name">Crawl4AI · Jina Reader · Firecrawl · Markdown Cleaning</div></div>
+          <div class="credit-row major"><div class="credit-role">Messaging</div><div class="credit-name">Telegram Bots · WhatsApp API · IMAP · Email Routing</div></div>
+          <div class="credit-row"><div class="credit-role">Client Workflows</div><div class="credit-name">Lead Capture · Email Intelligence · Offer Generation</div></div>
+          <div class="credit-row"><div class="credit-role">Documents</div><div class="credit-name">Google Docs · Drive · Sheets · CV/Anschreiben Automation</div></div>
+          <div class="credit-row"><div class="credit-role">Notifications</div><div class="credit-name">Telegram Alerts · Daily Digest · Gmail Labels</div></div>
+          <div class="credit-row"><div class="credit-role">Infrastructure</div><div class="credit-name">Docker · Docker Compose · VPS · Self-Hosting</div></div>
+          <div class="credit-row"><div class="credit-role">Operations</div><div class="credit-name">Backups · Logging · Error Branches · Health Checks</div></div>
+          <div class="credit-row major"><div class="credit-role">Security</div><div class="credit-name">HMAC · Prompt-Injection Guards · Sender Risk Checks</div></div>
+          <div class="credit-row"><div class="credit-role">Hardening</div><div class="credit-name">Parameterized SQL · No PII Logs · Secret Isolation</div></div>
+          <div class="credit-row"><div class="credit-role">Crypto Tools</div><div class="credit-name">Market Structure · Risk/Reward Math · Multi-Agent Review</div></div>
+          <div class="credit-row"><div class="credit-role">Data Feeds</div><div class="credit-name">CoinGecko · DexScreener · Fear & Greed · Orderbook Context</div></div>
+          <div class="credit-row"><div class="credit-role">UI Prototypes</div><div class="credit-name">Browser Dashboards · Chart States · Candle Training Cards</div></div>
+          <div class="credit-row"><div class="credit-role">Deployment</div><div class="credit-name">Git · GitHub · Environment Files · Windows Workarounds</div></div>
+          <div class="credit-row dim"><div class="credit-role">Still Rolling</div><div class="credit-name">ETL · Scoring · Matching · Filtering · Ranking</div></div>
+          <div class="credit-row dim"><div class="credit-role">Still Rolling</div><div class="credit-name">Monitoring · Parsing · Categorizing · Summarizing</div></div>
+          <div class="credit-row dim"><div class="credit-role">Still Rolling</div><div class="credit-name">Testing · Debugging · Refactoring · Documentation</div></div>
+          <div class="credit-row dim"><div class="credit-role">Still Rolling</div><div class="credit-name">Systems Thinking · Product Taste · Practical Delivery</div></div>
+          <div class="credit-end">The list continues...</div>
+        </div>
+      </section>
+      <div id="progress-bar" class="clip progress" data-start="0" data-duration="46" data-track-index="98"></div>
+      <div id="fade-overlay" class="clip fade" data-start="0" data-duration="46" data-track-index="99"></div>
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true, defaults: { ease: "power3.out" } });
+      tl.set(".fade", { opacity: 1 }, 0)
+        .to(".fade", { opacity: 0, duration: 1.25 }, 0.1)
+        .from(".topbar", { y: -86, duration: 1.1 }, 0)
+        .from(".botbar", { y: 86, duration: 1.1 }, 0)
+        .from(".brand .eyebrow", { opacity: 0, y: 24, duration: 0.8 }, 1.0)
+        .from(".brand h1", { opacity: 0, y: 48, filter: "blur(14px)", duration: 1.0 }, 1.2)
+        .from(".brand .subtitle", { opacity: 0, y: 30, duration: 0.9 }, 1.55)
+        .from(".rate", { opacity: 0, y: 20, scale: 0.96, duration: 0.8 }, 1.9)
+        .from(".solar", { opacity: 0, scale: 0.72, rotate: -12, duration: 1.4 }, 1.25)
+        .to(".solar", { rotate: 24, scale: 1.08, x: -40, y: 22, duration: 6.1, ease: "none", overwrite: "auto" }, 2.65)
+        .to(".stars", { rotate: 5.5, scale: 1.08, duration: 46, ease: "none" }, 0)
+        .to(".brand", { opacity: 0, y: -24, filter: "blur(10px)", duration: 0.85 }, 8.7)
+        .to(".solar", { opacity: 0.22, scale: 1.7, x: -480, y: 120, duration: 1.2, overwrite: "auto" }, 8.8)
+        .from(".title-card", { opacity: 0, scale: 0.82, y: 26, filter: "blur(18px)", duration: 0.9 }, 9.1)
+        .to(".title-card", { opacity: 0, scale: 1.08, filter: "blur(14px)", duration: 0.75 }, 13.05)
+        .from(".metrics .metric", { opacity: 0, y: 44, scale: 0.94, stagger: 0.12, duration: 0.85 }, 12.15)
+        .from(".job-card", { opacity: 0, x: 80, scale: 0.96, filter: "blur(16px)", duration: 0.9 }, 12.25)
+        .to(".p-job", { scale: 1.6, x: -510, y: 20, duration: 1.2 }, 12.0)
+        .to(".metrics, .job-card", { opacity: 0, y: -24, filter: "blur(10px)", duration: 0.75 }, 19.35)
+        .from(".pipe-line", { scaleX: 0, duration: 1.0 }, 20.1)
+        .from(".node", { opacity: 0, y: 50, scale: 0.92, stagger: 0.22, duration: 0.85 }, 20.2)
+        .to(".node", { y: -12, stagger: 0.13, duration: 0.55, ease: "sine.inOut", yoyo: true, repeat: 1 }, 22.4)
+        .to(".pipeline, .pipe-line", { opacity: 0, y: -30, filter: "blur(10px)", duration: 0.75 }, 25.55)
+        .from(".security", { opacity: 0, x: -70, filter: "blur(16px)", duration: 0.85 }, 25.05)
+        .from(".scanner", { opacity: 0, x: 90, scale: 0.96, filter: "blur(16px)", duration: 0.85 }, 25.12)
+        .from(".scan-row", { opacity: 0, x: 24, stagger: 0.13, duration: 0.45 }, 25.65)
+        .to(".scanbeam", { y: 540, duration: 2.8, ease: "sine.inOut", repeat: 1, yoyo: true }, 25.4)
+        .to(".security, .scanner", { opacity: 0, y: -28, filter: "blur(10px)", duration: 0.7 }, 29.75)
+        .from(".deliver-card", { opacity: 0, y: 54, scale: 0.94, stagger: 0.12, duration: 0.8 }, 30.05)
+        .from(".deliver", { opacity: 0, x: 70, filter: "blur(14px)", duration: 0.85 }, 30.15)
+        .to(".deliver-grid, .deliver", { opacity: 0, y: -28, filter: "blur(10px)", duration: 0.65 }, 33.55)
+        .from(".final-inner", { opacity: 0, y: 46, scale: 0.96, filter: "blur(16px)", duration: 0.85 }, 34.0)
+        .to(".final-inner", { opacity: 0, y: -34, filter: "blur(12px)", duration: 0.7 }, 36.55)
+        .from(".credits", { opacity: 0, duration: 0.8 }, 37.0)
+        .fromTo(".credits-roll", { y: 0 }, { y: -1640, duration: 8.2, ease: "none" }, 37.05)
+        .to(".credits", { opacity: 0, duration: 0.75, ease: "power2.in" }, 44.9)
+        .to(".fade", { opacity: 1, duration: 0.85, ease: "power2.in" }, 45.05)
+        .fromTo(".progress", { scaleX: 0 }, { scaleX: 1, duration: 46, ease: "none" }, 0);
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>
