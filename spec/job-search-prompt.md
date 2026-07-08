@@ -63,6 +63,10 @@ Diese Boards werden automatisch durchsucht — hier nur prüfen wenn Flow 7 ausf
 | StudySmarter | talents.studysmarter.de | DE |
 | Remote3 | remote3.co | Web3 |
 | Jobs im Südwesten | jobs-im-suedwesten.de | DE Regional |
+| Hubstaff Talent | talent.hubstaff.com | Freelance |
+| Crossover | crossover.com | Remote Contractor |
+| Remote.co | remote.co | Remote |
+| Remote Woman | remotewomen.com | Remote (placeholder) |
 
 ---
 
@@ -107,7 +111,7 @@ Diese Boards blockieren Scraping oder erfordern Login. Hier manuell suchen:
 |-------|-----|--------|
 | **Braintrust** | usebraintrust.com | Web3/DAO Freelance, Token-basiert |
 | **Pangian** | pangian.com | Remote-only Community |
-| **Hubstaff Talent** | talent.hubstaff.com | Free remote job board |
+| ~~Hubstaff Talent~~ | ~~talent.hubstaff.com~~ | → автоскан Flow 7 |
 | **Outsourcely** | outsourcely.com | Startup remote jobs |
 | **Codementor** | codementor.io | Mentoring + Freelance dev |
 | **DataJobs.com** | datajobs.com | Data/ML spezifisch |
