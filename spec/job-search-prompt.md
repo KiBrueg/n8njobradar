@@ -92,6 +92,9 @@ Diese Boards blockieren Scraping oder erfordern Login. Hier manuell suchen:
 | **Fiverr** | fiverr.com | Marketplace-Modell. Eigene Gigs erstellen: "n8n automation", "AI chatbot", "workflow automation" |
 | **Freelancer.com** | freelancer.com | Bidding. Suche: "python automation", "n8n", "AI bot" |
 | **PeoplePerHour** | peopleperhour.com | UK-lastig, Login nötig. "Python automation", "AI workflow" |
+| **ZipRecruiter** | ziprecruiter.com | US-focused, Anti-Bot. "AI automation engineer remote" |
+| **Guru** | guru.com | Freelance marketplace, Login nötig |
+| **PowerToFly** | powertofly.com | Diversity + remote, Login nötig |
 
 ### Tier 3 — Wöchentlich
 
