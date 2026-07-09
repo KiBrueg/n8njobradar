@@ -106,6 +106,7 @@ Diese Boards blockieren Scraping oder erfordern Login. Hier manuell suchen:
 | **GitHub Jobs** | github.com/trending → README job boards | Community-Listen, awesome-remote-job |
 | **Wolt/Delivery Hero/N26 Careers** | Direkt auf Karriereseiten | Berliner Tech-Firmen, oft unlisted remote roles |
 | **YC Work at a Startup** | workatastartup.com | YC-Portfolio, Login nötig. "AI", "Automation" |
+| **YC Jobs** | ycombinator.com/jobs | Direktliste YC-Firmen. Kein Login. Täglich checken — oft unlisted |
 | **AngelList Talent** | angel.co/talent | Startup-Jobs, Equity+Cash Modelle |
 
 ### Tier 4 — Nischen (monatlich checken)
