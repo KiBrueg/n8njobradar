@@ -78,6 +78,7 @@ Diese Boards blockieren Scraping oder erfordern Login. Hier manuell suchen:
 
 | Board | URL | Warum manuell |
 |-------|-----|---------------|
+| **Hired** | hired.com | Reverse marketplace — работодатели сами пишут. Профиль заполнить один раз |
 | **LinkedIn** | linkedin.com/jobs | Login-Wall, Anti-Scraping. Filter: "Remote" + "AI automation" + "Python". Auch Recruiter-Posts checken |
 | **Upwork** | upwork.com | Bidding-Plattform, Login nötig. Suche: "n8n automation", "AI workflow", "Python automation". Proposals senden |
 | **Indeed** | de.indeed.com | Anti-Scraping. Suche: "AI Automatisierung remote", "Python Freelance" |
@@ -92,6 +93,7 @@ Diese Boards blockieren Scraping oder erfordern Login. Hier manuell suchen:
 | **Fiverr** | fiverr.com | Marketplace-Modell. Eigene Gigs erstellen: "n8n automation", "AI chatbot", "workflow automation" |
 | **Freelancer.com** | freelancer.com | Bidding. Suche: "python automation", "n8n", "AI bot" |
 | **PeoplePerHour** | peopleperhour.com | UK-lastig, Login nötig. "Python automation", "AI workflow" |
+| ~~Experteer~~ | ~~experteer.de~~ | DISABLED — Senior/Executive only, nicht jetzt relevant |
 | **ZipRecruiter** | ziprecruiter.com | US-focused, Anti-Bot. "AI automation engineer remote" |
 | **Guru** | guru.com | Freelance marketplace, Login nötig |
 | **PowerToFly** | powertofly.com | Diversity + remote, Login nötig |
@@ -113,6 +115,7 @@ Diese Boards blockieren Scraping oder erfordern Login. Hier manuell suchen:
 
 | Board | URL | Nische |
 |-------|-----|--------|
+| **SolidGigs** | solidgigs.com | Curated freelance leads, $19/mo — vorsortierte Anfragen |
 | **Braintrust** | usebraintrust.com | Web3/DAO Freelance, Token-basiert |
 | **Pangian** | pangian.com | Remote-only Community |
 | ~~Hubstaff Talent~~ | ~~talent.hubstaff.com~~ | → автоскан Flow 7 |
