@@ -44,6 +44,16 @@ outputs/
 *.sql.gz
 n8n/*-clean.json
 
+# --- Media / video production (large binaries) ---
+*.mp4
+*.mp3
+*.mov
+*.avi
+higgsfield-routine-assets/
+hyperframes-jobradar-routine-clip/
+jobradar-routine-video-production/
+graphify-out/
+
 # --- Temp / working files (patch scripts, live exports, test payloads) ---
 *_live.json
 *_patched.json

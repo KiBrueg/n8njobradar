@@ -1,0 +1,15 @@
+Kirill Brüggemann. AI Automation Engineer.
+
+Ich baue produktive Automatisierungen mit n8n, Make.com, Python und LLMs.
+
+JobRadar verbindet E-Mails, Jobbörsen, APIs und Scraper zu einer strukturierten Job-Intelligence-Pipeline.
+
+Fünfundzwanzig plus Workflow-Module. Über fünfzig Quellen. Siebenunddreißig SerpAPI-Abfragen. Neununddreißig Felder pro Job.
+
+Jedes Signal wird geprüft: Sender-Risiko, Prompt-Injection-Schutz, Schema-Validierung und idempotente Updates.
+
+Das Ergebnis: Kalendertermine, Gmail-Labels, Telegram-Alerts, Daily Digests und durchsuchbare Daten.
+
+Kein Tutorial-Klon. Ein echtes System für echte Arbeit.
+
+Kirill Brüggemann. Remote AI Automation.
