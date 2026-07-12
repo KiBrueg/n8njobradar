@@ -233,6 +233,7 @@ Direktes Scrapen von Karriere-Seiten der Zielfirmen. Ergebnisse → LLM → Post
 
 | Board | URL | Aktion |
 |-------|-----|--------|
+| **berliner.jobs** | berliner.jobs/applicant/dashboard | Registriert. Berlin-fokussiert, Remote-Filter setzen |
 | **Xing** | xing.com/jobs | DE-Projekte: "Automatisierung", "KI Engineer" |
 | **StepStone** | stepstone.de | Anti-Bot. Manuelle Suche |
 | **Glassdoor** | glassdoor.de | Login-Wall + Gehaltsrecherche |
@@ -284,6 +285,10 @@ Link: ...
 |-------|---------|--------|-----|
 | GAIA (Datatroniq) | Business Development | offen | https://datatroniq.com/de/karriere |
 | ecosistant | — | offen | — |
+| hypd.ai | — | offen | https://hypd.ai |
+| Vara | — | offen | — |
+| Pandata | — | offen | — |
+| laria.ai | — | offen | https://laria.ai |
 
 ---
 
