@@ -284,6 +284,10 @@ Link: ...
 | Firma | Bereich | Status | URL |
 |-------|---------|--------|-----|
 | GAIA (Datatroniq) | Business Development | offen | https://datatroniq.com/de/karriere |
+| Antares Capital | Finance/Tech | offen | https://www.antarescapital.com/careers |
+| Antares Global | Tech | offen | https://antaresglobal.com/careers |
+| Antares Solutions | IT Solutions | offen | https://www.antaressolutions.com/careers |
+| Antares Vision Group | Vision/AI | offen | https://www.antaresvisionsgroup.com/career |
 | ecosistant | — | offen | — |
 | hypd.ai | — | offen | https://hypd.ai |
 | Vara | — | offen | — |
