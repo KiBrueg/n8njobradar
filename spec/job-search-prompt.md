@@ -283,6 +283,7 @@ Link: ...
 | Firma | Bereich | Status | URL |
 |-------|---------|--------|-----|
 | GAIA (Datatroniq) | Business Development | offen | https://datatroniq.com/de/karriere |
+| ecosistant | — | offen | — |
 
 ---
 
