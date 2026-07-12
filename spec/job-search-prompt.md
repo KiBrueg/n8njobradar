@@ -123,6 +123,8 @@ Automatische Google-SERP-Suche mit `site:` Operator. Ergebnisse → LLM → Post
 | simplyhired-ai | simplyhired.com | python automation AI remote |
 | outsourcey-ai | outsourcey.com | python automation AI remote *(neu 12.07)* |
 | skipthedrive-ai | skipthedrive.com | python automation AI remote engineer *(neu 12.07)* |
+| powertofly-ai | powertofly.com | python automation AI engineer remote *(neu 12.07)* |
+| hitmarker-ai | hitmarker.net | python automation AI engineer remote *(neu 12.07)* |
 
 ---
 
@@ -282,4 +284,4 @@ Link: ...
 
 ---
 
-*Letzte Aktualisierung: 2026-07-12 | Flow 7: 51 Queries (Search Queries fixed) | Flow 2: 18 Scrape-Targets | Flow 2b: 31 Career Pages (7 API + 31 SGai) | Flow 9: Praktikum Outreach (auto, personalisiert)*
+*Letzte Aktualisierung: 2026-07-12 | Flow 7: 53 Queries | Flow 2: 18 Scrape-Targets | Flow 2b: 31 Career Pages (7 API + 31 SGai) | Flow 9: Praktikum Outreach (auto, personalisiert)*
