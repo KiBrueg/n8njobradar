@@ -197,6 +197,7 @@ Direktes Scrapen von Karriere-Seiten der Zielfirmen. Ergebnisse → LLM → Post
 | Fraudio | Europe | fraudio.com/careers |
 | Shareup | Europe | shareup.app/jobs |
 | journy.io | Europe | journy.io/careers |
+| **Datatroniq (GAIA)** | Germany | datatroniq.com/de/karriere *(Initiativbewerbung, neu 12.07)* |
 | **Mistral AI** | France,EU | mistral.ai/careers *(neu 12.07)* |
 | **n8n** | Germany,EU | n8n.io/careers *(neu 12.07)* |
 | **Adaptive ML** | France | adaptive-ml.com/jobs *(neu 12.07)* |
@@ -274,6 +275,14 @@ Link: ...
 |---|--------------|---------|-------------|----------|-------------|------|
 
 **Machbarkeit:** Zeitaufwand + ob Stack vollständig bekannt.
+
+---
+
+### 📨 Initiativbewerbung — Wunschfirmen
+
+| Firma | Bereich | Status | URL |
+|-------|---------|--------|-----|
+| GAIA (Datatroniq) | Business Development | offen | https://datatroniq.com/de/karriere |
 
 ---
 

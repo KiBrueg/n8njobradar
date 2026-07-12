@@ -27,6 +27,8 @@ const CAREER_PAGES = [
   { company: 'Fraudio',     url: 'https://www.fraudio.com/careers/',              region: 'Europe' },
   { company: 'Shareup',     url: 'https://shareup.app/jobs/',                     region: 'Europe' },
   { company: 'journy.io',   url: 'https://www.journy.io/careers',                 region: 'Europe' },
+  // --- Initiativbewerbung Targets ---
+  { company: 'Datatroniq (GAIA)', url: 'https://datatroniq.com/de/karriere',       region: 'Germany' },
   // --- EU AI Startups (funded 2024-2026) ---
   { company: 'Mistral AI',   url: 'https://mistral.ai/careers/',                  region: 'France,EU' },
   { company: 'n8n',          url: 'https://n8n.io/careers/',                      region: 'Germany,Europe' },
