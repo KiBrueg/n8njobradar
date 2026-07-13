@@ -10,9 +10,9 @@ Nodes added:
 
 Memory stored as n8n Static Data (workflow-level key-value store).
 """
-import json, urllib.request, ssl, sys
+import json, os, urllib.request, ssl, sys
 
-API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJlZWY4MzhhZS03YWI3LTRmMjMtYmY0Ny1lMDY5YTYyZjM2ODIiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwianRpIjoiM2E3MjNiYTktMGE5Ny00NjFlLWFiYzMtOTRhNThhOGRjOWVhIiwiaWF0IjoxNzgxMDIwNjQyfQ.3MXGBgKGWWt_OFPdnzszjvOkt4-pvgHSIjRt0-ss0SE"
+API_KEY = os.environ["N8N_API_KEY"]
 BASE = "https://n8n.157.180.112.46.sslip.io"
 FLOW_ID = "C2D45wHhF6sMzTVe"
 CTX = ssl.create_default_context(); CTX.check_hostname = False; CTX.verify_mode = ssl.CERT_NONE
