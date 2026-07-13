@@ -51,6 +51,9 @@ If salary is not stated: keep for review, do not exclude.
 Full-time: top priority.
 Part-time: acceptable.
 Contract / freelance (Gewerbe): acceptable for well-paying, interesting projects.
+Stack restrictions for freelance: none. Any technology (Java, .NET, PHP, JS frameworks, etc.)
+is deliverable with AI assistance. Exclude only if on-site physical access or
+enterprise credentials without test environment are explicitly required.
 
 ### Candidate's skill set (for relevance matching only)
 
