@@ -1,7 +1,7 @@
 """Scraper-Agent — lightweight ScrapeGraphAI-style service.
 
-Fetches a URL, cleans the HTML with BeautifulSoup, and asks Qwen3
-to extract structured data according to a user-supplied prompt.
+Fetches a URL (via crawl4ai for JS support, fallback to httpx+BS4),
+then asks Qwen3 to extract structured data per a user-supplied prompt.
 Used as fallback when SGai Cloud API exhausts monthly credits.
 
 Endpoints:
@@ -21,6 +21,7 @@ OPENROUTER_API_KEY = os.environ["OPENROUTER_API_KEY"]
 LLM_MODEL = os.environ.get("SCRAPER_LLM_MODEL", "qwen/qwen3-30b-a3b-instruct-2507")
 LLM_URL = "https://openrouter.ai/api/v1/chat/completions"
 DEFAULT_MAX_CHARS = int(os.environ.get("SCRAPER_MAX_CHARS", "6000"))
+CRAWL4AI_URL = os.environ.get("CRAWL4AI_URL", "http://crawl4ai:11235")
 
 FETCH_HEADERS = {
     "User-Agent": (
@@ -47,7 +48,27 @@ class ScrapeRequest(BaseModel):
     max_chars: int = DEFAULT_MAX_CHARS
 
 
-def _fetch_text(url: str, max_chars: int) -> str:
+def _fetch_via_crawl4ai(url: str, max_chars: int) -> str | None:
+    """Try crawl4ai (JS-capable, playwright). Returns None if unavailable."""
+    try:
+        r = httpx.post(
+            f"{CRAWL4AI_URL}/crawl",
+            json={"urls": [url], "priority": 10, "crawler_config": {"headless": True, "page_timeout": 15000}},
+            timeout=30,
+        )
+        r.raise_for_status()
+        md = r.json()["results"][0].get("markdown") or {}
+        if isinstance(md, dict):
+            text = md.get("fit_markdown") or md.get("raw_markdown") or ""
+        else:
+            text = str(md)
+        return text[:max_chars] if len(text) > 100 else None
+    except Exception:
+        return None
+
+
+def _fetch_via_httpx(url: str, max_chars: int) -> str:
+    """Plain HTTP fetch + BS4 cleanup. No JS execution."""
     try:
         r = httpx.get(url, headers=FETCH_HEADERS, timeout=15, follow_redirects=True)
         r.raise_for_status()
@@ -62,6 +83,10 @@ def _fetch_text(url: str, max_chars: int) -> str:
     text = soup.get_text(separator="\n", strip=True)
     text = re.sub(r"\n{3,}", "\n\n", text)
     return text[:max_chars]
+
+
+def _fetch_text(url: str, max_chars: int) -> str:
+    return _fetch_via_crawl4ai(url, max_chars) or _fetch_via_httpx(url, max_chars)
 
 
 def _llm_extract(page_text: str, prompt: str) -> dict:
@@ -107,7 +132,14 @@ def scrape(req: ScrapeRequest) -> dict:
     if not req.prompt.strip():
         raise HTTPException(400, "prompt is required")
 
-    page_text = _fetch_text(req.url, req.max_chars)
+    crawl4ai_text = _fetch_via_crawl4ai(req.url, req.max_chars)
+    if crawl4ai_text:
+        page_text = crawl4ai_text
+        engine = "crawl4ai"
+    else:
+        page_text = _fetch_via_httpx(req.url, req.max_chars)
+        engine = "httpx"
+
     result = _llm_extract(page_text, req.prompt)
 
-    return {"result": result, "url": req.url, "chars_sent": len(page_text)}
+    return {"result": result, "url": req.url, "chars_sent": len(page_text), "engine": engine}
