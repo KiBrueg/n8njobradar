@@ -125,6 +125,15 @@ Automatische Google-SERP-Suche mit `site:` Operator. Ergebnisse → LLM → Post
 | skipthedrive-ai | skipthedrive.com | python automation AI remote engineer *(neu 12.07)* |
 | powertofly-ai | powertofly.com | python automation AI engineer remote *(neu 12.07)* |
 | hitmarker-ai | hitmarker.net | python automation AI engineer remote *(neu 12.07)* |
+| berlinerjobs-ai | berliner.jobs | python automation AI engineer remote *(neu 12.07)* |
+| remotees-ai | remotees.com | python automation AI engineer remote *(neu 13.07)* |
+| remote4me-ai | remote4me.com | python automation AI engineer remote *(neu 13.07)* |
+| freelancer-ai | freelancer.com | python automation AI freelance remote *(neu 13.07)* |
+| outsourcely-ai | outsourcely.com | python automation AI remote *(neu 13.07)* |
+| europeremotely-ai | europeremotely.com | python automation AI engineer *(neu 13.07)* |
+| remoteineurope-ai | remoteineurope.com | python automation AI engineer *(neu 13.07)* |
+
+**Flow 7: 60 Queries**
 
 ---
 
