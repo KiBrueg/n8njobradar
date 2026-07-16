@@ -7,7 +7,7 @@
 # ============================================================
 
 $VPS_USER = "kirill"
-$VPS_HOST = "157.180.112.46"
+$VPS_HOST = $env:VPS_HOST
 $SSH_KEY  = "$env:USERPROFILE\.ssh\id_ed25519"
 $PROMPT_FILE = "$PSScriptRoot\..\spec\job-search-prompt.md"
 

@@ -2,7 +2,7 @@
 import json, os, urllib.request, ssl, sys
 
 API_KEY = os.environ["N8N_API_KEY"]
-BASE = "https://n8n.157.180.112.46.sslip.io"
+BASE = os.environ["N8N_BASE"]
 FLOW_ID = "C2D45wHhF6sMzTVe"
 CTX = ssl.create_default_context(); CTX.check_hostname = False; CTX.verify_mode = ssl.CERT_NONE
 

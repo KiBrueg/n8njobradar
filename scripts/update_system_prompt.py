@@ -6,7 +6,7 @@ import json, os, ssl, sys, urllib.request
 from pathlib import Path
 
 API_KEY  = os.environ["N8N_API_KEY"]
-BASE     = "https://n8n.157.180.112.46.sslip.io"
+BASE     = os.environ["N8N_BASE"]
 FLOWS    = {
     "Flow 7 (Gewerbe)":   "VBfS8H71yz0ArkWT",
     "Flow 4 (Job APIs)":  "HDJIQgfBv2Coa4jo",

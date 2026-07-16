@@ -25,7 +25,7 @@ import sys
 import urllib.request
 
 API_KEY         = os.environ["N8N_API_KEY"]
-BASE            = "https://n8n.157.180.112.46.sslip.io"
+BASE            = os.environ["N8N_BASE"]
 ERROR_FLOW_ID   = "mdV9VERzHYVcM5vZ"   # global error workflow
 
 CTX = ssl.create_default_context()

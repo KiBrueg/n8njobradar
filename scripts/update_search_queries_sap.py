@@ -14,7 +14,7 @@ Flow 4 (HDJIQgfBv2Coa4jo) — SerpAPI: Queries (budget: max 250/month)
 import json, os, ssl, sys, urllib.request
 
 API_KEY       = os.environ["N8N_API_KEY"]
-BASE          = "https://n8n.157.180.112.46.sslip.io"
+BASE          = os.environ["N8N_BASE"]
 FLOW7_ID      = "VBfS8H71yz0ArkWT"
 FLOW4_ID      = "HDJIQgfBv2Coa4jo"
 
