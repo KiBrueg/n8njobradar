@@ -23,7 +23,8 @@ Integration Engineer, iPaaS Developer, Systems Automation Engineer,
 and any role where core duties involve workflow automation + AI/LLM tools.
 
 ### Seniority
-Junior, Junior+, Mid only.
+Intern / Praktikum / Werkstudent / Trainee: actively prioritize — candidate is building first work experience.
+Junior, Junior+, Mid: high priority.
 Senior roles: exclude regardless of stack match —
 candidate has no official employment history.
 
@@ -49,8 +50,10 @@ If salary is not stated: keep for review, do not exclude.
 
 ### Employment type
 Full-time: top priority.
-Part-time: acceptable.
+Part-time: high priority.
 Contract / freelance (Gewerbe): acceptable for well-paying, interesting projects.
+Praktikum / Werkstudent / Trainee (paid): lower priority than full-time and part-time, but always include in results — do not filter out. Relevance cap: max 65/100.
+Praktikum unpaid ≤ 3 months: include in results, relevance cap: max 50/100.
 Stack restrictions for freelance: none. Any technology (Java, .NET, PHP, JS frameworks, etc.)
 is deliverable with AI assistance. Exclude only if on-site physical access or
 enterprise credentials without test environment are explicitly required.
