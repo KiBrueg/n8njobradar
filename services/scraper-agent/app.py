@@ -175,11 +175,23 @@ def _compute_fit(job: dict, profile: dict) -> dict | None:
 
     has_high_risk = any(f in HIGH_RISK_FLAGS for f in risk_flags)
 
-    matched_req   = [s for s in required_skills if any(s in js for js in job_skills)]
-    matched_nice  = [s for s in nice_skills    if any(s in js for js in job_skills)]
+    # tech_stack is often empty (parser gap) — fall back to title+summary text
+    job_text = title_lower + " " + (job.get("summary") or "").lower()
+
+    matched_req   = [s for s in required_skills if any(s in js for js in job_skills) or s in job_text]
+    matched_nice  = [s for s in nice_skills    if any(s in js for js in job_skills) or s in job_text]
     missing_req   = [s for s in required_skills if s not in matched_req]
 
-    score = 45
+    target_titles = [t.lower() for t in _as_list(profile["target_titles"])]
+    alt_titles    = [t.lower() for t in _as_list(profile["alternative_titles"])]
+    if any(t in title_lower for t in target_titles if t):
+        title_pts = 15
+    elif any(t in title_lower for t in alt_titles if t):
+        title_pts = 8
+    else:
+        title_pts = 0
+
+    score = 35 + title_pts
     if required_skills:
         score += int((len(matched_req) / len(required_skills)) * 40)
     if nice_skills:
