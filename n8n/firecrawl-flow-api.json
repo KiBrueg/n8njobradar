@@ -1,13 +1,254 @@
-{
+﻿{
+    "settings":  {
+                     "executionOrder":  "v1",
+                     "binaryMode":  "separate",
+                     "errorWorkflow":  "mdV9VERzHYVcM5vZ"
+                 },
     "name":  "JobRadar -- Flow 2: Web Scraper (Crawl4AI + Jina)",
+    "connections":  {
+                        "Schedule: Daily 04:00":  {
+                                                      "main":  [
+                                                                   [
+                                                                       {
+                                                                           "node":  "Scrape Targets",
+                                                                           "type":  "main",
+                                                                           "index":  0
+                                                                       },
+                                                                       {
+                                                                           "node":  "ScrapingBee XING [STUB]",
+                                                                           "type":  "main",
+                                                                           "index":  0
+                                                                       },
+                                                                       {
+                                                                           "node":  "Apify XING [STUB]",
+                                                                           "type":  "main",
+                                                                           "index":  0
+                                                                       },
+                                                                       {
+                                                                           "node":  "RESERVE: ScrapeGraphAI",
+                                                                           "type":  "main",
+                                                                           "index":  0
+                                                                       }
+                                                                   ]
+                                                               ]
+                                                  },
+                        "Scrape Targets":  {
+                                               "main":  [
+                                                            [
+                                                                {
+                                                                    "node":  "IF: use Jina",
+                                                                    "type":  "main",
+                                                                    "index":  0
+                                                                }
+                                                            ]
+                                                        ]
+                                           },
+                        "IF: use Jina":  {
+                                             "main":  [
+                                                          [
+                                                              {
+                                                                  "node":  "Jina AI: Scrape",
+                                                                  "type":  "main",
+                                                                  "index":  0
+                                                              }
+                                                          ],
+                                                          [
+                                                              {
+                                                                  "node":  "Crawl4AI: Scrape",
+                                                                  "type":  "main",
+                                                                  "index":  0
+                                                              }
+                                                          ]
+                                                      ]
+                                         },
+                        "Jina AI: Scrape":  {
+                                                "main":  [
+                                                             [
+                                                                 {
+                                                                     "node":  "Jina: Format as Firecrawl",
+                                                                     "type":  "main",
+                                                                     "index":  0
+                                                                 }
+                                                             ]
+                                                         ]
+                                            },
+                        "Jina: Format as Firecrawl":  {
+                                                          "main":  [
+                                                                       [
+                                                                           {
+                                                                               "node":  "IF: scrape success",
+                                                                               "type":  "main",
+                                                                               "index":  0
+                                                                           }
+                                                                       ]
+                                                                   ]
+                                                      },
+                        "Crawl4AI: Scrape":  {
+                                                 "main":  [
+                                                              [
+                                                                  {
+                                                                      "node":  "Crawl4AI: Format",
+                                                                      "type":  "main",
+                                                                      "index":  0
+                                                                  }
+                                                              ]
+                                                          ]
+                                             },
+                        "Crawl4AI: Format":  {
+                                                 "main":  [
+                                                              [
+                                                                  {
+                                                                      "node":  "IF: scrape success",
+                                                                      "type":  "main",
+                                                                      "index":  0
+                                                                  }
+                                                              ]
+                                                          ]
+                                             },
+                        "IF: scrape success":  {
+                                                   "main":  [
+                                                                [
+                                                                    {
+                                                                        "node":  "Split: XING Listings",
+                                                                        "type":  "main",
+                                                                        "index":  0
+                                                                    }
+                                                                ],
+                                                                [
+
+                                                                ]
+                                                            ]
+                                               },
+                        "Split: XING Listings":  {
+                                                     "main":  [
+                                                                  [
+                                                                      {
+                                                                          "node":  "Normalize Item",
+                                                                          "type":  "main",
+                                                                          "index":  0
+                                                                      }
+                                                                  ]
+                                                              ]
+                                                 },
+                        "Normalize Item":  {
+                                               "main":  [
+                                                            [
+                                                                {
+                                                                    "node":  "Skip Security Checks",
+                                                                    "type":  "main",
+                                                                    "index":  0
+                                                                }
+                                                            ]
+                                                        ]
+                                           },
+                        "Skip Security Checks":  {
+                                                     "main":  [
+                                                                  [
+                                                                      {
+                                                                          "node":  "LLM Call (OpenRouter)",
+                                                                          "type":  "main",
+                                                                          "index":  0
+                                                                      }
+                                                                  ]
+                                                              ]
+                                                 },
+                        "LLM Call (OpenRouter)":  {
+                                                      "main":  [
+                                                                   [
+                                                                       {
+                                                                           "node":  "Parse LLM Response",
+                                                                           "type":  "main",
+                                                                           "index":  0
+                                                                       }
+                                                                   ]
+                                                               ]
+                                                  },
+                        "Parse LLM Response":  {
+                                                   "main":  [
+                                                                [
+                                                                    {
+                                                                        "node":  "IF: is_job_related",
+                                                                        "type":  "main",
+                                                                        "index":  0
+                                                                    }
+                                                                ]
+                                                            ]
+                                               },
+                        "IF: is_job_related":  {
+                                                   "main":  [
+                                                                [
+                                                                    {
+                                                                        "node":  "Filter: Skip Expired",
+                                                                        "type":  "main",
+                                                                        "index":  0
+                                                                    }
+                                                                ],
+                                                                [
+
+                                                                ]
+                                                            ]
+                                               },
+                        "Prepare DB Params":  {
+                                                  "main":  [
+                                                               [
+                                                                   {
+                                                                       "node":  "DB: Write All",
+                                                                       "type":  "main",
+                                                                       "index":  0
+                                                                   }
+                                                               ]
+                                                           ]
+                                              },
+                        "DB: Write All":  {
+                                              "main":  [
+                                                           [
+                                                               {
+                                                                   "node":  "IF: priority = high",
+                                                                   "type":  "main",
+                                                                   "index":  0
+                                                               },
+                                                               {
+                                                                   "node":  "Notion: Create Card",
+                                                                   "type":  "main",
+                                                                   "index":  0
+                                                               }
+                                                           ]
+                                                       ]
+                                          },
+                        "IF: priority = high":  {
+                                                    "main":  [
+                                                                 [
+                                                                     {
+                                                                         "node":  "Telegram: Job Alert",
+                                                                         "type":  "main",
+                                                                         "index":  0
+                                                                     }
+                                                                 ],
+                                                                 [
+
+                                                                 ]
+                                                             ]
+                                                },
+                        "Filter: Skip Expired":  {
+                                                     "main":  [
+                                                                  [
+                                                                      {
+                                                                          "node":  "Prepare DB Params",
+                                                                          "type":  "main",
+                                                                          "index":  0
+                                                                      }
+                                                                  ]
+                                                              ]
+                                                 }
+                    },
     "nodes":  [
                   {
                       "parameters":  {
                                          "rule":  {
                                                       "interval":  [
                                                                        {
-                                                                           "field":  "hours",
-                                                                           "hoursInterval":  24
+                                                                           "field":  "cronExpression",
+                                                                           "expression":  "0 4 * * *"
                                                                        }
                                                                    ]
                                                   }
@@ -23,7 +264,7 @@
                   },
                   {
                       "parameters":  {
-                                         "jsCode":  "// Job board search pages - scraped once daily.\n// scraper=\u0027jina\u0027    -\u003e Jina AI (free, handles Cloudflare-protected sites)\n// scraper=\u0027crawl4ai\u0027 -\u003e self-hosted Crawl4AI on VPS (free, no limits)\n//\n// Cloudflare-blocked sites confirmed: indeed.de, devjobs.de\n// XING requires Jina (JS-heavy + Cloudflare)\n\nconst TARGETS = [\n  { url: \u0027https://berlinstartupjobs.com/engineering/\u0027, label: \u0027berlinstartupjobs-engineering\u0027, scraper: \u0027crawl4ai\u0027 },\n  { url: \u0027https://www.remotely.de/jobs/ai-automation\u0027, label: \u0027remotely-ai-automation\u0027, scraper: \u0027crawl4ai\u0027 },\n  { url: \u0027https://en.devjobs.de/jobs?q=automation+engineer+remote\u0027, label: \u0027devjobs-automation\u0027, scraper: \u0027jina\u0027 },\n  { url: \u0027https://weworkremotely.com/remote-jobs/search?term=automation+engineer\u0027, label: \u0027wwr-automation\u0027, scraper: \u0027crawl4ai\u0027 },\n  { url: \u0027https://www.xing.com/jobs/search?keywords=automation+engineer+n8n+KI\u0026location=Deutschland\u0026sort=date\u0027, label: \u0027xing-automation\u0027, scraper: \u0027jina\u0027 },\n\n  // --- Stepstone (JS-heavy, Cloudflare → jina) ---\n  { url: \u0027https://www.stepstone.de/jobs/python?homeOffice=2\u0027, label: \u0027stepstone-python\u0027, scraper: \u0027jina\u0027 },\n  { url: \u0027https://www.stepstone.de/jobs/automatisierung?homeOffice=2\u0027, label: \u0027stepstone-automation\u0027, scraper: \u0027jina\u0027 },\n  { url: \u0027https://www.stepstone.de/jobs/ki-entwickler?homeOffice=2\u0027, label: \u0027stepstone-ki\u0027, scraper: \u0027jina\u0027 },\n\n  // --- Indeed (Cloudflare-blocked confirmed → jina) ---\n  { url: \u0027https://de.indeed.com/jobs?q=python+automatisierung\u0026l=remote\u0026fromage=7\u0027, label: \u0027indeed-python\u0027, scraper: \u0027jina\u0027 },\n  { url: \u0027https://de.indeed.com/jobs?q=n8n+ki+automatisierung\u0026fromage=7\u0027, label: \u0027indeed-n8n-ki\u0027, scraper: \u0027jina\u0027 },\n\n  // --- Monster (Cloudflare → jina) ---\n  { url: \u0027https://www.monster.de/jobs/suche/?q=python-automatisierung\u0026where=remote\u0027, label: \u0027monster-python\u0027, scraper: \u0027jina\u0027 },\n\n  // --- Arbeitsagentur Jobbörse (gov, no Cloudflare → crawl4ai) ---\n  { url: \u0027https://www.arbeitsagentur.de/jobsuche/suche?angebotsart=1\u0026was=Python+Automatisierung\u0026wo=Deutschland\u0027, label: \u0027jobboerse-python\u0027, scraper: \u0027crawl4ai\u0027 },\n  { url: \u0027https://www.arbeitsagentur.de/jobsuche/suche?angebotsart=1\u0026was=KI+Entwickler\u0026wo=Deutschland\u0027, label: \u0027jobboerse-ki\u0027, scraper: \u0027crawl4ai\u0027 },\n\n  // --- Heise Jobs (tech-specific, no heavy protection → crawl4ai) ---\n  { url: \u0027https://jobs.heise.de/?q=python+automation\u0026remote=true\u0027, label: \u0027heise-python\u0027, scraper: \u0027crawl4ai\u0027 },\n\n  // --- Praktikum / Werkstudent (remote) ---\n  { url: \u0027https://www.stepstone.de/jobs/praktikum-python?homeOffice=2\u0027, label: \u0027stepstone-praktikum-python\u0027, scraper: \u0027jina\u0027 },\n  { url: \u0027https://www.stepstone.de/jobs/werkstudent-python?homeOffice=2\u0027, label: \u0027stepstone-werkstudent\u0027, scraper: \u0027jina\u0027 },\n  { url: \u0027https://de.indeed.com/jobs?q=python+KI+praktikum\u0026jt=internship\u0026fromage=14\u0027, label: \u0027indeed-praktikum\u0027, scraper: \u0027jina\u0027 },\n  { url: \u0027https://www.arbeitsagentur.de/jobsuche/suche?angebotsart=34\u0026was=Python+Automatisierung\u0026wo=Deutschland\u0027, label: \u0027jobboerse-praktikum\u0027, scraper: \u0027crawl4ai\u0027 },\n];\n\nreturn TARGETS.map(t =\u003e ({ json: t }));\n"
+                                         "jsCode":  "// Job board search pages - scraped once daily.\n// scraper=\u0027jina\u0027    -\u003e Jina AI (free, handles Cloudflare-protected sites)\n// scraper=\u0027crawl4ai\u0027 -\u003e self-hosted Crawl4AI on VPS (free, no limits)\n//\n// Cloudflare-blocked sites confirmed: indeed.de, devjobs.de\n// XING requires Jina (JS-heavy + Cloudflare)\n\nconst TARGETS = [\n  { url: \u0027https://berlinstartupjobs.com/engineering/\u0027, label: \u0027berlinstartupjobs-engineering\u0027, scraper: \u0027crawl4ai\u0027 },\n  { url: \u0027https://www.remotely.de/jobs/ai-automation\u0027, label: \u0027remotely-ai-automation\u0027, scraper: \u0027crawl4ai\u0027 },\n  { url: \u0027https://en.devjobs.de/jobs?q=automation+engineer+remote\u0027, label: \u0027devjobs-automation\u0027, scraper: \u0027jina\u0027 },\n  { url: \u0027https://weworkremotely.com/remote-jobs/search?term=automation+engineer\u0027, label: \u0027wwr-automation\u0027, scraper: \u0027crawl4ai\u0027 },\n  { url: \u0027https://www.xing.com/jobs/search?keywords=automation+engineer+n8n+KI\u0026location=Deutschland\u0026sort=date\u0027, label: \u0027xing-automation\u0027, scraper: \u0027jina\u0027 },\n\n  // --- Stepstone (JS-heavy, Cloudflare ? jina) ---\n  { url: \u0027https://www.stepstone.de/jobs/python?homeOffice=2\u0027, label: \u0027stepstone-python\u0027, scraper: \u0027jina\u0027 },\n  { url: \u0027https://www.stepstone.de/jobs/automatisierung?homeOffice=2\u0027, label: \u0027stepstone-automation\u0027, scraper: \u0027jina\u0027 },\n  { url: \u0027https://www.stepstone.de/jobs/ki-entwickler?homeOffice=2\u0027, label: \u0027stepstone-ki\u0027, scraper: \u0027jina\u0027 },\n\n  // --- Indeed (Cloudflare-blocked confirmed ? jina) ---\n  { url: \u0027https://de.indeed.com/jobs?q=python+automatisierung\u0026l=remote\u0026fromage=7\u0027, label: \u0027indeed-python\u0027, scraper: \u0027jina\u0027 },\n  { url: \u0027https://de.indeed.com/jobs?q=n8n+ki+automatisierung\u0026fromage=7\u0027, label: \u0027indeed-n8n-ki\u0027, scraper: \u0027jina\u0027 },\n\n  // --- Monster (Cloudflare ? jina) ---\n  { url: \u0027https://www.monster.de/jobs/suche/?q=python-automatisierung\u0026where=remote\u0027, label: \u0027monster-python\u0027, scraper: \u0027jina\u0027 },\n\n  // --- Arbeitsagentur Jobb�rse (gov, no Cloudflare ? crawl4ai) ---\n  { url: \u0027https://www.arbeitsagentur.de/jobsuche/suche?angebotsart=1\u0026was=Python+Automatisierung\u0026wo=Deutschland\u0027, label: \u0027jobboerse-python\u0027, scraper: \u0027crawl4ai\u0027 },\n  { url: \u0027https://www.arbeitsagentur.de/jobsuche/suche?angebotsart=1\u0026was=KI+Entwickler\u0026wo=Deutschland\u0027, label: \u0027jobboerse-ki\u0027, scraper: \u0027crawl4ai\u0027 },\n\n  // --- Heise Jobs (tech-specific, no heavy protection ? crawl4ai) ---\n  { url: \u0027https://jobs.heise.de/?q=python+automation\u0026remote=true\u0027, label: \u0027heise-python\u0027, scraper: \u0027crawl4ai\u0027 },\n\n  // --- Praktikum / Werkstudent (remote) ---\n  { url: \u0027https://www.stepstone.de/jobs/praktikum-python?homeOffice=2\u0027, label: \u0027stepstone-praktikum-python\u0027, scraper: \u0027jina\u0027 },\n  { url: \u0027https://www.stepstone.de/jobs/werkstudent-python?homeOffice=2\u0027, label: \u0027stepstone-werkstudent\u0027, scraper: \u0027jina\u0027 },\n  { url: \u0027https://de.indeed.com/jobs?q=python+KI+praktikum\u0026jt=internship\u0026fromage=14\u0027, label: \u0027indeed-praktikum\u0027, scraper: \u0027jina\u0027 },\n  { url: \u0027https://www.arbeitsagentur.de/jobsuche/suche?angebotsart=34\u0026was=Python+Automatisierung\u0026wo=Deutschland\u0027, label: \u0027jobboerse-praktikum\u0027, scraper: \u0027crawl4ai\u0027 },\n\n  // --- Landing.Jobs (EU-focused, Jina verified 2026-07-18) ---\n  { url: \u0027https://landing.jobs/jobs?anywhere=true\u0026specialization=engineering\u0027, label: \u0027landingjobs-engineering\u0027, scraper: \u0027jina\u0027 },\n  { url: \u0027https://landing.jobs/jobs?anywhere=true\u0026specialization=back-end-development\u0027, label: \u0027landingjobs-backend\u0027, scraper: \u0027jina\u0027 },\n  { url: \u0027https://landing.jobs/jobs?anywhere=true\u0026specialization=devops\u0027, label: \u0027landingjobs-devops\u0027, scraper: \u0027jina\u0027 },\n];\n\nreturn TARGETS.map(t =\u003e ({ json: t }));"
                                      },
                       "id":  "n_targets",
                       "name":  "Scrape Targets",
@@ -520,247 +761,7 @@
                                                      }
                                      },
                       "disabled":  true,
-                      "notes":  "⚠️ RESERVE — disabled, never executes. Power-up option for JS-heavy sites (XING, malt details) when SerpAPI/Crawl4AI are not enough.\n\nActivation:\n1) Cloud: register scrapegraphai.com → put SGAI_API_KEY into VPS .env → enable node → rewire: [URL source] → this node → Normalize.\n2) Self-hosted (free): pip install scrapegraphai + playwright in a container (needs ~500MB RAM — check VPS headroom first), point LLM to OpenRouter.\n\nCost note: ≥1 LLM call per page (~5k tokens)."
+                      "notes":  "?? RESERVE - disabled, never executes. Power-up option for JS-heavy sites (XING, malt details) when SerpAPI/Crawl4AI are not enough.\n\nActivation:\n1) Cloud: register scrapegraphai.com ? put SGAI_API_KEY into VPS .env ? enable node ? rewire: [URL source] ? this node ? Normalize.\n2) Self-hosted (free): pip install scrapegraphai + playwright in a container (needs ~500MB RAM - check VPS headroom first), point LLM to OpenRouter.\n\nCost note: ?1 LLM call per page (~5k tokens)."
                   }
-              ],
-    "connections":  {
-                        "Schedule: Daily 04:00":  {
-                                                      "main":  [
-                                                                   [
-                                                                       {
-                                                                           "node":  "Scrape Targets",
-                                                                           "type":  "main",
-                                                                           "index":  0
-                                                                       },
-                                                                       {
-                                                                           "node":  "ScrapingBee XING [STUB]",
-                                                                           "type":  "main",
-                                                                           "index":  0
-                                                                       },
-                                                                       {
-                                                                           "node":  "Apify XING [STUB]",
-                                                                           "type":  "main",
-                                                                           "index":  0
-                                                                       },
-                                                                       {
-                                                                           "node":  "RESERVE: ScrapeGraphAI",
-                                                                           "type":  "main",
-                                                                           "index":  0
-                                                                       }
-                                                                   ]
-                                                               ]
-                                                  },
-                        "Scrape Targets":  {
-                                               "main":  [
-                                                            [
-                                                                {
-                                                                    "node":  "IF: use Jina",
-                                                                    "type":  "main",
-                                                                    "index":  0
-                                                                }
-                                                            ]
-                                                        ]
-                                           },
-                        "IF: use Jina":  {
-                                             "main":  [
-                                                          [
-                                                              {
-                                                                  "node":  "Jina AI: Scrape",
-                                                                  "type":  "main",
-                                                                  "index":  0
-                                                              }
-                                                          ],
-                                                          [
-                                                              {
-                                                                  "node":  "Crawl4AI: Scrape",
-                                                                  "type":  "main",
-                                                                  "index":  0
-                                                              }
-                                                          ]
-                                                      ]
-                                         },
-                        "Jina AI: Scrape":  {
-                                                "main":  [
-                                                             [
-                                                                 {
-                                                                     "node":  "Jina: Format as Firecrawl",
-                                                                     "type":  "main",
-                                                                     "index":  0
-                                                                 }
-                                                             ]
-                                                         ]
-                                            },
-                        "Jina: Format as Firecrawl":  {
-                                                          "main":  [
-                                                                       [
-                                                                           {
-                                                                               "node":  "IF: scrape success",
-                                                                               "type":  "main",
-                                                                               "index":  0
-                                                                           }
-                                                                       ]
-                                                                   ]
-                                                      },
-                        "Crawl4AI: Scrape":  {
-                                                 "main":  [
-                                                              [
-                                                                  {
-                                                                      "node":  "Crawl4AI: Format",
-                                                                      "type":  "main",
-                                                                      "index":  0
-                                                                  }
-                                                              ]
-                                                          ]
-                                             },
-                        "Crawl4AI: Format":  {
-                                                 "main":  [
-                                                              [
-                                                                  {
-                                                                      "node":  "IF: scrape success",
-                                                                      "type":  "main",
-                                                                      "index":  0
-                                                                  }
-                                                              ]
-                                                          ]
-                                             },
-                        "IF: scrape success":  {
-                                                   "main":  [
-                                                                [
-                                                                    {
-                                                                        "node":  "Split: XING Listings",
-                                                                        "type":  "main",
-                                                                        "index":  0
-                                                                    }
-                                                                ],
-                                                                [
-
-                                                                ]
-                                                            ]
-                                               },
-                        "Split: XING Listings":  {
-                                                     "main":  [
-                                                                  [
-                                                                      {
-                                                                          "node":  "Normalize Item",
-                                                                          "type":  "main",
-                                                                          "index":  0
-                                                                      }
-                                                                  ]
-                                                              ]
-                                                 },
-                        "Normalize Item":  {
-                                               "main":  [
-                                                            [
-                                                                {
-                                                                    "node":  "Skip Security Checks",
-                                                                    "type":  "main",
-                                                                    "index":  0
-                                                                }
-                                                            ]
-                                                        ]
-                                           },
-                        "Skip Security Checks":  {
-                                                     "main":  [
-                                                                  [
-                                                                      {
-                                                                          "node":  "LLM Call (OpenRouter)",
-                                                                          "type":  "main",
-                                                                          "index":  0
-                                                                      }
-                                                                  ]
-                                                              ]
-                                                 },
-                        "LLM Call (OpenRouter)":  {
-                                                      "main":  [
-                                                                   [
-                                                                       {
-                                                                           "node":  "Parse LLM Response",
-                                                                           "type":  "main",
-                                                                           "index":  0
-                                                                       }
-                                                                   ]
-                                                               ]
-                                                  },
-                        "Parse LLM Response":  {
-                                                   "main":  [
-                                                                [
-                                                                    {
-                                                                        "node":  "IF: is_job_related",
-                                                                        "type":  "main",
-                                                                        "index":  0
-                                                                    }
-                                                                ]
-                                                            ]
-                                               },
-                        "IF: is_job_related":  {
-                                                   "main":  [
-                                                                [
-                                                                    {
-                                                                        "node":  "Filter: Skip Expired",
-                                                                        "type":  "main",
-                                                                        "index":  0
-                                                                    }
-                                                                ],
-                                                                [
-
-                                                                ]
-                                                            ]
-                                               },
-                        "Prepare DB Params":  {
-                                                  "main":  [
-                                                               [
-                                                                   {
-                                                                       "node":  "DB: Write All",
-                                                                       "type":  "main",
-                                                                       "index":  0
-                                                                   }
-                                                               ]
-                                                           ]
-                                              },
-                        "DB: Write All":  {
-                                              "main":  [
-                                                           [
-                                                               {
-                                                                   "node":  "IF: priority = high",
-                                                                   "type":  "main",
-                                                                   "index":  0
-                                                               },
-                                                               {
-                                                                   "node":  "Notion: Create Card",
-                                                                   "type":  "main",
-                                                                   "index":  0
-                                                               }
-                                                           ]
-                                                       ]
-                                          },
-                        "IF: priority = high":  {
-                                                    "main":  [
-                                                                 [
-                                                                     {
-                                                                         "node":  "Telegram: Job Alert",
-                                                                         "type":  "main",
-                                                                         "index":  0
-                                                                     }
-                                                                 ],
-                                                                 [
-
-                                                                 ]
-                                                             ]
-                                                },
-                        "Filter: Skip Expired":  {
-                                                     "main":  [
-                                                                  [
-                                                                      {
-                                                                          "node":  "Prepare DB Params",
-                                                                          "type":  "main",
-                                                                          "index":  0
-                                                                      }
-                                                                  ]
-                                                              ]
-                                                 }
-                    },
-    "settings":  {
-                     "executionOrder":  "v1",
-                     "binaryMode":  "separate"
-                 }
+              ]
 }
