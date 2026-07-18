@@ -191,7 +191,7 @@ def _compute_fit(job: dict, profile: dict) -> dict | None:
     else:
         title_pts = 0
 
-    score = 35 + title_pts
+    score = 20 + title_pts
     if required_skills:
         score += int((len(matched_req) / len(required_skills)) * 40)
     if nice_skills:
