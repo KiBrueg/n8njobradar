@@ -96,7 +96,18 @@ Startups and mid-size preferred. Corporates acceptable if role involves real aut
 - Pure client-facing marketing automation (email campaigns, CRM outreach to end customers)
 - Pure UI/UX design with no technical automation component
 - Requires 5+ years official work experience as a hard requirement
-- Senior-level role
+- Senior / Lead / Principal / Staff / Head / Manager role
+- Platform Engineer, SRE, Infrastructure Engineer, Cloud Engineer (Kubernetes/Terraform-heavy)
+- Call Center, Customer Support, SDR, Sales, Account Management roles
+- Pflichtpraktikum or any Praktikum/Werkstudent requiring current student enrollment
+- Scam signals: crypto signals, investment returns promised, financial advice
+
+### Positive fit areas — boost relevance_score
+- Datenpflege, Datenbereinigung, Stammdatenpflege, Data Quality, Data Annotation (100% remote)
+- SAP Stammdaten, SAP Datenmigration, SAP BTP/CAP/Fiori junior tasks, SAP data cleaning
+- AI content automation, media workflow automation, content pipeline
+- Data labeling, data enrichment, deduplication, reporting automation
+- Internal tools, monitoring, parsing, alerting with automation angle
 
 ### relevance_score rules (scraped and manual inputs only)
 Only set for input_source = "scraped" or "manual".
