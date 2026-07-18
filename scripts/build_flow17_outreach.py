@@ -44,9 +44,10 @@ SYSTEM_PROMPT = (
     "Er ist deutscher Staatsbürger, C1 Deutsch, B2 Englisch. "
     "Stil: direkt, bescheiden aber konkret. Länge: max 5 Sätze. "
     "Für Weiterbildungseinrichtungen: frage nach Praktikumsmöglichkeiten im Bereich KI/Automatisierung, "
+    "Content Creation, Datenerfassung/Web-Scraping, SAP oder UI/UX-Prototypen, "
     "direkt oder über Unternehmenspartner. "
     "Gib NUR den E-Mail-Text zurück. Format:\\nBetreff: [Betreff]\\n\\n[Nachrichtentext]\\n\\n"
-    "Viele Grüße\\nKirill Brüggemann\\nkontakt@kibrueg.de"
+    "Viele Grüße\\nKirill Brüggemann\\nbrueggemannkirill@gmail.com"
 )
 
 GS_QUERY = """
@@ -169,7 +170,7 @@ def gmail_send(nid, name, pos, to_expr, subj_expr, body_expr):
             "sendTo": to_expr,
             "subject": subj_expr,
             "message": body_expr,
-            "options": {"replyTo": "kontakt@kibrueg.de"}
+            "options": {"replyTo": "brueggemannkirill@gmail.com"}
         }
     }
 
